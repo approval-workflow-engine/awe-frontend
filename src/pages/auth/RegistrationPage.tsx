@@ -6,17 +6,20 @@ import {
   Button,
   Typography,
   InputAdornment,
-  IconButton
+  IconButton,
+  Alert
 } from "@mui/material";
 import VisibilityIcon from "@mui/icons-material/Visibility";
 import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import LogoMark from "../../components/common/LogoMark";
 import { cardStyle, inputStyle, buttonStyle } from "../../styles/authStyles";
 import { registerSystem } from "../../api/auth.api";
 
 export default function RegisterPage() {
   const [showPw, setShowPw] = useState(false);
+  const [error, setError] = useState("");
+  const navigate = useNavigate();
 
   const [form, setForm] = useState({
     name: "",
@@ -36,7 +39,20 @@ export default function RegisterPage() {
 
   const handleSubmit = async (e: any) => {
     e.preventDefault();
-    await registerSystem(form);
+    setError("");
+
+    if (form.password !== form.confirmPassword) {
+      setError("Passwords do not match.");
+      return;
+    }
+
+    try {
+      await registerSystem(form);
+      navigate("/login");
+    } catch (err: any) {
+      const message = err?.response?.data?.message || "Registration failed. Please try again.";
+      setError(message);
+    }
   };
 
   return (
@@ -50,6 +66,12 @@ export default function RegisterPage() {
         <LogoMark />
 
         <form onSubmit={handleSubmit}>
+          {error && (
+            <Alert severity="error" sx={{ mb: 1 }}>
+              {error}
+            </Alert>
+          )}
+
           <TextField
             fullWidth
             label="System Name *"
@@ -89,9 +111,11 @@ export default function RegisterPage() {
           <TextField
             fullWidth
             label="Password *"
+            name="password"
             type={showPw ? "text" : "password"}
             size="small"
             sx={{ ...inputStyle, mb: 1 }}
+            onChange={handleChange}
             InputProps={{
               endAdornment: (
                 <InputAdornment position="end">
@@ -106,12 +130,14 @@ export default function RegisterPage() {
           <TextField
             fullWidth
             label="Confirm Password *"
+            name="confirmPassword"
             type="password"
             size="small"
             sx={{ ...inputStyle, mb: 1 }}
+            onChange={handleChange}
           />
 
-          <Button fullWidth variant="contained" sx={buttonStyle}>
+          <Button fullWidth variant="contained" type="submit" sx={buttonStyle}>
             Register System
           </Button>
         </form>

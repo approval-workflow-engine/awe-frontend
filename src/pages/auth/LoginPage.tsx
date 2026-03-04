@@ -58,9 +58,11 @@ export default function LoginPage() {
           <TextField
             fullWidth
             label="Password *"
+            name="password"
             type={showPw ? "text" : "password"}
             size="small"
             sx={{ ...inputStyle, mb: 2 }}
+            onChange={handleChange}
             InputProps={{
               endAdornment: (
                 <InputAdornment position="end">
@@ -72,7 +74,7 @@ export default function LoginPage() {
             }}
           />
 
-          <Button fullWidth variant="contained" sx={buttonStyle}>
+          <Button fullWidth variant="contained" type="submit" sx={buttonStyle}>
             Sign In
           </Button>
         </form>
