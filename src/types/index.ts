@@ -33,7 +33,8 @@ export interface ApiKey {
   id: string;
   label?: string;
   isRevoked: boolean;
-  modifiedAt: string;
+  createdAt: string;
+  revokedAt: string | null;
 }
 
 //  Auth 

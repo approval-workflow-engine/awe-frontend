@@ -8,7 +8,10 @@ import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import KeyIcon from '@mui/icons-material/Key';
-import { createApiKey, getApiKeys } from '../../api/authApi';
+import VpnKeyOutlinedIcon from '@mui/icons-material/VpnKeyOutlined';
+import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
+import CloseIcon from '@mui/icons-material/Close';
+import { createApiKey, getApiKeys, revokeApiKey } from '../../api/authApi';
 import { useApiCall } from '../../hooks/useApiCall';
 import { useApp } from '../../context/useApp';
 import type { ApiKey } from '../../types';
@@ -42,9 +45,9 @@ function KeyStatusChip({ isRevoked }: { isRevoked: boolean }) {
       sx={{
         fontSize: 11, height: 20, borderRadius: '99px', fontWeight: 600,
         textTransform: 'capitalize',
-        backgroundColor: isRevoked ? 'rgba(239,68,68,0.12)' : 'rgba(34,197,94,0.12)',
+        backgroundColor: isRevoked ? 'rgba(239,68,68,0.10)' : 'rgba(34,197,94,0.10)',
         color: isRevoked ? '#ef4444' : '#22c55e',
-        border: `1px solid ${isRevoked ? 'rgba(239,68,68,0.3)' : 'rgba(34,197,94,0.3)'}`,
+        border: `1px solid ${isRevoked ? 'rgba(239,68,68,0.25)' : 'rgba(34,197,94,0.25)'}`,
       }}
     />
   );
@@ -66,6 +69,13 @@ function InfoRow({ label, children }: { label: string; children: ReactNode }) {
   );
 }
 
+function fmtDate(iso: string | null | undefined) {
+  if (!iso) return '—';
+  return new Date(iso).toLocaleDateString('en-GB', {
+    day: '2-digit', month: 'short', year: 'numeric',
+  });
+}
+
 //  Main Settings Page
 
 export default function Settings() {
@@ -76,6 +86,10 @@ export default function Settings() {
 
   const [apiKeys, setApiKeys] = useState<ApiKey[]>([]);
   const [keysLoading, setKeysLoading] = useState(true);
+  const [revokingId, setRevokingId] = useState<string | null>(null);
+  const [revokeTarget, setRevokeTarget] = useState<ApiKey | null>(null);
+  const [infoDismissed, setInfoDismissed] = useState(false);
+  const [showRevoked, setShowRevoked] = useState(false);
 
   const [regenOpen, setRegenOpen] = useState(false);
   const [regenLabel, setRegenLabel] = useState('');
@@ -104,6 +118,27 @@ export default function Settings() {
   }, [fetchApiKeys]);
 
   //  Actions
+  const handleRevoke = (key: ApiKey) => {
+    setRevokeTarget(key);
+  };
+
+  const handleRevokeConfirm = async () => {
+    if (!revokeTarget) return;
+    const keyId = revokeTarget.id;
+    setRevokingId(keyId);
+    setRevokeTarget(null);
+    try {
+      await call(() => revokeApiKey(keyId), { showError: true });
+      setApiKeys(prev => prev.map(k =>
+        k.id === keyId
+          ? { ...k, isRevoked: true, revokedAt: new Date().toISOString() }
+          : k
+      ));
+    } finally {
+      setRevokingId(null);
+    }
+  };
+
   const handleRegenConfirm = async () => {
     setRegenLoading(true);
     try {
@@ -278,6 +313,7 @@ export default function Settings() {
 
         <Box sx={{ px: 2.5, py: 2 }}>
           {/* Blue info notice */}
+          {!infoDismissed && (
           <Box sx={{
             p: 1.5, borderRadius: '8px', mb: 2,
             backgroundColor: 'rgba(79,110,247,0.08)',
@@ -285,52 +321,170 @@ export default function Settings() {
             display: 'flex', alignItems: 'flex-start', gap: 1,
           }}>
             <InfoOutlinedIcon sx={{ color: '#4f6ef7', fontSize: 16, mt: 0.1, flexShrink: 0 }} />
-            <Typography sx={{ fontSize: 12, color: '#4f6ef7', lineHeight: 1.5 }}>
+            <Typography sx={{ fontSize: 12, color: '#4f6ef7', lineHeight: 1.5, flex: 1 }}>
               API key values can only be viewed <strong>once</strong> — at the moment of creation.
               Store them securely. Generating a new key immediately invalidates all existing keys.
             </Typography>
+            <IconButton
+              size="small"
+              onClick={() => setInfoDismissed(true)}
+              sx={{ color: '#4f6ef7', opacity: 0.6, '&:hover': { opacity: 1 }, flexShrink: 0, mt: -0.25, mr: -0.5 }}
+            >
+              <CloseIcon sx={{ fontSize: 14 }} />
+            </IconButton>
           </Box>
+          )}
 
           {/* Key list */}
           {keysLoading ? (
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+            <Box sx={{ display: 'flex', flexDirection: 'column' }}>
               {[0, 1].map(i => (
-                <Box key={i} sx={{ p: 1.5, borderRadius: '8px', border: '1px solid', borderColor: 'divider', backgroundColor: 'action.hover' }}>
-                  <Skeleton variant="text" width={160} height={16} />
-                  <Skeleton variant="text" width={100} height={13} sx={{ mt: 0.5 }} />
-                </Box>
-              ))}
-            </Box>
-          ) : apiKeys.length > 0 ? (
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-              {apiKeys.map(key => (
                 <Box
-                  key={key.id}
+                  key={i}
                   sx={{
-                    p: 1.5, borderRadius: '8px',
-                    border: '1px solid', borderColor: 'divider',
-                    backgroundColor: 'action.hover',
-                    display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2,
+                    display: 'flex', alignItems: 'center', gap: 2, px: 1.5, py: 1.5,
+                    borderBottom: i === 0 ? '1px solid' : 'none', borderColor: 'divider',
                   }}
                 >
-                  <Box sx={{ minWidth: 0 }}>
-                    <Typography sx={{ fontSize: 13, fontWeight: 500, color: 'text.primary' }}>
-                      {key.label || 'Unnamed Key'}
-                    </Typography>
-                    <Typography sx={{ fontSize: 11, color: 'text.disabled', mt: 0.25 }}>
-                      Modified{' '}
-                      {key.modifiedAt
-                        ? new Date(key.modifiedAt).toLocaleDateString('en-GB', {
-                            day: '2-digit', month: 'short', year: 'numeric',
-                          })
-                        : '—'}
-                    </Typography>
+                  <Skeleton variant="rounded" width={32} height={32} sx={{ borderRadius: '8px', flexShrink: 0 }} />
+                  <Box sx={{ flex: 1 }}>
+                    <Skeleton variant="text" width={140} height={15} />
+                    <Skeleton variant="text" width={100} height={12} sx={{ mt: 0.5 }} />
                   </Box>
-                  <KeyStatusChip isRevoked={key.isRevoked} />
+                  <Skeleton variant="rounded" width={52} height={20} sx={{ borderRadius: '99px' }} />
                 </Box>
               ))}
             </Box>
-          ) : (
+          ) : apiKeys.length > 0 ? (() => {
+            const activeKeys = apiKeys.filter(k => !k.isRevoked);
+            const revokedKeys = apiKeys.filter(k => k.isRevoked);
+
+            const renderRow = (key: ApiKey, idx: number, total: number) => (
+              <Box
+                key={key.id}
+                sx={{
+                  display: 'flex', alignItems: 'center', gap: 2,
+                  px: 1.5, py: 1.5,
+                  borderBottom: idx < total - 1 ? '1px solid' : 'none',
+                  borderColor: 'divider',
+                  transition: 'background-color 0.15s',
+                  '&:hover': { backgroundColor: 'action.hover' },
+                  '&:hover .revoke-btn': { opacity: 1 },
+                }}
+              >
+                {/* Key icon */}
+                <Box sx={{
+                  width: 32, height: 32, borderRadius: '8px', flexShrink: 0,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  backgroundColor: key.isRevoked ? 'rgba(239,68,68,0.08)' : 'rgba(79,110,247,0.10)',
+                }}>
+                  <VpnKeyOutlinedIcon sx={{ fontSize: 15, color: key.isRevoked ? '#ef4444' : '#4f6ef7' }} />
+                </Box>
+
+                {/* Label + dates */}
+                <Box sx={{ flex: 1, minWidth: 0 }}>
+                  <Typography sx={{
+                    fontSize: 13, fontWeight: 600, lineHeight: 1.3,
+                    color: key.isRevoked ? 'text.secondary' : 'text.primary',
+                  }}>
+                    {key.label || 'Unnamed Key'}
+                  </Typography>
+                  <Box display="flex" alignItems="center" gap={1.5} mt={0.25} flexWrap="wrap">
+                    <Typography sx={{ fontSize: 11, color: 'text.disabled' }}>
+                      Created {fmtDate(key.createdAt)}
+                    </Typography>
+                    {key.isRevoked && key.revokedAt && (
+                      <>
+                        <Box sx={{ width: 3, height: 3, borderRadius: '50%', backgroundColor: 'text.disabled', flexShrink: 0 }} />
+                        <Typography sx={{ fontSize: 11, color: '#ef4444' }}>
+                          Revoked {fmtDate(key.revokedAt)}
+                        </Typography>
+                      </>
+                    )}
+                  </Box>
+                </Box>
+
+                {/* Status + revoke */}
+                <Box display="flex" alignItems="center" gap={1} sx={{ flexShrink: 0 }}>
+                  <KeyStatusChip isRevoked={key.isRevoked} />
+                  {!key.isRevoked && (
+                    <Tooltip title="Revoke key" placement="left">
+                      <span>
+                        <IconButton
+                          className="revoke-btn"
+                          size="small"
+                          disabled={revokingId === key.id}
+                          onClick={() => handleRevoke(key)}
+                          sx={{
+                            opacity: 0,
+                            color: 'text.disabled',
+                            transition: 'opacity 0.15s, color 0.15s',
+                            '&:hover': { color: '#ef4444' },
+                            '&.Mui-disabled': { opacity: 0.4 },
+                          }}
+                        >
+                          {revokingId === key.id
+                            ? <CircularProgress size={14} />
+                            : <DeleteOutlineIcon sx={{ fontSize: 16 }} />
+                          }
+                        </IconButton>
+                      </span>
+                    </Tooltip>
+                  )}
+                </Box>
+              </Box>
+            );
+
+            return (
+              <Box>
+                {/* Active keys */}
+                <Box sx={{ display: 'flex', flexDirection: 'column' }}>
+                  {activeKeys.length > 0
+                    ? activeKeys.map((key, idx) => renderRow(key, idx, activeKeys.length))
+                    : (
+                      <Box sx={{ px: 1.5, py: 2 }}>
+                        <Typography sx={{ fontSize: 12, color: 'text.disabled' }}>No active keys.</Typography>
+                      </Box>
+                    )
+                  }
+                </Box>
+
+                {/* Revoked section toggle */}
+                {revokedKeys.length > 0 && (
+                  <>
+                    <Box
+                      sx={{
+                        display: 'flex', alignItems: 'center', gap: 1.5, mt: 1.5,
+                        borderTop: '1px solid', borderColor: 'divider', pt: 1.5,
+                      }}
+                    >
+                      <Typography sx={{ fontSize: 11, fontWeight: 600, color: 'text.disabled', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                        Revoked
+                      </Typography>
+                      <Chip
+                        label={revokedKeys.length}
+                        size="small"
+                        sx={{ height: 16, fontSize: 10, fontWeight: 700, backgroundColor: 'rgba(239,68,68,0.10)', color: '#ef4444', border: 'none' }}
+                      />
+                      <Box sx={{ flex: 1 }} />
+                      <Button
+                        size="small"
+                        onClick={() => setShowRevoked(v => !v)}
+                        sx={{ fontSize: 11, fontWeight: 600, color: 'text.secondary', minWidth: 0, px: 1, height: 24, '&:hover': { color: 'text.primary' } }}
+                      >
+                        {showRevoked ? 'Hide' : 'See all'}
+                      </Button>
+                    </Box>
+                    {showRevoked && (
+                      <Box sx={{ display: 'flex', flexDirection: 'column', mt: 0.5 }}>
+                        {revokedKeys.map((key, idx) => renderRow(key, idx, revokedKeys.length))}
+                      </Box>
+                    )}
+                  </>
+                )}
+              </Box>
+            );
+          })() : (
             <Box sx={{ py: 3, textAlign: 'center' }}>
               <Typography sx={{ fontSize: 13, color: 'text.disabled' }}>
                 No API keys found. Generate one using the button above.
@@ -339,6 +493,46 @@ export default function Settings() {
           )}
         </Box>
       </Paper>
+
+      {/*  Revoke Confirmation Dialog  */}
+      <Dialog
+        open={!!revokeTarget}
+        onClose={() => setRevokeTarget(null)}
+        maxWidth="xs"
+        fullWidth
+      >
+        <DialogTitle sx={{ fontFamily: "'Syne', sans-serif", fontWeight: 700, fontSize: 16, color: '#ef4444' }}>
+          Revoke API Key?
+        </DialogTitle>
+        <DialogContent sx={{ pt: '8px !important' }}>
+          <Typography sx={{ fontSize: 13, color: 'text.secondary' }}>
+            Are you sure you want to revoke{' '}
+            <strong style={{ color: 'inherit' }}>{revokeTarget?.label || 'Unnamed Key'}</strong>?
+            This action cannot be undone and any integrations using this key will stop working immediately.
+          </Typography>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button
+            size="small"
+            onClick={() => setRevokeTarget(null)}
+            sx={{ color: 'text.secondary' }}
+          >
+            Cancel
+          </Button>
+          <Button
+            variant="contained"
+            size="small"
+            onClick={handleRevokeConfirm}
+            sx={{
+              borderRadius: '8px', fontWeight: 600,
+              backgroundColor: '#ef4444', color: '#fff',
+              '&:hover': { backgroundColor: '#dc2626' },
+            }}
+          >
+            Revoke Key
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       {/*  Generate Dialog  */}
       <Dialog

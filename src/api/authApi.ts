@@ -23,4 +23,4 @@ export const createApiKey = (data: { label?: string }) =>
   axiosClient.post('/systems/api-keys', data);
 
 export const revokeApiKey = (keyId: string) =>
-  axiosClient.patch('/systems/api-keys/revoke', { keyId });
+  axiosClient.patch(`/systems/api-keys/${keyId}/revoke`);
