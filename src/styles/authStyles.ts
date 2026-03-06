@@ -1,25 +1,21 @@
+// Layout-only — colors come from the MUI theme (Paper, OutlinedInput, Button)
 export const cardStyle = {
   width: "100%",
-  maxWidth: 300,
-  padding: "16px",
-  borderRadius: "12px",
-  background: "#ffffff",
-  border: "1px solid #e5e7eb",
-  boxShadow: "0 6px 20px rgba(0,0,0,0.06)",
+  maxWidth: 400,
+  p: "28px 32px 24px",
 };
 
+// Input field overrides — theme handles colors, this controls only shape
 export const inputStyle = {
   "& .MuiOutlinedInput-root": {
-    borderRadius: "6px",
-    background: "#ffffff",
+    borderRadius: "8px",
   },
 };
 
+// Button overrides — variant="contained" picks up primary.main from theme
 export const buttonStyle = {
   mt: 1,
-  height: "32px",
-  borderRadius: "6px",
+  height: "40px",
   fontWeight: 600,
-  fontSize: "12px",
-  background: "linear-gradient(90deg,#5a6cff,#4f6ef7)",
+  fontSize: "14px",
 };
