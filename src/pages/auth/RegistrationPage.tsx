@@ -63,13 +63,13 @@ export default function RegisterPage() {
       { showError: true }
     );
     if (data) {
-      // Extract API key from response — may be at different levels depending on backend
+      // Extract API key from response - may be at different levels depending on backend
       const resp = data as { data?: { apiKey?: string } };
       const key = resp?.data?.apiKey || null;
       if (key) {
         setApiKey(key);
       } else {
-        // No API key in response — go directly to login
+        // No API key in response - go directly to login
         navigate("/login", { replace: true });
       }
     }
@@ -323,7 +323,7 @@ export default function RegisterPage() {
               '&:hover': { backgroundColor: '#d97706' },
             }}
           >
-            I've stored my key — Close
+            I've stored my key - Close
           </Button>
         </DialogContent>
       </Dialog>

@@ -1,7 +1,7 @@
 // Node Type Definitions
 
-export const NODE_WIDTH = 168;
-export const NODE_HEIGHT = 64;
+export const NODE_WIDTH = 180;
+export const NODE_MIN_HEIGHT = 56;
 
 export interface PaletteNodeType {
   type: string;
@@ -48,7 +48,7 @@ export function getNodeTypeLabel(type: string): string {
   return map[type] || type;
 }
 
-//  Canvas State Types 
+//  Canvas State Types
 
 export interface CanvasNode {
   id: string;
@@ -63,6 +63,7 @@ export interface CanvasEdge {
   id: string;
   source: string;
   target: string;
+  sourcePort: string;
   condition: string;
   isDefault: boolean;
 }
@@ -78,7 +79,38 @@ export type SelectedItem =
   | { id: string; type: 'edge' }
   | null;
 
-//  Helpers 
+//  Port System
+
+export interface NodePort {
+  id: string;
+  label: string;
+}
+
+export function getOutputPorts(node: CanvasNode): NodePort[] {
+  switch (node.type) {
+    case 'exclusive_gateway': {
+      const branches = (node.config.branches as Array<{ label: string }>) ?? [];
+      return branches.map((b, i) => ({ id: `branch_${i}`, label: b.label || `Branch ${i + 1}` }));
+    }
+    case 'end':
+      return [];
+    default:
+      return [{ id: 'out', label: '' }];
+  }
+}
+
+// Returns 0..1 fractional vertical position for port within card
+export function portYFraction(portIndex: number, totalPorts: number): number {
+  if (totalPorts <= 1) return 0.5;
+  return (portIndex + 1) / (totalPorts + 1);
+}
+
+// Estimated card height for SVG edge endpoint calculation
+export function estimateCardHeight(_node: CanvasNode): number {
+  return NODE_MIN_HEIGHT;
+}
+
+//  Helpers
 
 export function generateId(prefix: string): string {
   return `${prefix}_${Math.random().toString(36).slice(2, 8)}`;
@@ -114,6 +146,7 @@ export function canvasToDefinition(
       id: e.id,
       source: e.source,
       target: e.target,
+      sourcePort: e.sourcePort || undefined,
       condition: e.condition || undefined,
       isDefault: e.isDefault || undefined,
     })),
@@ -137,6 +170,7 @@ export function definitionToCanvas(versionData: {
     source?: string;
     targetNodeId?: string;
     target?: string;
+    sourcePort?: string;
     conditionExpression?: string;
     condition?: string;
     isDefault?: boolean;
@@ -158,13 +192,13 @@ export function definitionToCanvas(versionData: {
       sourceNodeId?: string;
       target?: string;
       targetNodeId?: string;
+      sourcePort?: string;
       conditionExpression?: string;
       condition?: string;
       isDefault?: boolean;
     }>;
   };
 }): { nodes: CanvasNode[]; edges: CanvasEdge[]; inputs: WorkflowInput[] } {
-  // Support both top-level nodes/edges and nested definition
   const rawNodes = versionData.nodes || versionData.definition?.nodes || [];
   const rawEdges = versionData.edges || versionData.definition?.edges || [];
   const inputs = versionData.definition?.inputs || [];
@@ -182,6 +216,7 @@ export function definitionToCanvas(versionData: {
     id: e.edgeId || e.id || generateId('edge'),
     source: e.sourceNodeId || e.source || '',
     target: e.targetNodeId || e.target || '',
+    sourcePort: e.sourcePort || 'out',
     condition: e.conditionExpression || e.condition || '',
     isDefault: e.isDefault || false,
   }));

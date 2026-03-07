@@ -22,7 +22,7 @@ export const darkTheme: Theme = createTheme({
   palette: {
     mode: 'dark',
     background: {
-      default: '#12141c',  // was #0a0b0f — lifted from near-black
+      default: '#12141c',  // was #0a0b0f - lifted from near-black
       paper: '#181a24',    // was #0f1117
     },
     primary: { main: '#4f6ef7' },
@@ -34,7 +34,7 @@ export const darkTheme: Theme = createTheme({
     text: {
       primary: '#e8eaf2',
       secondary: '#8b91a8',
-      disabled: '#636882',  // was #555c78 — slightly more visible
+      disabled: '#636882',  // was #555c78 - slightly more visible
     },
     divider: '#22273a',  // was #1f2437
   },

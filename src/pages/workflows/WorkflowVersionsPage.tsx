@@ -68,7 +68,7 @@ export default function WorkflowVersionsPage() {
   };
 
   const formatDate = (iso?: string | null) => {
-    if (!iso) return '—';
+    if (!iso) return '-';
     return new Date(iso).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
   };
 

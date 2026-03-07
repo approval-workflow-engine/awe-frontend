@@ -82,7 +82,7 @@ axiosClient.interceptors.response.use(
         return axiosClient(originalRequest);
       } catch (refreshError) {
         processQueue(refreshError, null);
-        // Do not force-logout on refresh failure — surface as error toast instead.
+        // Do not force-logout on refresh failure - surface as error toast instead.
         // clearAndRedirect() is reserved for the case where no valid refresh token exists.
         return Promise.reject(refreshError);
       } finally {

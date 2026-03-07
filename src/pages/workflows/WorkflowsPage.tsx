@@ -11,13 +11,11 @@ import AddIcon from '@mui/icons-material/Add';
 import AccountTreeIcon from '@mui/icons-material/AccountTree';
 import HistoryIcon from '@mui/icons-material/History';
 import EditIcon from '@mui/icons-material/Edit';
-import PlayArrowIcon from '@mui/icons-material/PlayArrow';
-import StopIcon from '@mui/icons-material/Stop';
 import RocketLaunchIcon from '@mui/icons-material/RocketLaunch';
 import DeleteIcon from '@mui/icons-material/Delete';
 import {
   getWorkflows, createWorkflow, updateWorkflow,
-  updateWorkflowStatus, deleteWorkflow,
+  deleteWorkflow,
 } from '../../api/workflowApi';
 import { createInstance as startInstance } from '../../api/instanceApi';
 import { useApiCall } from '../../hooks/useApiCall';
@@ -137,16 +135,6 @@ export default function WorkflowsPage() {
     } finally {
       setEditLoading(false);
     }
-  };
-
-  //  Toggle Status 
-  const handleToggleStatus = async (wf: Workflow) => {
-    const newStatus = wf.status === 'active' ? 'inactive' : 'active';
-    await call(
-      () => updateWorkflowStatus(wf.id, newStatus),
-      { showError: true }
-    );
-    fetchWorkflows(page, filter);
   };
 
   //  Delete Workflow 
@@ -322,12 +310,12 @@ export default function WorkflowsPage() {
                     </TableCell>
                     <TableCell>
                       <Typography sx={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12, color: 'text.secondary' }}>
-                        {wf.versionCount ?? '—'}
+                        {wf.versionCount ?? '-'}
                       </Typography>
                     </TableCell>
                     <TableCell>
                       <Typography sx={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 11, color: 'text.disabled' }}>
-                        {wf.createdAt ? new Date(wf.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'}
+                        {wf.createdAt ? new Date(wf.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '-'}
                       </Typography>
                     </TableCell>
                     <TableCell align="right">
@@ -350,14 +338,6 @@ export default function WorkflowsPage() {
                         <Tooltip title="Edit">
                           <IconButton size="small" onClick={() => openEdit(wf)} sx={{ color: 'text.disabled', '&:hover': { color: 'primary.main' } }}>
                             <EditIcon fontSize="small" />
-                          </IconButton>
-                        </Tooltip>
-
-                        {/* Toggle status */}
-                        <Tooltip title={wf.status === 'active' ? 'Deactivate' : 'Activate'}>
-                          <IconButton size="small" onClick={() => handleToggleStatus(wf)}
-                            sx={{ color: wf.status === 'active' ? '#22c55e' : 'text.disabled', '&:hover': { color: wf.status === 'active' ? '#ef4444' : '#22c55e' } }}>
-                            {wf.status === 'active' ? <StopIcon fontSize="small" /> : <PlayArrowIcon fontSize="small" />}
                           </IconButton>
                         </Tooltip>
 
@@ -505,7 +485,7 @@ export default function WorkflowsPage() {
       {/*  Launch Instance Dialog  */}
       <Dialog open={launchOpen} onClose={() => { if (!launchLoading) setLaunchOpen(false); }} maxWidth="sm" fullWidth>
         <DialogTitle sx={{ fontFamily: "'Syne', sans-serif", fontWeight: 700, fontSize: 16 }}>
-          Start Instance — {launchTarget?.name}
+          Start Instance - {launchTarget?.name}
         </DialogTitle>
         <DialogContent sx={{ pt: '8px !important' }}>
           <Typography sx={{ fontSize: 12, color: 'text.secondary', mb: 1.5 }}>

@@ -68,18 +68,7 @@ function PaletteCard({ node }: PaletteCardProps) {
 
 export default function NodePalette() {
   return (
-    <Box
-      sx={{
-        width: 160,
-        flexShrink: 0,
-        borderRight: '1px solid',
-        borderColor: 'divider',
-        backgroundColor: 'background.default',
-        display: 'flex',
-        flexDirection: 'column',
-        overflowY: 'auto',
-      }}
-    >
+    <Box sx={{ pb: 1 }}>
       <Box sx={{ px: 1.5, pt: 2, pb: 1 }}>
         <Typography
           sx={{
@@ -93,7 +82,7 @@ export default function NodePalette() {
           Nodes
         </Typography>
       </Box>
-      <Box sx={{ px: 1, pb: 2, display: 'flex', flexDirection: 'column', gap: 0.75 }}>
+      <Box sx={{ px: 1, display: 'flex', flexDirection: 'column', gap: 0.75 }}>
         {PALETTE_NODES.map(node => (
           <PaletteCard key={node.type} node={node} />
         ))}

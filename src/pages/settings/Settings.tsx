@@ -70,7 +70,7 @@ function InfoRow({ label, children }: { label: string; children: ReactNode }) {
 }
 
 function fmtDate(iso: string | null | undefined) {
-  if (!iso) return '—';
+  if (!iso) return '-';
   return new Date(iso).toLocaleDateString('en-GB', {
     day: '2-digit', month: 'short', year: 'numeric',
   });
@@ -266,7 +266,7 @@ export default function Settings() {
                         day: '2-digit', month: 'short', year: 'numeric',
                         hour: '2-digit', minute: '2-digit',
                       })
-                    : '—'}
+                    : '-'}
                 </Typography>
               </InfoRow>
             </>
@@ -301,10 +301,10 @@ export default function Settings() {
             onClick={() => { setRegenLabel(''); setRegenOpen(true); }}
             sx={{
               borderRadius: '8px', fontWeight: 600, fontSize: 12, height: 32,
-              backgroundColor: 'rgba(245,158,11,0.1)',
-              color: '#f59e0b',
-              border: '1px solid rgba(245,158,11,0.3)',
-              '&:hover': { backgroundColor: 'rgba(245,158,11,0.2)' },
+              backgroundColor: 'rgba(79,110,247,0.1)',
+              color: '#4f6ef7',
+              border: '1px solid rgba(79,110,247,0.3)',
+              '&:hover': { backgroundColor: 'rgba(79,110,247,0.2)' },
             }}
           >
             Generate API Key
@@ -322,7 +322,7 @@ export default function Settings() {
           }}>
             <InfoOutlinedIcon sx={{ color: '#4f6ef7', fontSize: 16, mt: 0.1, flexShrink: 0 }} />
             <Typography sx={{ fontSize: 12, color: '#4f6ef7', lineHeight: 1.5, flex: 1 }}>
-              API key values can only be viewed <strong>once</strong> — at the moment of creation.
+              API key values can only be viewed <strong>once</strong> - at the moment of creation.
               Store them securely. Generating a new key immediately invalidates all existing keys.
             </Typography>
             <IconButton
@@ -555,18 +555,6 @@ export default function Settings() {
             sx={{ mb: 2, '& .MuiOutlinedInput-root': { borderRadius: '8px' } }}
             autoFocus
           />
-          <Box sx={{
-            p: 1.5, borderRadius: '8px',
-            backgroundColor: 'rgba(239,68,68,0.08)',
-            border: '1px solid rgba(239,68,68,0.25)',
-            display: 'flex', alignItems: 'flex-start', gap: 1,
-          }}>
-            <WarningAmberIcon sx={{ color: '#ef4444', fontSize: 16, mt: 0.1, flexShrink: 0 }} />
-            <Typography sx={{ fontSize: 12, color: '#ef4444', lineHeight: 1.5 }}>
-              All existing API keys will be <strong>immediately invalidated</strong> upon confirmation.
-              Any integrations using old keys will stop working.
-            </Typography>
-          </Box>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>
           <Button
@@ -584,8 +572,8 @@ export default function Settings() {
             onClick={handleRegenConfirm}
             sx={{
               borderRadius: '8px', fontWeight: 600,
-              backgroundColor: '#f59e0b', color: '#0a0b0f',
-              '&:hover': { backgroundColor: '#d97706' },
+              backgroundColor: 'rgba(79,110,247,0.9)', color: '#fff',
+              '&:hover': { backgroundColor: '#4f6ef7' },
             }}
           >
             {regenLoading ? <CircularProgress size={14} /> : 'Generate'}
@@ -621,7 +609,7 @@ export default function Settings() {
                 New API Key Generated
               </Typography>
               <Typography sx={{ fontSize: 12, color: 'text.secondary' }}>
-                Copy it now — it won't be shown again
+                Copy it now - it won't be shown again
               </Typography>
             </Box>
           </Box>
@@ -680,7 +668,7 @@ export default function Settings() {
               '&:hover': { backgroundColor: '#d97706' },
             }}
           >
-            I've stored my key — Close
+            I've stored my key - Close
           </Button>
         </DialogContent>
       </Dialog>

@@ -24,7 +24,7 @@ const STAT_CARDS: StatCardDef[] = [
 ];
 
 function formatDate(iso?: string | null) {
-  if (!iso) return '—';
+  if (!iso) return '-';
   return new Date(iso).toLocaleDateString('en-GB', {
     day: '2-digit', month: 'short', year: 'numeric',
   });
@@ -138,7 +138,7 @@ export default function Dashboard() {
         setTasks([]);
       }
     } catch {
-      // Silently degrade — individual stats already handled via allSettled
+      // Silently degrade - individual stats already handled via allSettled
     }
   }, []);
 
@@ -266,7 +266,7 @@ export default function Dashboard() {
                         {task.title || task.nodeId || 'Untitled Task'}
                       </Typography>
                       <Typography sx={{ fontSize: 11, color: 'text.disabled', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                        {task.assignee || task.assigneeEmail || '—'}
+                        {task.assignee || task.assigneeEmail || '-'}
                       </Typography>
                     </Box>
                     <Typography sx={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 11, color: 'text.disabled', flexShrink: 0 }}>

@@ -12,6 +12,7 @@ import ErrorIcon from '@mui/icons-material/Error';
 import SaveIcon from '@mui/icons-material/Save';
 import PublishIcon from '@mui/icons-material/Publish';
 import DeleteIcon from '@mui/icons-material/Delete';
+import LayersClearIcon from '@mui/icons-material/LayersClear';
 
 import { getWorkflow, getWorkflowVersion, validateWorkflowDefinition, createWorkflowVersion, publishVersion } from '../../api/workflowApi';
 import { useApiCall } from '../../hooks/useApiCall';
@@ -19,6 +20,8 @@ import NodePalette from './builder/NodePalette';
 import CanvasPanel from './builder/CanvasPanel';
 import ConfigPanel from './builder/ConfigPanel';
 import InputsDialog from './builder/InputsDialog';
+import ContextVarsPanel from './builder/ContextVarsPanel';
+import ScriptTaskEditorPanel from './builder/ScriptTaskEditorPanel';
 import { type CanvasNode, type CanvasEdge, type WorkflowInput, type SelectedItem, buildStartNode, canvasToDefinition, definitionToCanvas } from './builder/builderTypes';
 
 interface ValidationResult {
@@ -31,7 +34,7 @@ export default function WorkflowBuilder() {
   const navigate = useNavigate();
   const { call } = useApiCall();
 
-  //  Data 
+  //  Data
   const [workflowName, setWorkflowName] = useState('');
   const [nodes, setNodes] = useState<CanvasNode[]>([buildStartNode()]);
   const [edges, setEdges] = useState<CanvasEdge[]>([]);
@@ -39,9 +42,9 @@ export default function WorkflowBuilder() {
   const [loadedVersionNumber, setLoadedVersionNumber] = useState<number | null>(null);
   const [savedVersionNumber, setSavedVersionNumber] = useState<number | null>(null);
 
-  //  UI state 
+  //  UI state
   const [selectedItem, setSelectedItem] = useState<SelectedItem>(null);
-  const [connectingFrom, setConnectingFrom] = useState<string | null>(null);
+  const [connectingFrom, setConnectingFrom] = useState<{ nodeId: string; portId: string } | null>(null);
   const [inputsOpen, setInputsOpen] = useState(false);
   const [validating, setValidating] = useState(false);
   const [validationResult, setValidationResult] = useState<ValidationResult | null>(null);
@@ -49,9 +52,12 @@ export default function WorkflowBuilder() {
   const [saving, setSaving] = useState(false);
   const [publishing, setPublishing] = useState(false);
   const [publishConfirmOpen, setPublishConfirmOpen] = useState(false);
+  const [codeEditorOpen, setCodeEditorOpen] = useState(false);
+  const [clearConfirmOpen, setClearConfirmOpen] = useState(false);
 
-  //  Unsaved-changes tracking 
+  //  Unsaved-changes tracking
   const [isDirty, setIsDirty] = useState(false);
+
   // Prevents the initial load from being treated as a user change
   const markDirtyEnabled = useRef(false);
   const markDirty = useCallback(() => {
@@ -73,7 +79,7 @@ export default function WorkflowBuilder() {
     return () => window.removeEventListener('beforeunload', handler);
   }, [isDirty]);
 
-  //  Load data 
+  //  Load data
   useEffect(() => {
     if (!workflowId) return;
     markDirtyEnabled.current = false;
@@ -111,7 +117,7 @@ export default function WorkflowBuilder() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [workflowId, versionNumber]);
 
-  //  Canvas actions 
+  //  Canvas actions
   const handleUpdateNode = useCallback((id: string, updates: Partial<CanvasNode>) => {
     setNodes(prev => prev.map(n => n.id === id ? { ...n, ...updates } : n));
     markDirty();
@@ -132,6 +138,11 @@ export default function WorkflowBuilder() {
     markDirty();
   }, [markDirty]);
 
+  const handleDeleteEdge = useCallback((id: string) => {
+    setEdges(prev => prev.filter(e => e.id !== id));
+    markDirty();
+  }, [markDirty]);
+
   const handleDeleteSelected = useCallback(() => {
     if (!selectedItem) return;
     if (selectedItem.type === 'node') {
@@ -145,12 +156,42 @@ export default function WorkflowBuilder() {
     markDirty();
   }, [selectedItem, markDirty]);
 
-  //  Toolbar actions 
+  const handleClearCanvas = useCallback(() => {
+    setNodes([buildStartNode()]);
+    setEdges([]);
+    setSelectedItem(null);
+    setCodeEditorOpen(false);
+    markDirty();
+    setClearConfirmOpen(false);
+  }, [markDirty]);
+
+  // Keyboard Delete
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      // Don't trigger when typing in an input/textarea/contenteditable
+      const target = e.target as HTMLElement;
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) return;
+      if (e.key === 'Delete' && selectedItem) handleDeleteSelected();
+    };
+    document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
+  }, [selectedItem, handleDeleteSelected]);
+
+  // Close code editor when selected node is no longer a script_task
+  useEffect(() => {
+    const node = nodes.find(n => n.id === selectedItem?.id);
+    if (codeEditorOpen && (!node || node.type !== 'script_task')) {
+      setCodeEditorOpen(false);
+    }
+  }, [selectedItem, nodes, codeEditorOpen]);
+
+  //  Toolbar actions
   const handleValidate = async (e: React.MouseEvent<HTMLButtonElement>) => {
     if (!workflowId) return;
     setValidating(true);
     setValidationResult(null);
     const def = canvasToDefinition(nodes, edges, inputs);
+    console.log(JSON.stringify(def))
     const res = await call(() => validateWorkflowDefinition(def), { showError: false });
     if (res) {
       const body = res as { data?: ValidationResult };
@@ -192,7 +233,7 @@ export default function WorkflowBuilder() {
     navigate(`/workflows/${workflowId}/versions`);
   };
 
-  //  Version chip label 
+  //  Derived values
   const versionLabel = loadedVersionNumber
     ? `v${loadedVersionNumber}`
     : savedVersionNumber
@@ -201,6 +242,8 @@ export default function WorkflowBuilder() {
 
   const canDelete = selectedItem &&
     !(selectedItem.type === 'node' && selectedItem.id === 'start_1');
+
+  const selectedScriptNode = nodes.find(n => n.id === selectedItem?.id && n.type === 'script_task') ?? null;
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', height: '100vh', backgroundColor: 'background.default', overflow: 'hidden' }}>
@@ -266,6 +309,17 @@ export default function WorkflowBuilder() {
           variant="outlined"
         >
           Inputs
+        </Button>
+
+        {/* Clear Canvas */}
+        <Button
+          size="small"
+          startIcon={<LayersClearIcon sx={{ fontSize: 14 }} />}
+          onClick={() => setClearConfirmOpen(true)}
+          sx={{ fontSize: 12, color: 'text.secondary', borderColor: 'divider', height: 30, borderRadius: '8px' }}
+          variant="outlined"
+        >
+          Clear
         </Button>
 
         {/* Validate */}
@@ -338,41 +392,66 @@ export default function WorkflowBuilder() {
           disabled={publishing || !savedVersionNumber}
           onClick={() => setPublishConfirmOpen(true)}
           startIcon={publishing ? <CircularProgress size={12} /> : <PublishIcon sx={{ fontSize: 14 }} />}
-          sx={{ fontSize: 12, height: 30, borderRadius: '8px', fontWeight: 600, backgroundColor: '#22c55e', color: '#12141c', '&:hover': { backgroundColor: '#16a34a' }, '&.Mui-disabled': { backgroundColor: '#22c55e33', color: '#22c55e66' } }}
+          sx={{ fontSize: 12, height: 34, borderRadius: '8px', fontWeight: 700, backgroundColor: '#22c55e', color: '#12141c', '&:hover': { backgroundColor: '#16a34a' }, '&.Mui-disabled': { backgroundColor: '#22c55e33', color: '#22c55e66' } }}
         >
           Publish
         </Button>
       </Box>
 
-      {/*  Three-panel layout  */}
-      <Box sx={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
-        <NodePalette />
+      {/*  Three-panel layout + code editor  */}
+      <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+        <Box sx={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
+          {/* Left sidebar */}
+          <Box sx={{
+            width: 200, flexShrink: 0, borderRight: '1px solid', borderColor: 'divider',
+            backgroundColor: 'background.default', display: 'flex', flexDirection: 'column',
+            overflow: 'hidden',
+          }}>
+            <NodePalette />
+            <Divider />
+            <ContextVarsPanel nodes={nodes} inputs={inputs} />
+          </Box>
 
-        <CanvasPanel
-          nodes={nodes}
-          edges={edges}
-          selectedItem={selectedItem}
-          connectingFrom={connectingFrom}
-          onUpdateNode={handleUpdateNode}
-          onAddNode={handleAddNode}
-          onAddEdge={handleAddEdge}
-          onSelectItem={setSelectedItem}
-          onStartConnect={nodeId => {
-            setSelectedItem(null);
-            setConnectingFrom(nodeId);
-          }}
-          onCancelConnect={() => setConnectingFrom(null)}
-        />
+          <CanvasPanel
+            nodes={nodes}
+            edges={edges}
+            selectedItem={selectedItem}
+            connectingFrom={connectingFrom}
+            onUpdateNode={handleUpdateNode}
+            onAddNode={handleAddNode}
+            onAddEdge={handleAddEdge}
+            onSelectItem={setSelectedItem}
+            onStartConnect={(nodeId, portId) => {
+              setSelectedItem(null);
+              setConnectingFrom({ nodeId, portId });
+            }}
+            onCancelConnect={() => setConnectingFrom(null)}
+          />
 
-        <ConfigPanel
-          selectedItem={selectedItem}
-          nodes={nodes}
-          edges={edges}
-          inputs={inputs}
-          onClose={() => setSelectedItem(null)}
-          onUpdateNode={handleUpdateNode}
-          onUpdateEdge={handleUpdateEdge}
-        />
+          {selectedItem && (
+            <ConfigPanel
+              selectedItem={selectedItem}
+              nodes={nodes}
+              edges={edges}
+              inputs={inputs}
+              onClose={() => setSelectedItem(null)}
+              onUpdateNode={handleUpdateNode}
+              onUpdateEdge={handleUpdateEdge}
+              onDeleteEdge={handleDeleteEdge}
+              onChangeInputs={newInputs => { setInputs(newInputs); markDirty(); }}
+              onOpenCodeEditor={() => setCodeEditorOpen(true)}
+            />
+          )}
+        </Box>
+
+        {/* Script Task Code Editor Panel */}
+        {codeEditorOpen && selectedScriptNode && (
+          <ScriptTaskEditorPanel
+            node={selectedScriptNode}
+            onUpdateConfig={config => handleUpdateNode(selectedScriptNode.id, { config })}
+            onClose={() => setCodeEditorOpen(false)}
+          />
+        )}
       </Box>
 
       {/*  Inputs Dialog  */}
@@ -382,6 +461,31 @@ export default function WorkflowBuilder() {
         inputs={inputs}
         onChange={newInputs => { setInputs(newInputs); markDirty(); }}
       />
+
+      {/*  Clear Canvas Dialog  */}
+      <Dialog open={clearConfirmOpen} onClose={() => setClearConfirmOpen(false)} maxWidth="xs" fullWidth>
+        <DialogTitle sx={{ fontFamily: "'Syne', sans-serif", fontWeight: 700, fontSize: 16 }}>
+          Clear Canvas?
+        </DialogTitle>
+        <DialogContent sx={{ pt: '8px !important' }}>
+          <Typography sx={{ fontSize: 13, color: 'text.secondary' }}>
+            This will remove all nodes and edges, leaving only the Start node. This cannot be undone.
+          </Typography>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button size="small" onClick={() => setClearConfirmOpen(false)} sx={{ color: 'text.secondary' }}>
+            Cancel
+          </Button>
+          <Button
+            variant="contained"
+            size="small"
+            onClick={handleClearCanvas}
+            sx={{ borderRadius: '8px', fontWeight: 600, backgroundColor: '#ef4444', color: '#fff', '&:hover': { backgroundColor: '#dc2626' } }}
+          >
+            Clear
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       {/*  Publish Confirm Dialog  */}
       <Dialog open={publishConfirmOpen} onClose={() => setPublishConfirmOpen(false)} maxWidth="xs" fullWidth>
@@ -409,6 +513,7 @@ export default function WorkflowBuilder() {
           </Button>
         </DialogActions>
       </Dialog>
+
       {/*  Unsaved Changes Dialog  */}
       <Dialog open={blocker.state === 'blocked'} onClose={() => blocker.reset?.()} maxWidth="xs" fullWidth>
         <DialogTitle sx={{ fontFamily: "'Syne', sans-serif", fontWeight: 700, fontSize: 16 }}>
