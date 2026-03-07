@@ -45,17 +45,17 @@ function getAvailableVars(nodeId: string, allNodes: CanvasNode[], edges: CanvasE
   allNodes
     .filter(n => ancestorIds.has(n.id))
     .forEach(n => {
-      const rm = n.config.responseMap as Record<string, unknown> | Array<unknown> | undefined;
-      // Object format  keys become variable names
-      if (rm && !Array.isArray(rm)) Object.keys(rm).forEach(k => vars.add(k));
-      // Array format - user_task uses {label}, service_task uses {key, value} where value = context var name
-      if (Array.isArray(rm)) {
-        (rm as Array<{ label?: string; value?: string }>).forEach(r => {
-          if (r.label) vars.add(r.label);
-          if (r.value) vars.add(r.value);
-        });
+      // Service task: responseMap is KVRow[] where key = outputVarName
+      if (n.type === 'service_task') {
+        const rm = (n.config.responseMap as Array<{ key: string }>) ?? [];
+        rm.forEach(r => { if (r.key) vars.add(r.key); });
       }
-      // Script task declared outputs
+      // User task: responseMap is {name, label, type, defaultValue}[] where name = outputVarName
+      if (n.type === 'user_task') {
+        const rm = (n.config.responseMap as Array<{ name: string }>) ?? [];
+        rm.forEach(r => { if (r.name) vars.add(r.name); });
+      }
+      // Script task: scriptOutputs UI-only array tracks declared output vars
       if (n.type === 'script_task') {
         const outputs = (n.config.scriptOutputs as Array<{ name: string }>) ?? [];
         outputs.forEach(o => { if (o.name) vars.add(o.name); });
@@ -67,7 +67,6 @@ function getAvailableVars(nodeId: string, allNodes: CanvasNode[], edges: CanvasE
 //  Shared helpers
 
 interface KVRow { key: string; value: string; }
-interface ResponseMapRow { key: string; value: string; type: string; }
 
 const RESPONSE_TYPES = ['string', 'number', 'boolean', 'object'] as const;
 
@@ -172,40 +171,6 @@ function KeyValueRows({ rows, onChange, keyPlaceholder = 'Key', valuePlaceholder
   );
 }
 
-function ResponseMapRows({ rows, onChange }: { rows: ResponseMapRow[]; onChange: (rows: ResponseMapRow[]) => void }) {
-  const update = (idx: number, patch: Partial<ResponseMapRow>) => onChange(rows.map((r, i) => i === idx ? { ...r, ...patch } : r));
-  const remove = (idx: number) => onChange(rows.filter((_, i) => i !== idx));
-  return (
-    <Box display="flex" flexDirection="column" gap={0.75}>
-      {rows.map((row, idx) => (
-        <Box key={idx} display="flex" gap={0.5} alignItems="center">
-          <TextField size="small" placeholder="Response field" value={row.key}
-            onChange={e => update(idx, { key: e.target.value })}
-            sx={{ flex: 1, ...fieldSx }} inputProps={{ style: { padding: '4px 8px', fontSize: 11 } }} />
-          <TextField size="small" placeholder="context var name" value={row.value}
-            onChange={e => update(idx, { value: e.target.value })}
-            sx={{ flex: 1, ...monoSx }} inputProps={{ style: { padding: '4px 8px', fontSize: 11 } }} />
-          <FormControl size="small" sx={{ minWidth: 76 }}>
-            <Select value={row.type || 'string'} onChange={e => update(idx, { type: e.target.value })}
-              sx={{ borderRadius: '6px', fontSize: 11, height: 30 }}>
-              {RESPONSE_TYPES.map(t => <MenuItem key={t} value={t} sx={{ fontSize: 11 }}>{t}</MenuItem>)}
-            </Select>
-          </FormControl>
-          <IconButton size="small" onClick={() => remove(idx)}
-            sx={{ p: 0.25, color: 'text.disabled', '&:hover': { color: '#ef4444' } }}>
-            <DeleteOutlineIcon sx={{ fontSize: 13 }} />
-          </IconButton>
-        </Box>
-      ))}
-      <Button size="small" variant="outlined" startIcon={<AddIcon sx={{ fontSize: 11 }} />}
-        onClick={() => onChange([...rows, { key: '', value: '', type: 'string' }])}
-        sx={{ fontSize: 10, height: 24, borderRadius: '6px', color: 'text.disabled', borderColor: 'divider', '&:hover': { color: 'text.primary', borderColor: 'text.secondary' } }}>
-        Add Mapping
-      </Button>
-    </Box>
-  );
-}
-
 function CollapsibleSection({ title, children, defaultOpen = false }: { title: string; children: React.ReactNode; defaultOpen?: boolean }) {
   const [open, setOpen] = useState(defaultOpen);
   return (
@@ -289,7 +254,7 @@ function UserTaskConfig({ node, availableVars, onUpdateConfig }: {
   const c = node.config;
   const set = (key: string, val: unknown) => onUpdateConfig({ ...c, [key]: val });
   const reqMap = (c.requestMap as KVRow[]) ?? [];
-  const resMap = (c.responseMap as Array<{ label: string; type: string; defaultValue: string }>) ?? [];
+  const resMap = (c.responseMap as Array<{ name: string; label: string; type: string; defaultValue: string }>) ?? [];
 
   const updateResRow = (idx: number, patch: Record<string, string>) =>
     set('responseMap', resMap.map((r, i) => i === idx ? { ...r, ...patch } : r));
@@ -314,9 +279,9 @@ function UserTaskConfig({ node, availableVars, onUpdateConfig }: {
             <Box key={idx} display="flex" flexDirection="column" gap={0.5}
               sx={{ p: 0.75, borderRadius: '6px', border: '1px solid', borderColor: 'divider', backgroundColor: 'action.hover' }}>
               <Box display="flex" gap={0.5} alignItems="center">
-                <TextField size="small" placeholder="field name" value={row.label}
-                  onChange={e => updateResRow(idx, { label: e.target.value })}
-                  sx={{ flex: 1, ...fieldSx }} inputProps={{ style: { padding: '3px 6px', fontSize: 11 } }} />
+                <TextField size="small" placeholder="output var name" value={row.name || ''}
+                  onChange={e => updateResRow(idx, { name: e.target.value })}
+                  sx={{ flex: 1, ...monoSx }} inputProps={{ style: { padding: '3px 6px', fontSize: 11 } }} />
                 <FormControl size="small" sx={{ minWidth: 80 }}>
                   <Select value={row.type || 'string'}
                     onChange={e => updateResRow(idx, { type: e.target.value })}
@@ -331,6 +296,9 @@ function UserTaskConfig({ node, availableVars, onUpdateConfig }: {
                   <DeleteOutlineIcon sx={{ fontSize: 13 }} />
                 </IconButton>
               </Box>
+              <TextField size="small" placeholder="JSON key name (label)" value={row.label || ''}
+                onChange={e => updateResRow(idx, { label: e.target.value })}
+                sx={{ ...fieldSx }} inputProps={{ style: { padding: '3px 6px', fontSize: 11 } }} />
               <Tooltip title="Default value pre-filled when the form is shown" placement="bottom-start">
                 <TextField size="small" placeholder="default value (optional)" value={row.defaultValue || ''}
                   onChange={e => updateResRow(idx, { defaultValue: e.target.value })}
@@ -339,7 +307,7 @@ function UserTaskConfig({ node, availableVars, onUpdateConfig }: {
             </Box>
           ))}
           <Button size="small" variant="outlined" startIcon={<AddIcon sx={{ fontSize: 11 }} />}
-            onClick={() => set('responseMap', [...resMap, { label: '', type: 'string', defaultValue: '' }])}
+            onClick={() => set('responseMap', [...resMap, { name: '', label: '', type: 'string', defaultValue: '' }])}
             sx={{ fontSize: 10, height: 24, borderRadius: '6px', color: 'text.disabled', borderColor: 'divider', '&:hover': { color: 'text.primary', borderColor: 'text.secondary' } }}>
             Add Field
           </Button>
@@ -349,13 +317,14 @@ function UserTaskConfig({ node, availableVars, onUpdateConfig }: {
   );
 }
 
-//  Script Task 
-function ScriptTaskConfig({ node, onUpdateConfig, onOpenCodeEditor }: {
-  node: CanvasNode; onUpdateConfig: (c: Record<string, unknown>) => void; onOpenCodeEditor: () => void;
+//  Script Task
+function ScriptTaskConfig({ node, availableVars, onUpdateConfig, onOpenCodeEditor }: {
+  node: CanvasNode; availableVars: Set<string>; onUpdateConfig: (c: Record<string, unknown>) => void; onOpenCodeEditor: () => void;
 }) {
   const c = node.config;
   const set = (key: string, val: unknown) => onUpdateConfig({ ...c, [key]: val });
   const codeMode = (c.codeMode as string) || 'editor';
+  const parameterMap = (c.parameterMap as KVRow[]) ?? [];
   const attachedFileName = c.attachedFileName as string | undefined;
   const fileCodeOriginal = c.fileCodeOriginal as string | undefined;
   const sourceCode = c.sourceCode as string | undefined;
@@ -426,15 +395,31 @@ function ScriptTaskConfig({ node, onUpdateConfig, onOpenCodeEditor }: {
         }} />
       </Box>
 
+      {/* Main Function */}
+      <Box>
+        <SectionLabel>Main Function</SectionLabel>
+        <TextField fullWidth size="small" placeholder="main"
+          value={(c.mainFunction as string)}
+          onChange={e => set('mainFunction', e.target.value)}
+          sx={monoSx} inputProps={{ style: { padding: '6px 8px', fontSize: 11 } }} />
+      </Box>
+
+      {/* Parameter Map */}
+      <CollapsibleSection title="Parameter Map">
+        <KeyValueRows rows={parameterMap} onChange={rows => set('parameterMap', rows)}
+          keyPlaceholder="param name" valuePlaceholder="context.varName" addLabel="Add Parameter"
+          availableVars={availableVars} />
+      </CollapsibleSection>
+
       {/* Editor mode */}
       {codeMode === 'editor' && (
         <Button fullWidth variant="contained" startIcon={<CodeIcon sx={{ fontSize: 14 }} />}
           onClick={onOpenCodeEditor}
           sx={{
             fontSize: 12, height: 34, borderRadius: '8px', fontWeight: 600,
-            backgroundColor: 'rgba(79,110,247,0.15)', color: '#4f6ef7',
+            backgroundColor: 'rgba(0,0,0,0.015)', color: '#4f6ef7',
             border: '1px solid rgba(79,110,247,0.3)',
-            '&:hover': { backgroundColor: 'rgba(79,110,247,0.25)', boxShadow: 'none' },
+            '&:hover': { backgroundColor: 'rgba(79,110,247,0.095)', boxShadow: 'none' },
             boxShadow: 'none',
           }}>
           Open Code Editor
@@ -568,8 +553,8 @@ function ServiceTaskConfig({ node, availableVars, onUpdateConfig }: {
   const c = node.config;
   const set = (key: string, val: unknown) => onUpdateConfig({ ...c, [key]: val });
   const headers = (c.headers as KVRow[]) ?? [];
-  const requestBody = (c.requestBody as KVRow[]) ?? [];
-  const responseMap = (c.responseMap as ResponseMapRow[]) ?? [];
+  const requestMap = (c.requestMap as KVRow[]) ?? [];
+  const responseMap = (c.responseMap as KVRow[]) ?? [];
 
   return (
     <Box display="flex" flexDirection="column" gap={1.5}>
@@ -611,14 +596,15 @@ function ServiceTaskConfig({ node, availableVars, onUpdateConfig }: {
           keyPlaceholder="Header name" valuePlaceholder="Value" addLabel="Add Header" />
       </CollapsibleSection>
 
-      <CollapsibleSection title="Request Body">
-        <KeyValueRows rows={requestBody} onChange={rows => set('requestBody', rows)}
-          keyPlaceholder="Key" valuePlaceholder="value or context.var" addLabel="Add Field"
+      <CollapsibleSection title="Request Map">
+        <KeyValueRows rows={requestMap} onChange={rows => set('requestMap', rows)}
+          keyPlaceholder="Field label" valuePlaceholder="context.varName" addLabel="Add Field"
           availableVars={availableVars} />
       </CollapsibleSection>
 
       <CollapsibleSection title="Response Map">
-        <ResponseMapRows rows={responseMap} onChange={rows => set('responseMap', rows)} />
+        <KeyValueRows rows={responseMap} onChange={rows => set('responseMap', rows)}
+          keyPlaceholder="Output var name" valuePlaceholder="Response JSON key" addLabel="Add Mapping" />
       </CollapsibleSection>
     </Box>
   );
@@ -626,9 +612,9 @@ function ServiceTaskConfig({ node, availableVars, onUpdateConfig }: {
 
 //  Gateway 
 const OPERATORS: Record<string, Array<{ value: string; label: string }>> = {
-  string:  [{ value: '===', label: 'equals' }, { value: '!==', label: 'not equals' }, { value: '.includes', label: 'contains' }, { value: '.startsWith', label: 'starts with' }, { value: '.endsWith', label: 'ends with' }],
-  number:  [{ value: '===', label: 'equals' }, { value: '!==', label: 'not equals' }, { value: '>', label: 'greater than' }, { value: '<', label: 'less than' }, { value: '>=', label: '>= (gte)' }, { value: '<=', label: '<= (lte)' }],
-  boolean: [{ value: '=== true', label: 'is true' }, { value: '=== false', label: 'is false' }],
+  string:  [{ value: '===', label: '==' }, { value: '!==', label: '!=' }, { value: '.includes', label: 'contains' }, { value: '.startsWith', label: 'starts with' }, { value: '.endsWith', label: 'ends with' }],
+  number:  [{ value: '===', label: '==' }, { value: '!==', label: '!=' }, { value: '>', label: '>' }, { value: '<', label: '<' }, { value: '>=', label: '>=' }, { value: '<=', label: '<=' }],
+  boolean: [{ value: '=== true', label: '== true' }, { value: '=== false', label: '== false' }, { value: '!== true', label: '!= true' }, { value: '!== false', label: '!= false' }],
   object:  [{ value: '!== null', label: 'exists' }, { value: '=== null', label: 'is null' }],
 };
 
@@ -640,23 +626,48 @@ function buildConditionStr(variable: string, operator: string, value: string, ty
   return `context.${variable} ${operator} ${value}`;
 }
 
-interface GatewayBranch { label: string; variable: string; operator: string; value: string; condition: string; }
+interface GatewayBranch { label: string; variable: string; operator: string; value: string; condition: string | null; }
 
-function GatewayConfig({ node, inputs, availableVars, edges, onUpdateConfig, onDeleteEdge, onUpdateEdge }: {
+function getVarTypesMap(nodeId: string, allNodes: CanvasNode[], edges: CanvasEdge[], inputs: WorkflowInput[]): Map<string, string> {
+  const ancestorIds = getAncestorIds(nodeId, edges);
+  const types = new Map<string, string>();
+  inputs.forEach(i => types.set(i.name, i.type));
+  allNodes.filter(n => ancestorIds.has(n.id)).forEach(n => {
+    if (n.type === 'service_task')
+      ((n.config.responseMap as Array<{ key: string }>) ?? []).forEach(r => { if (r.key) types.set(r.key, 'string'); });
+    if (n.type === 'user_task')
+      ((n.config.responseMap as Array<{ name: string; type?: string }>) ?? []).forEach(r => { if (r.name) types.set(r.name, r.type || 'string'); });
+    if (n.type === 'script_task')
+      ((n.config.scriptOutputs as Array<{ name: string; type?: string }>) ?? []).forEach(o => { if (o.name) types.set(o.name, o.type || 'string'); });
+  });
+  return types;
+}
+
+function GatewayConfig({ node, inputs, availableVars, varTypes, edges, onUpdateConfig, onDeleteEdge, onUpdateEdge }: {
   node: CanvasNode; inputs: WorkflowInput[]; availableVars: Set<string>;
+  varTypes: Map<string, string>;
   edges: CanvasEdge[];
   onUpdateConfig: (c: Record<string, unknown>) => void;
   onDeleteEdge: (id: string) => void;
   onUpdateEdge: (id: string, updates: Partial<CanvasEdge>) => void;
 }) {
   const c = node.config;
-  const branches = (c.branches as GatewayBranch[]) ?? [];
-  const setBranches = (b: GatewayBranch[]) => onUpdateConfig({ ...c, branches: b });
+  const DEFAULT_BRANCH: GatewayBranch = { label: 'Default', variable: '', operator: '', value: '', condition: null };
 
-  const getVarType = (varName: string): string => inputs.find(i => i.name === varName)?.type ?? 'string';
+  const rawBranches = (c.branches as GatewayBranch[]) ?? [];
+  // Ensure Default branch is always the last entry
+  const hasDefault = rawBranches.length > 0 && rawBranches[rawBranches.length - 1].label === 'Default';
+  const branches: GatewayBranch[] = hasDefault ? rawBranches : [...rawBranches, DEFAULT_BRANCH];
+  const userBranches = branches.slice(0, -1);
+
+  // Always persist Default branch at the end
+  const setBranches = (userBrs: GatewayBranch[]) =>
+    onUpdateConfig({ ...c, branches: [...userBrs, DEFAULT_BRANCH] });
+
+  const getVarType = (varName: string): string => varTypes.get(varName) ?? inputs.find(i => i.name === varName)?.type ?? 'string';
 
   const updateBranch = (idx: number, patch: Partial<GatewayBranch>) => {
-    const next = branches.map((b, i) => {
+    const next = userBranches.map((b, i) => {
       if (i !== idx) return b;
       const updated = { ...b, ...patch };
       const type = getVarType(updated.variable);
@@ -669,19 +680,23 @@ function GatewayConfig({ node, inputs, availableVars, edges, onUpdateConfig, onD
     setBranches(next);
   };
 
-  const addBranch = () => setBranches([...branches, { label: `Branch ${branches.length + 1}`, variable: '', operator: '===', value: '', condition: '' }]);
+  const addBranch = () => setBranches([
+    ...userBranches,
+    { label: `Branch ${userBranches.length + 1}`, variable: '', operator: '===', value: '', condition: '' },
+  ]);
+
   const removeBranch = (idx: number) => {
     // Remove the edge connected to this branch port
     const branchEdge = edges.find(e => e.source === node.id && e.sourcePort === `branch_${idx}`);
     if (branchEdge) onDeleteEdge(branchEdge.id);
-    // Re-index edges for branches after the deleted one
+    // Re-index edges for branches after the deleted one (including Default branch edge)
     edges
       .filter(e => e.source === node.id && e.sourcePort?.startsWith('branch_'))
       .forEach(e => {
         const n = parseInt(e.sourcePort.replace('branch_', ''), 10);
         if (n > idx) onUpdateEdge(e.id, { sourcePort: `branch_${n - 1}` });
       });
-    setBranches(branches.filter((_, i) => i !== idx));
+    setBranches(userBranches.filter((_, i) => i !== idx));
   };
 
   const allVarNames = [...availableVars].sort();
@@ -689,10 +704,10 @@ function GatewayConfig({ node, inputs, availableVars, edges, onUpdateConfig, onD
   return (
     <Box display="flex" flexDirection="column" gap={1.5}>
       <SectionLabel>Branches</SectionLabel>
-      {branches.length === 0 && (
-        <Typography sx={{ fontSize: 11, color: 'text.disabled', fontStyle: 'italic' }}>No branches yet</Typography>
+      {userBranches.length === 0 && (
+        <Typography sx={{ fontSize: 11, color: 'text.disabled', fontStyle: 'italic' }}>No conditional branches yet</Typography>
       )}
-      {branches.map((branch, idx) => {
+      {userBranches.map((branch, idx) => {
         const varType = getVarType(branch.variable);
         const ops = OPERATORS[varType] ?? OPERATORS.string;
         return (
@@ -754,6 +769,12 @@ function GatewayConfig({ node, inputs, availableVars, edges, onUpdateConfig, onD
         sx={{ fontSize: 10, height: 26, borderRadius: '6px', color: 'text.disabled', borderColor: 'divider', alignSelf: 'flex-start', '&:hover': { color: 'text.primary', borderColor: 'text.secondary' } }}>
         Add Branch
       </Button>
+
+      {/* Default (fallback) branch — always last, not editable */}
+      <Box sx={{ p: 1, borderRadius: '8px', border: '1px dashed rgba(245,158,11,0.3)', backgroundColor: 'rgba(245,158,11,0.02)', display: 'flex', alignItems: 'center', gap: 1 }}>
+        <Typography sx={{ fontSize: 11, fontWeight: 600, color: 'text.secondary', flex: 1 }}>Default</Typography>
+        <Typography sx={{ fontSize: 10, color: 'text.disabled', fontStyle: 'italic' }}>fallback — no condition</Typography>
+      </Box>
     </Box>
   );
 }
@@ -867,6 +888,7 @@ export default function ConfigPanel({
   const isEnd = node.type === 'end';
   const isFailureEnd = isEnd && !!(node.config.failure as boolean);
   const availableVars = getAvailableVars(node.id, nodes, edges, inputs);
+  const varTypes = getVarTypesMap(node.id, nodes, edges, inputs);
 
   return (
     <Box sx={{ width: 280, flexShrink: 0, borderLeft: '1px solid', borderColor: 'divider', backgroundColor: 'background.paper', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
@@ -897,6 +919,7 @@ export default function ConfigPanel({
         {node.type === 'script_task' && (
           <ScriptTaskConfig
             node={node}
+            availableVars={availableVars}
             onUpdateConfig={config => onUpdateNode(node.id, { config })}
             onOpenCodeEditor={onOpenCodeEditor}
           />
@@ -907,6 +930,7 @@ export default function ConfigPanel({
         )}
         {node.type === 'exclusive_gateway' && (
           <GatewayConfig node={node} inputs={inputs} availableVars={availableVars}
+            varTypes={varTypes}
             edges={edges}
             onUpdateConfig={config => onUpdateNode(node.id, { config })}
             onDeleteEdge={onDeleteEdge}

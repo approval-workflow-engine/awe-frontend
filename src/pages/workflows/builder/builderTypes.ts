@@ -128,6 +128,46 @@ export function buildStartNode(): CanvasNode {
 }
 
 // Converts canvas state → API definition payload
+type KVArr = Array<{ key: string; value: string }>;
+
+function kvArrToObj(arr: KVArr | undefined): Record<string, string> {
+  return Object.fromEntries((arr ?? []).filter(r => r.key).map(r => [r.key, r.value]));
+}
+
+function serializeNodeConfig(node: CanvasNode): Record<string, unknown> {
+  const c = node.config;
+
+  if (node.type === 'service_task') {
+    return {
+      method: c.method || 'GET',
+      url: c.url,
+      headers: kvArrToObj(c.headers as KVArr),
+      requestMap: kvArrToObj(c.requestMap as KVArr),
+      responseMap: kvArrToObj(c.responseMap as KVArr),
+    };
+  }
+
+  if (node.type === 'script_task') {
+    return {
+      sourceCode: c.sourceCode,
+      mainFunction: (c.mainFunction as string) || 'main',
+      parameterMap: kvArrToObj(c.parameterMap as KVArr),
+    };
+  }
+
+  if (node.type === 'user_task') {
+    const resArr = (c.responseMap as Array<{ name: string; label: string; type: string; defaultValue: unknown }>) ?? [];
+    return {
+      requestMap: kvArrToObj(c.requestMap as KVArr),
+      responseMap: Object.fromEntries(
+        resArr.filter(r => r.name).map(r => [r.name, { label: r.label, type: r.type, default: r.defaultValue }])
+      ),
+    };
+  }
+
+  return c;
+}
+
 export function canvasToDefinition(
   nodes: CanvasNode[],
   edges: CanvasEdge[],
@@ -139,7 +179,7 @@ export function canvasToDefinition(
       id: n.id,
       type: n.type,
       label: n.label,
-      config: n.config,
+      config: serializeNodeConfig(n),
       position: { x: n.x, y: n.y },
     })),
     edges: edges.map(e => ({
@@ -154,6 +194,45 @@ export function canvasToDefinition(
 }
 
 // Converts API version response → canvas state
+function objToKvArr(obj: Record<string, string> | undefined): Array<{ key: string; value: string }> {
+  return Object.entries(obj ?? {}).map(([key, value]) => ({ key, value }));
+}
+
+function deserializeNodeConfig(type: string, c: Record<string, unknown>): Record<string, unknown> {
+  if (type === 'service_task') {
+    return {
+      method: c.method || 'GET',
+      url: c.url,
+      headers: objToKvArr(c.headers as Record<string, string>),
+      requestMap: objToKvArr(c.requestMap as Record<string, string>),
+      responseMap: objToKvArr(c.responseMap as Record<string, string>),
+    };
+  }
+
+  if (type === 'script_task') {
+    return {
+      sourceCode: c.sourceCode,
+      mainFunction: c.mainFunction,
+      parameterMap: objToKvArr(c.parameterMap as Record<string, string>),
+    };
+  }
+
+  if (type === 'user_task') {
+    const resObj = (c.responseMap as Record<string, { label?: string; type?: string; default?: unknown }>) ?? {};
+    return {
+      requestMap: objToKvArr(c.requestMap as Record<string, string>),
+      responseMap: Object.entries(resObj).map(([name, v]) => ({
+        name,
+        label: v.label ?? '',
+        type: v.type ?? 'string',
+        defaultValue: v.default ?? '',
+      })),
+    };
+  }
+
+  return c;
+}
+
 export function definitionToCanvas(versionData: {
   nodes?: Array<{
     nodeId?: string;
@@ -207,8 +286,8 @@ export function definitionToCanvas(versionData: {
     id: n.nodeId || n.id || generateId('node'),
     type: n.type,
     label: n.label || getNodeTypeLabel(n.type),
-    config: (n.config as Record<string, unknown>) || {},
-    x: n.position?.x ?? 80 + i * 200,
+    config: deserializeNodeConfig(n.type, (n.config as Record<string, unknown>) || {}),
+    x: n.position?.x ?? (100 + i * 220),
     y: n.position?.y ?? 200,
   }));
 
@@ -216,9 +295,9 @@ export function definitionToCanvas(versionData: {
     id: e.edgeId || e.id || generateId('edge'),
     source: e.sourceNodeId || e.source || '',
     target: e.targetNodeId || e.target || '',
-    sourcePort: e.sourcePort || 'out',
+    sourcePort: e.sourcePort || '',
     condition: e.conditionExpression || e.condition || '',
-    isDefault: e.isDefault || false,
+    isDefault: e.isDefault ?? false,
   }));
 
   return { nodes, edges, inputs };

@@ -24,18 +24,24 @@ export default function ContextVarsPanel({ nodes, inputs }: ContextVarsPanelProp
     if (node.type === 'start') continue;
     const rm = node.config.responseMap;
 
-    // Object format - keys become var names
-    if (rm && typeof rm === 'object' && !Array.isArray(rm)) {
-      for (const key of Object.keys(rm as Record<string, unknown>)) {
-        if (key) outputVars.push({ name: key, type: 'string', source: node.label });
+    // Service task: responseMap is KVRow[] where key = outputVarName
+    if (node.type === 'service_task' && Array.isArray(rm)) {
+      for (const row of rm as Array<{ key?: string }>) {
+        if (row.key) outputVars.push({ name: row.key, type: 'string', source: node.label });
       }
     }
 
-    // Array format - user_task uses {label, type}, service_task uses {key, value, type} where value = context var name
-    if (Array.isArray(rm)) {
-      for (const row of rm as Array<{ label?: string; value?: string; type?: string }>) {
-        const varName = row.label || row.value;
-        if (varName) outputVars.push({ name: varName, type: row.type || 'string', source: node.label });
+    // User task: responseMap is {name, label, type, defaultValue}[] where name = outputVarName
+    if (node.type === 'user_task' && Array.isArray(rm)) {
+      for (const row of rm as Array<{ name?: string; type?: string }>) {
+        if (row.name) outputVars.push({ name: row.name, type: row.type || 'string', source: node.label });
+      }
+    }
+
+    // Object format (legacy fallback) — keys become var names
+    if (rm && typeof rm === 'object' && !Array.isArray(rm)) {
+      for (const key of Object.keys(rm as Record<string, unknown>)) {
+        if (key) outputVars.push({ name: key, type: 'string', source: node.label });
       }
     }
 

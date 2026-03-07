@@ -9,8 +9,6 @@ import EditIcon from '@mui/icons-material/Edit';
 import Editor from '@monaco-editor/react';
 import { type CanvasNode } from './builderTypes';
 
-const DEFAULT_BODY = '    # code here\n';
-const SIGNATURE = '\tdef main(context: dict) -> dict:';
 const MIN_HEIGHT = 200;
 const MAX_HEIGHT = 600;
 
@@ -26,10 +24,18 @@ export default function ScriptTaskEditorPanel({ node, onUpdateConfig, onClose }:
   const [validateSnack, setValidateSnack] = useState(false);
   const dragRef = useRef<{ startY: number; startH: number } | null>(null);
 
-  // Initialise sourceCode with default body if empty
+  const functionName = (node.config.mainFunction as string) || 'main';
+  const paramRows = (node.config.parameterMap as Array<{ key: string }>) ?? [];
+  const params = paramRows.map(p => p.key).filter(Boolean);
+  const signature = `def ${functionName}(${params.join(', ')}):`;
+
+  // Initialise sourceCode with a starter template when empty
   useEffect(() => {
     if (!node.config.sourceCode) {
-      onUpdateConfig({ ...node.config, sourceCode: DEFAULT_BODY });
+      onUpdateConfig({
+        ...node.config,
+        sourceCode: `\t# code here\n`,
+      });
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [node.id]);
@@ -55,7 +61,7 @@ export default function ScriptTaskEditorPanel({ node, onUpdateConfig, onClose }:
     };
   }, []);
 
-  const sourceCode = (node.config.sourceCode as string) ?? DEFAULT_BODY;
+  const sourceCode = (node.config.sourceCode as string) ?? '';
   const codeMode = (node.config.codeMode as string) || 'editor';
   const attachedFileName = node.config.attachedFileName as string | undefined;
   const fileCodeOriginal = node.config.fileCodeOriginal as string | undefined;
@@ -159,14 +165,12 @@ export default function ScriptTaskEditorPanel({ node, onUpdateConfig, onClose }:
         </Box>
       )}
 
-      {/* Readonly function signature strip */}
+      {/* Dynamic function signature strip */}
       <Box
         sx={{
           px: 1.5, py: 0.5, flexShrink: 0,
           backgroundColor: 'action.hover',
           borderBottom: '1px solid', borderColor: 'divider',
-          fontFamily: "'JetBrains Mono', monospace",
-          fontSize: 12,
           display: 'flex', alignItems: 'center', gap: 1,
           userSelect: 'none',
         }}
@@ -176,21 +180,13 @@ export default function ScriptTaskEditorPanel({ node, onUpdateConfig, onClose }:
             fontFamily: "'JetBrains Mono', monospace", fontSize: 12,
             color: 'text.disabled',
             lineHeight: 1.5,
-            pl:5.8
+            flex: 1,
+            pl:6
           }}
         >
-          {SIGNATURE}
+          {signature}
         </Typography>
-        <Chip
-          label="locked"
-          size="small"
-          sx={{
-            fontSize: 8, height: 14, color: 'text.disabled',
-            borderColor: 'divider',
-            '& .MuiChip-label': { px: 0.5 },
-          }}
-          variant="outlined"
-        />
+        
       </Box>
 
       {/* Monaco editor - edits only the body */}
