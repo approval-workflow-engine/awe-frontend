@@ -25,6 +25,8 @@ import SaveIcon from "@mui/icons-material/Save";
 import PublishIcon from "@mui/icons-material/Publish";
 import DeleteIcon from "@mui/icons-material/Delete";
 import LayersClearIcon from "@mui/icons-material/LayersClear";
+import LightModeIcon from "@mui/icons-material/LightMode";
+import DarkModeIcon from "@mui/icons-material/DarkMode";
 
 import {
   getWorkflow,
@@ -34,6 +36,7 @@ import {
   publishVersion,
 } from "../../api/workflowApi";
 import { useApiCall } from "../../hooks/useApiCall";
+import { useThemeMode } from "../../context/useThemeMode";
 import NodePalette from "./builder/NodePalette";
 import CanvasPanel from "./builder/CanvasPanel";
 import ConfigPanel from "./builder/ConfigPanel";
@@ -62,6 +65,7 @@ export default function WorkflowBuilder() {
   }>();
   const navigate = useNavigate();
   const { call } = useApiCall();
+  const { mode, toggleTheme } = useThemeMode();
 
   //  Data
   const [workflowName, setWorkflowName] = useState("");
@@ -579,6 +583,7 @@ export default function WorkflowBuilder() {
         >
           Publish
         </Button>
+
       </Box>
 
       {/*  Three-panel layout + code editor  */}
@@ -607,6 +612,26 @@ export default function WorkflowBuilder() {
             <NodePalette />
             <Divider />
             <ContextVarsPanel nodes={nodes} inputs={inputs} />
+            <Divider />
+            {/* Theme toggle */}
+            <Box
+              sx={{
+                display: "flex",
+                justifyContent: "flex-end",
+                px: 1.5,
+                py: 0.75,
+              }}
+            >
+              <Tooltip title={mode === "dark" ? "Switch to light mode" : "Switch to dark mode"} placement="right">
+                <IconButton
+                  size="small"
+                  onClick={toggleTheme}
+                  sx={{ color: "text.disabled", "&:hover": { color: "text.primary" } }}
+                >
+                  {mode === "dark" ? <LightModeIcon fontSize="small" /> : <DarkModeIcon fontSize="small" />}
+                </IconButton>
+              </Tooltip>
+            </Box>
           </Box>
 
           <CanvasPanel

@@ -18,7 +18,7 @@ import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import { Link as RouterLink, useNavigate } from "react-router-dom";
 import LogoMark from "../../components/common/LogoMark";
-import { cardStyle, inputStyle, buttonStyle } from "../../styles/authStyles";
+import { inputStyle } from "../../styles/authStyles";
 import { registerSystem } from "../../api/authApi";
 import { useApiCall } from "../../hooks/useApiCall";
 
@@ -63,13 +63,11 @@ export default function RegisterPage() {
       { showError: true }
     );
     if (data) {
-      // Extract API key from response - may be at different levels depending on backend
       const resp = data as { data?: { apiKey?: string } };
       const key = resp?.data?.apiKey || null;
       if (key) {
         setApiKey(key);
       } else {
-        // No API key in response - go directly to login
         navigate("/login", { replace: true });
       }
     }
@@ -97,10 +95,40 @@ export default function RegisterPage() {
       sx={{
         bgcolor: "background.default",
         backgroundImage: "radial-gradient(ellipse at top, rgba(79,110,247,0.07), transparent 55%)",
+        px: 2,
+        py: 4,
       }}
     >
-      <Paper sx={{ ...cardStyle, my: 4 }} elevation={0}>
-        <LogoMark />
+      <Paper
+        elevation={0}
+        sx={{
+          width: "100%",
+          maxWidth: 400,
+          p: "32px",
+          border: "1px solid",
+          borderColor: "divider",
+          borderRadius: "16px",
+        }}
+      >
+        {/* Branding */}
+        <Box display="flex" flexDirection="column" alignItems="center" mb={3}>
+          <LogoMark />
+          <Typography
+            sx={{
+              fontFamily: "'Syne', sans-serif",
+              fontWeight: 700,
+              fontSize: 20,
+              color: "text.primary",
+              mt: 1.5,
+              mb: 0.5,
+            }}
+          >
+            Create your account
+          </Typography>
+          <Typography sx={{ fontSize: 13, color: "text.secondary" }}>
+            Register a new AWE system
+          </Typography>
+        </Box>
 
         <form onSubmit={handleSubmit}>
           <TextField
@@ -162,7 +190,12 @@ export default function RegisterPage() {
             InputProps={{
               endAdornment: (
                 <InputAdornment position="end">
-                  <IconButton onClick={() => setShowPw(p => !p)} edge="end" size="small">
+                  <IconButton
+                    onClick={() => setShowPw(p => !p)}
+                    edge="end"
+                    size="small"
+                    sx={{ color: "text.disabled" }}
+                  >
                     {showPw ? <VisibilityOffIcon fontSize="small" /> : <VisibilityIcon fontSize="small" />}
                   </IconButton>
                 </InputAdornment>
@@ -179,7 +212,7 @@ export default function RegisterPage() {
             value={form.confirmPassword}
             error={!!pwError}
             helperText={pwError}
-            sx={{ ...inputStyle, mb: 1.5 }}
+            sx={{ ...inputStyle, mb: 2 }}
             onChange={handleChange}
             autoComplete="new-password"
             required
@@ -190,13 +223,13 @@ export default function RegisterPage() {
             variant="contained"
             type="submit"
             disabled={loading}
-            sx={buttonStyle}
+            sx={{ height: 40, fontWeight: 600, fontSize: 14, borderRadius: "8px" }}
           >
             {loading ? "Registering…" : "Register System"}
           </Button>
         </form>
 
-        <Typography textAlign="center" mt={2.5} variant="body2" color="text.secondary">
+        <Typography textAlign="center" mt={2.5} sx={{ fontSize: 13, color: "text.secondary" }}>
           Already registered?{" "}
           <MuiLink component={RouterLink} to="/login" underline="hover" color="primary">
             Sign In
@@ -208,21 +241,16 @@ export default function RegisterPage() {
       <Dialog
         open={!!apiKey}
         disableEscapeKeyDown
-        onClose={() => {
-          // Prevent closing by clicking outside
-        }}
-        slotProps={{
-          backdrop: {
-            onClick: (e) => e.stopPropagation(),
-          },
-        }}
+        onClose={() => { /* Prevent closing by clicking outside */ }}
+        slotProps={{ backdrop: { onClick: (e) => e.stopPropagation() } }}
         PaperProps={{
           sx: {
-            width: '100%',
+            width: "100%",
             maxWidth: 480,
             p: 0,
-            border: '1px solid #252a3d',
-            backgroundColor: '#0f1117',
+            border: "1px solid",
+            borderColor: "divider",
+            backgroundColor: "background.paper",
           },
         }}
       >
@@ -231,39 +259,39 @@ export default function RegisterPage() {
           <Box display="flex" alignItems="center" gap={1.5} mb={2}>
             <Box
               sx={{
-                width: 36, height: 36, borderRadius: '10px',
-                backgroundColor: 'rgba(245,158,11,0.12)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                width: 36, height: 36, borderRadius: "10px",
+                backgroundColor: "rgba(245,158,11,0.12)",
+                display: "flex", alignItems: "center", justifyContent: "center",
                 flexShrink: 0,
               }}
             >
-              <WarningAmberIcon sx={{ color: '#f59e0b', fontSize: 20 }} />
+              <WarningAmberIcon sx={{ color: "#f59e0b", fontSize: 20 }} />
             </Box>
             <Box>
-              <Typography sx={{ fontFamily: "'Syne', sans-serif", fontWeight: 700, fontSize: 16, color: '#e8eaf2' }}>
+              <Typography sx={{ fontFamily: "'Syne', sans-serif", fontWeight: 700, fontSize: 16, color: "text.primary" }}>
                 Your API Key
               </Typography>
-              <Typography sx={{ fontSize: 12, color: '#8b91a8' }}>
+              <Typography sx={{ fontSize: 12, color: "text.secondary" }}>
                 System registered successfully
               </Typography>
             </Box>
           </Box>
 
-          {/* Warning */}
+          {/* Warning banner */}
           <Box
             sx={{
               p: 1.5,
-              borderRadius: '8px',
-              backgroundColor: 'rgba(245,158,11,0.08)',
-              border: '1px solid rgba(245,158,11,0.25)',
+              borderRadius: "8px",
+              backgroundColor: "rgba(245,158,11,0.08)",
+              border: "1px solid rgba(245,158,11,0.25)",
               mb: 2,
-              display: 'flex',
-              alignItems: 'flex-start',
+              display: "flex",
+              alignItems: "flex-start",
               gap: 1,
             }}
           >
-            <WarningAmberIcon sx={{ color: '#f59e0b', fontSize: 16, mt: 0.1, flexShrink: 0 }} />
-            <Typography sx={{ fontSize: 12, color: '#f59e0b', lineHeight: 1.5 }}>
+            <WarningAmberIcon sx={{ color: "#f59e0b", fontSize: 16, mt: 0.1, flexShrink: 0 }} />
+            <Typography sx={{ fontSize: 12, color: "#f59e0b", lineHeight: 1.5 }}>
               This API key will <strong>never be shown again</strong>. Copy it now and store it securely before closing this dialog.
             </Typography>
           </Box>
@@ -272,13 +300,14 @@ export default function RegisterPage() {
           <Box
             sx={{
               p: 2,
-              borderRadius: '8px',
-              backgroundColor: '#0a0b0f',
-              border: '1px solid #252a3d',
+              borderRadius: "8px",
+              backgroundColor: "action.hover",
+              border: "1px solid",
+              borderColor: "divider",
               mb: 2,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
               gap: 1,
             }}
           >
@@ -286,21 +315,21 @@ export default function RegisterPage() {
               sx={{
                 fontFamily: "'JetBrains Mono', monospace",
                 fontSize: 13,
-                color: '#f59e0b',
-                wordBreak: 'break-all',
+                color: "#f59e0b",
+                wordBreak: "break-all",
                 flex: 1,
               }}
             >
               {apiKey}
             </Typography>
-            <Tooltip title={copied ? 'Copied!' : 'Copy to clipboard'}>
+            <Tooltip title={copied ? "Copied!" : "Copy to clipboard"}>
               <IconButton
                 onClick={handleCopy}
                 size="small"
                 sx={{
-                  color: copied ? '#22c55e' : '#8b91a8',
+                  color: copied ? "#22c55e" : "text.disabled",
                   flexShrink: 0,
-                  '&:hover': { color: '#f59e0b' },
+                  "&:hover": { color: "#f59e0b" },
                 }}
               >
                 <ContentCopyIcon fontSize="small" />
@@ -308,7 +337,7 @@ export default function RegisterPage() {
             </Tooltip>
           </Box>
 
-          {/* Close button */}
+          {/* Confirm button */}
           <Button
             fullWidth
             variant="contained"
@@ -317,13 +346,13 @@ export default function RegisterPage() {
               height: 40,
               fontWeight: 600,
               fontSize: 14,
-              borderRadius: '8px',
-              backgroundColor: '#f59e0b',
-              color: '#0a0b0f',
-              '&:hover': { backgroundColor: '#d97706' },
+              borderRadius: "8px",
+              backgroundColor: "#f59e0b",
+              color: "#0a0b0f",
+              "&:hover": { backgroundColor: "#d97706" },
             }}
           >
-            I've stored my key - Close
+            I've stored my key — Close
           </Button>
         </DialogContent>
       </Dialog>

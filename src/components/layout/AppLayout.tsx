@@ -3,6 +3,7 @@ import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import {
   Box, Drawer, List, ListItem, ListItemButton, ListItemIcon,
   ListItemText, Typography, IconButton, Divider, Avatar, Tooltip,
+  Dialog, DialogTitle, DialogContent, DialogActions, Button,
 } from '@mui/material';
 import DashboardIcon from '@mui/icons-material/Dashboard';
 import AccountTreeIcon from '@mui/icons-material/AccountTree';
@@ -59,6 +60,7 @@ export default function AppLayout() {
   const [collapsed, setCollapsed] = useState<boolean>(() => {
     return localStorage.getItem(COLLAPSE_KEY) === 'true';
   });
+  const [logoutConfirmOpen, setLogoutConfirmOpen] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
   const { user, logout } = useApp();
@@ -162,7 +164,7 @@ export default function AppLayout() {
                         minHeight: 40,
                         backgroundColor: active ? 'rgba(79,110,247,0.12)' : 'transparent',
                         '&:hover': {
-                          backgroundColor: active ? 'rgba(79,110,247,0.18)' : 'rgba(255,255,255,0.04)',
+                          backgroundColor: active ? 'rgba(79,110,247,0.18)' : 'action.hover',
                         },
                       }}
                     >
@@ -224,7 +226,7 @@ export default function AppLayout() {
 
         {/* User row */}
         <Box
-          onClick={logout}
+          onClick={() => setLogoutConfirmOpen(true)}
           sx={{
             display: 'flex',
             alignItems: 'center',
@@ -233,7 +235,7 @@ export default function AppLayout() {
             py: 1.5,
             cursor: 'pointer',
             justifyContent: collapsed ? 'center' : 'flex-start',
-            '&:hover': { backgroundColor: 'rgba(255,255,255,0.04)' },
+            '&:hover': { backgroundColor: 'action.hover' },
           }}
         >
           <Tooltip title={collapsed ? (user?.name || 'Logout') : ''} placement="right">
@@ -262,6 +264,31 @@ export default function AppLayout() {
           {!collapsed && <LogoutIcon sx={{ fontSize: 16, color: 'text.disabled', flexShrink: 0 }} />}
         </Box>
       </Drawer>
+
+      {/* Logout Confirmation */}
+      <Dialog open={logoutConfirmOpen} onClose={() => setLogoutConfirmOpen(false)} maxWidth="xs" fullWidth >
+        <DialogTitle sx={{ fontFamily: "'Syne', sans-serif", fontWeight: 700, fontSize: 16 }}>
+          Sign out?
+        </DialogTitle>
+        <DialogContent sx={{ pt: '8px !important' }}>
+          <Typography sx={{ fontSize: 13, color: 'text.secondary' }}>
+            Are you sure you want to sign out?
+          </Typography>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button size="small" onClick={() => setLogoutConfirmOpen(false)} sx={{ color: 'text.secondary' }}>
+            Cancel
+          </Button>
+          <Button
+            variant="contained"
+            size="small"
+            onClick={() => { setLogoutConfirmOpen(false); logout(); }}
+            sx={{ borderRadius: '8px', fontWeight: 600 }}
+          >
+            Sign Out
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       {/* Main content */}
       <Box

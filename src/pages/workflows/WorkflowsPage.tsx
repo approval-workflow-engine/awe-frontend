@@ -5,7 +5,7 @@ import {
   TableContainer, TableHead, TableRow, IconButton, Tooltip,
   Dialog, DialogTitle, DialogContent, DialogActions,
   TextField, Pagination, CircularProgress, Switch, Skeleton,
-  Select, MenuItem,
+  Select, MenuItem, InputAdornment,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import AccountTreeIcon from '@mui/icons-material/AccountTree';
@@ -13,6 +13,8 @@ import HistoryIcon from '@mui/icons-material/History';
 import EditIcon from '@mui/icons-material/Edit';
 import RocketLaunchIcon from '@mui/icons-material/RocketLaunch';
 import DeleteIcon from '@mui/icons-material/Delete';
+import SearchIcon from '@mui/icons-material/Search';
+import ClearIcon from '@mui/icons-material/Clear';
 import {
   getWorkflows, createWorkflow, updateWorkflow,
   deleteWorkflow,
@@ -34,7 +36,9 @@ export default function WorkflowsPage() {
   const [page, setPage] = useState(1);
   const [filter, setFilter] = useState<FilterType>('all');
   const [listLoading, setListLoading] = useState(false);
-
+  const [searchQuery, setSearchQuery] = useState('');
+  const [allWorkflows, setAllWorkflows] = useState<Workflow[] | null>(null);
+  const [searchLoading, setSearchLoading] = useState(false);
   // Dialog states
   const [newOpen, setNewOpen] = useState(false);
   const [newForm, setNewForm] = useState({ name: '', description: '' });
@@ -79,9 +83,41 @@ export default function WorkflowsPage() {
 
   useEffect(() => { fetchWorkflows(page, filter); }, [page, filter, fetchWorkflows]);
 
+  // Fetch all workflows for client-side search
+  const fetchAllWorkflows = useCallback(async (f: FilterType) => {
+    setSearchLoading(true);
+    try {
+      const params: Record<string, unknown> = { page: 1, limit: 1000 };
+      if (f !== 'all') params.status = f;
+      const res = await call(() => getWorkflows(params));
+      if (res) {
+        const body = res as { data?: { workflows?: Workflow[] } };
+        setAllWorkflows(body?.data?.workflows || []);
+      }
+    } finally {
+      setSearchLoading(false);
+    }
+  }, [call]);
+
+  // Load full dataset when user starts searching
+  useEffect(() => {
+    if (searchQuery.trim() && allWorkflows === null) {
+      fetchAllWorkflows(filter);
+    }
+  }, [searchQuery, allWorkflows, filter, fetchAllWorkflows]);
+
+  const getActiveVersionNumber = (wf: Workflow): string => {
+    const published = wf.versions?.find(v => v.status === 'published' || v.status === 'PUBLISHED');
+    const num = published?.versionNumber ?? published?.version;
+    if (num != null) return `v${num}`;
+    if (wf.versionCount != null && wf.versionCount > 0) return `v${wf.versionCount}`;
+    return '—';
+  };
+
   const handleFilterChange = (f: FilterType) => {
     setFilter(f);
     setPage(1);
+    setAllWorkflows(null); // invalidate search cache so it re-fetches with new filter
   };
 
   //  New Workflow 
@@ -211,6 +247,22 @@ export default function WorkflowsPage() {
   };
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const isSearchActive = searchQuery.trim().length > 0;
+  const displayedWorkflows = isSearchActive
+    ? (allWorkflows || []).filter(wf => {
+        const q = searchQuery.toLowerCase();
+        const date = (wf.updatedAt || wf.createdAt)
+          ? new Date((wf.updatedAt || wf.createdAt) as string).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+          : '';
+        return (
+          wf.name.toLowerCase().includes(q) ||
+          (wf.description || '').toLowerCase().includes(q) ||
+          (wf.status || '').toLowerCase().includes(q) ||
+          getActiveVersionNumber(wf).toLowerCase().includes(q) ||
+          date.toLowerCase().includes(q)
+        );
+      })
+    : workflows;
 
   return (
     <Box>
@@ -234,30 +286,66 @@ export default function WorkflowsPage() {
         </Button>
       </Box>
 
-      {/* Filter buttons */}
-      <Box display="flex" gap={1} mb={2.5}>
-        {(['all', 'active', 'inactive'] as FilterType[]).map(f => (
-          <Button
-            key={f}
-            size="small"
-            variant={filter === f ? 'contained' : 'outlined'}
-            onClick={() => handleFilterChange(f)}
-            sx={{
-              borderRadius: '8px',
-              fontWeight: 600,
-              fontSize: 12,
-              textTransform: 'capitalize',
-              height: 32,
-              ...(filter === f ? {} : {
-                borderColor: 'divider',
-                color: 'text.secondary',
-                '&:hover': { borderColor: 'primary.main', color: 'primary.main' },
-              }),
-            }}
-          >
-            {f}
-          </Button>
-        ))}
+      {/* Filter + Search row */}
+      <Box display="flex" alignItems="center" justifyContent="space-between" gap={2} mb={2.5}>
+        <Box display="flex" gap={1}>
+          {(['all', 'active', 'inactive'] as FilterType[]).map(f => (
+            <Button
+              key={f}
+              size="small"
+              variant={filter === f ? 'contained' : 'outlined'}
+              onClick={() => handleFilterChange(f)}
+              sx={{
+                borderRadius: '8px',
+                fontWeight: 600,
+                fontSize: 12,
+                textTransform: 'capitalize',
+                height: 32,
+                ...(filter === f ? {} : {
+                  borderColor: 'divider',
+                  color: 'text.secondary',
+                  '&:hover': { borderColor: 'primary.main', color: 'primary.main' },
+                }),
+              }}
+            >
+              {f}
+            </Button>
+          ))}
+        </Box>
+
+        <TextField
+          size="small"
+          placeholder="Search all columns…"
+          value={searchQuery}
+          onChange={e => setSearchQuery(e.target.value)}
+          sx={{
+            width: 300,
+            '& .MuiOutlinedInput-root': {
+              borderRadius: '8px', fontSize: 13,
+              '& fieldset': { borderColor: 'divider' },
+            },
+          }}
+          InputProps={{
+            startAdornment: (
+              <InputAdornment position="start">
+                {searchLoading
+                  ? <CircularProgress size={14} sx={{ color: 'text.disabled' }} />
+                  : <SearchIcon sx={{ fontSize: 16, color: 'text.disabled' }} />}
+              </InputAdornment>
+            ),
+            endAdornment: searchQuery ? (
+              <InputAdornment position="end">
+                <IconButton
+                  size="small"
+                  onClick={() => { setSearchQuery(''); setAllWorkflows(null); }}
+                  sx={{ p: 0.25, color: 'text.disabled' }}
+                >
+                  <ClearIcon sx={{ fontSize: 14 }} />
+                </IconButton>
+              </InputAdornment>
+            ) : null,
+          }}
+        />
       </Box>
 
       {/* Table */}
@@ -266,56 +354,80 @@ export default function WorkflowsPage() {
           <Table size="small">
             <TableHead>
               <TableRow>
-                <TableCell sx={{ width: '35%' }}>Name</TableCell>
+                <TableCell sx={{ width: '22%' }}>Name</TableCell>
+                <TableCell sx={{ width: '28%' }}>Description</TableCell>
+                <TableCell>Version</TableCell>
                 <TableCell>Status</TableCell>
-                <TableCell>Versions</TableCell>
-                <TableCell>Created</TableCell>
+                <TableCell>Last Modified</TableCell>
                 <TableCell align="right">Actions</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
-              {listLoading ? (
+              {(listLoading || (isSearchActive && searchLoading)) ? (
                 [0,1,2,3].map(i => (
                   <TableRow key={i}>
-                    <TableCell colSpan={5}>
+                    <TableCell colSpan={6}>
                       <Skeleton variant="rounded" height={36} />
                     </TableCell>
                   </TableRow>
                 ))
-              ) : workflows.length === 0 ? (
+              ) : displayedWorkflows.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={5}>
+                  <TableCell colSpan={6}>
                     <Box sx={{ py: 6, textAlign: 'center' }}>
                       <Typography sx={{ fontSize: 13, color: 'text.disabled' }}>
-                        {filter === 'all' ? 'No workflows yet. Create your first one.' : `No ${filter} workflows.`}
+                        {isSearchActive
+                          ? `No workflows match "${searchQuery}".`
+                          : filter === 'all' ? 'No workflows yet.' : `No ${filter} workflows.`}
                       </Typography>
+                      {isSearchActive ? (
+                        <Button
+                          size="small"
+                          onClick={() => { setSearchQuery(''); setAllWorkflows(null); }}
+                          sx={{ mt: 1.5, borderRadius: '8px', color: 'text.secondary', fontSize: 12 }}
+                        >
+                          Clear search
+                        </Button>
+                      ) : filter === 'all' && (
+                        <Button
+                          variant="outlined"
+                          size="small"
+                          onClick={() => { setNewForm({ name: '', description: '' }); setNewError(''); setNewOpen(true); }}
+                          sx={{ mt: 2, borderRadius: '8px', borderColor: 'divider', color: 'text.secondary' }}
+                        >
+                          Create your first workflow
+                        </Button>
+                      )}
                     </Box>
                   </TableCell>
                 </TableRow>
               ) : (
-                workflows.map(wf => (
+                displayedWorkflows.map(wf => (
                   <TableRow key={wf.id}>
                     <TableCell>
                       <Typography sx={{ fontSize: 13, fontWeight: 600, color: 'text.primary' }}>
                         {wf.name}
                       </Typography>
-                      {wf.description && (
-                        <Typography sx={{ fontSize: 11, color: 'text.disabled', mt: 0.25 }}>
-                          {wf.description}
-                        </Typography>
-                      )}
+                    </TableCell>
+                    <TableCell sx={{ maxWidth: 0 }}>
+                      <Typography sx={{
+                        fontSize: 12, color: 'text.secondary',
+                        overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                      }}>
+                        {wf.description || '—'}
+                      </Typography>
+                    </TableCell>
+                    <TableCell>
+                      <Typography sx={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12, color: 'text.secondary' }}>
+                        {getActiveVersionNumber(wf)}
+                      </Typography>
                     </TableCell>
                     <TableCell>
                       <StatusChip status={wf.status} />
                     </TableCell>
                     <TableCell>
-                      <Typography sx={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12, color: 'text.secondary' }}>
-                        {wf.versionCount ?? '-'}
-                      </Typography>
-                    </TableCell>
-                    <TableCell>
                       <Typography sx={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 11, color: 'text.disabled' }}>
-                        {wf.createdAt ? new Date(wf.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '-'}
+                        {(wf.updatedAt || wf.createdAt) ? new Date((wf.updatedAt || wf.createdAt) as string).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '-'}
                       </Typography>
                     </TableCell>
                     <TableCell align="right">
@@ -365,20 +477,35 @@ export default function WorkflowsPage() {
           </Table>
         </TableContainer>
 
-        {/* Pagination */}
-        {totalPages > 1 && (
-          <Box display="flex" justifyContent="center" py={2} borderTop="1px solid" sx={{ borderColor: 'divider' }}>
-            <Pagination
-              count={totalPages}
-              page={page}
-              onChange={(_, p) => setPage(p)}
-              size="small"
-              sx={{
-                '& .MuiPaginationItem-root': { color: 'text.secondary', borderColor: 'divider' },
-                '& .Mui-selected': { backgroundColor: 'rgba(79,110,247,0.15) !important', color: 'primary.main' },
-              }}
-            />
-          </Box>
+        {/* Pagination / results footer */}
+        {isSearchActive ? (
+          !searchLoading && (allWorkflows || []).length > 0 && (
+            <Box px={2} py={1.25} borderTop="1px solid" sx={{ borderColor: 'divider' }}>
+              <Typography sx={{ fontSize: 12, color: 'text.disabled' }}>
+                {displayedWorkflows.length} of {(allWorkflows || []).length} workflow{(allWorkflows || []).length !== 1 ? 's' : ''}
+              </Typography>
+            </Box>
+          )
+        ) : (
+          total > 0 && (
+            <Box display="flex" alignItems="center" justifyContent="space-between" py={1.5} px={2} borderTop="1px solid" sx={{ borderColor: 'divider' }}>
+              <Typography sx={{ fontSize: 12, color: 'text.disabled' }}>
+                Page {page} of {totalPages}
+              </Typography>
+              {totalPages > 1 && (
+                <Pagination
+                  count={totalPages}
+                  page={page}
+                  onChange={(_, p) => setPage(p)}
+                  size="small"
+                  sx={{
+                    '& .MuiPaginationItem-root': { color: 'text.secondary', borderColor: 'divider' },
+                    '& .Mui-selected': { backgroundColor: 'rgba(79,110,247,0.15) !important', color: 'primary.main' },
+                  }}
+                />
+              )}
+            </Box>
+          )
         )}
       </Paper>
 
