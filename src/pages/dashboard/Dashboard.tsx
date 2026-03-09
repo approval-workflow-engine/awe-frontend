@@ -95,7 +95,7 @@ export default function Dashboard() {
         ]);
 
       const getTotal = (res: PromiseSettledResult<{ data: unknown }>): number | null => {
-        if (res.status === 'rejected') return null;
+        if (res.status === 'rejected') return 0;
         const body = (res.value as { data: Record<string, unknown> }).data as Record<string, unknown>;
         const nested = body?.data as Record<string, unknown> | undefined;
         // Check every common response shape for a total/count field
@@ -123,7 +123,9 @@ export default function Dashboard() {
       // Recent instances
       if (recentInstRes.status === 'fulfilled') {
         const body = (recentInstRes.value as { data: Record<string, unknown> }).data as Record<string, unknown>;
-        const arr = (body?.data ?? []) as Instance[];
+        // body = ApiResponse envelope: { success, data: { instances: [...], pagination } }
+        const inner = body?.data as Record<string, unknown> | undefined;
+        const arr = (inner?.instances ?? (Array.isArray(inner) ? inner : [])) as Instance[];
         setInstances(Array.isArray(arr) ? arr : []);
       } else {
         setInstances([]);
@@ -132,7 +134,9 @@ export default function Dashboard() {
       // Recent tasks
       if (recentTaskRes.status === 'fulfilled') {
         const body = (recentTaskRes.value as { data: Record<string, unknown> }).data as Record<string, unknown>;
-        const arr = (body?.data ?? []) as Task[];
+        // body = ApiResponse envelope: { success, data: { tasks: [...], pagination } }
+        const inner = body?.data as Record<string, unknown> | undefined;
+        const arr = (inner?.tasks ?? (Array.isArray(inner) ? inner : [])) as Task[];
         setTasks(Array.isArray(arr) ? arr : []);
       } else {
         setTasks([]);

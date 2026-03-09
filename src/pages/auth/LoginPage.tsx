@@ -38,14 +38,11 @@ export default function LoginPage() {
       { errorMsg: "Invalid email or password" }
     );
     if (data) {
-      // Handle both wrapped and bare response formats defensively.
-      const body = data as unknown as {
-        data?: { system?: User; accessToken?: string; refreshToken?: string };
-        system?: User; accessToken?: string; refreshToken?: string;
-      };
-      const system = body.data?.system ?? body.system;
-      const accessToken = body.data?.accessToken ?? body.accessToken;
-      const refreshToken = body.data?.refreshToken ?? body.refreshToken;
+      // After ApiResponse unwrapping in useApiCall, data is already the inner payload
+      const body = data as { system?: User; accessToken?: string; refreshToken?: string };
+      const system = body.system;
+      const accessToken = body.accessToken;
+      const refreshToken = body.refreshToken;
       if (system && accessToken && refreshToken) {
         login(system, accessToken, refreshToken);
         navigate("/dashboard", { replace: true });

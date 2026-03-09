@@ -34,9 +34,18 @@ export function useApiCall(): UseApiCallReturn {
       setError(null);
       try {
         const response = await apiFn();
+        // Unwrap ApiResponse envelope { success: boolean, data: T } if present
+        const raw = response.data as { success?: boolean; data?: unknown };
+        const payload =
+          raw !== null &&
+          typeof raw === 'object' &&
+          typeof raw.success === 'boolean' &&
+          'data' in raw
+            ? (raw.data as T)
+            : response.data;
         if (successMsg) enqueueSnackbar(successMsg, { variant: 'success' });
-        if (onSuccess) onSuccess(response.data);
-        return response.data;
+        if (onSuccess) onSuccess(payload);
+        return payload as T;
       } catch (err: unknown) {
         const e = err as { response?: { data?: { error?: { message?: string }; message?: string } }; message?: string };
         const message =

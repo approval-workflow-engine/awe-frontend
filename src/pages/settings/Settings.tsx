@@ -104,8 +104,8 @@ export default function Settings() {
     try {
       const res = await call(() => getApiKeys(), { showError: false });
       if (res) {
-        const body = res as { apiKeys?: ApiKey[]; data?: { apiKeys?: ApiKey[] } };
-        const keys = body.apiKeys ?? body.data?.apiKeys ?? [];
+        const body = res as { apiKeys?: ApiKey[] };
+        const keys = body.apiKeys ?? [];
         setApiKeys(keys);
       }
     } finally {
@@ -147,8 +147,8 @@ export default function Settings() {
         { showError: true }
       );
       if (res) {
-        const body = res as { apiKey?: string; data?: { apiKey?: string; key?: string } };
-        const keyValue = body.apiKey ?? body.data?.apiKey ?? body.data?.key ?? null;
+        const body = res as { apiKey?: string };
+        const keyValue = body.apiKey ?? null;
         setRegenOpen(false);
         setRegenLabel('');
         if (keyValue) setNewKey(keyValue);
@@ -547,7 +547,7 @@ export default function Settings() {
         <DialogContent sx={{ pt: '8px !important' }}>
           <TextField
             fullWidth
-            label="Key Label (optional)"
+            label="Key Label"
             size="small"
             value={regenLabel}
             onChange={e => setRegenLabel(e.target.value)}

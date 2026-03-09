@@ -4,15 +4,15 @@ import HttpIcon from '@mui/icons-material/Http';
 import CodeIcon from '@mui/icons-material/Code';
 import AltRouteIcon from '@mui/icons-material/AltRoute';
 import StopCircleIcon from '@mui/icons-material/StopCircle';
-import { PALETTE_NODES, type PaletteNodeType } from './builderTypes';
+import { PALETTE_NODES, type PaletteNodeType } from './types';
 
 function getIcon(type: string) {
   const map: Record<string, React.ComponentType<{ sx?: Record<string, unknown> }>> = {
-    user_task:         PersonIcon,
-    service_task:      HttpIcon,
-    script_task:       CodeIcon,
+    user_task: PersonIcon,
+    service_task: HttpIcon,
+    script_task: CodeIcon,
     exclusive_gateway: AltRouteIcon,
-    end:               StopCircleIcon,
+    end: StopCircleIcon,
   };
   const Icon = map[type] || CodeIcon;
   return Icon;

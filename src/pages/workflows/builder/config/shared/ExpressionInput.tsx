@@ -1,7 +1,7 @@
 import React, { useRef, useState, useMemo, useCallback } from 'react';
 import { Box, Typography, Paper, Tooltip } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import { EXPR_FONT, EXPR_FS, EXPR_LH, EXPR_PAD_V, EXPR_PAD_L, EXPR_PAD_R } from '../constants';
+import { EXPR_FONT, EXPR_FS, EXPR_LH, EXPR_PAD_V } from '../constants';
 import type { AvailableCtxVar } from '../context';
 
 interface ExpressionInputProps {
@@ -13,6 +13,11 @@ interface ExpressionInputProps {
   label?: string;
   hint?: string;
 }
+
+// Width of the FEEL badge + its horizontal margins inside the box
+const FEEL_BADGE_W  = 30; // badge pill width (px)
+const FEEL_BADGE_MR = 5;  // margin from right edge
+const TEXTAREA_PR   = FEEL_BADGE_W + FEEL_BADGE_MR + 4; // textarea right padding
 
 export default function ExpressionInput({
   value,
@@ -71,12 +76,15 @@ export default function ExpressionInput({
 
   return (
     <Box>
+      {/* Label — only rendered when a label is provided */}
       {label && (
-        <Typography sx={{ fontSize: 10, color: 'text.secondary', mb: 0.25, fontWeight: 500 }}>
+        <Typography sx={{ fontSize: 10, color: 'text.secondary', fontWeight: 500, mb: 0.25 }}>
           {label}
         </Typography>
       )}
+
       <Box sx={{ position: 'relative' }}>
+        {/* Input container */}
         <Box sx={{
           position: 'relative',
           border: '1px solid',
@@ -87,35 +95,6 @@ export default function ExpressionInput({
           transition: 'border-color 0.15s',
           overflow: 'hidden',
         }}>
-          {/* FEEL badge */}
-          <Tooltip
-            title="FEEL (Friendly Enough Expression Language)."
-            placement="top-start"
-          >
-            <Box sx={{
-              position: 'absolute',
-              left: 5,
-              top: multiline ? EXPR_PAD_V + 1 : '50%',
-              transform: multiline ? 'none' : 'translateY(-50%)',
-              zIndex: 4,
-              cursor: 'default',
-              userSelect: 'none',
-              display: 'inline-flex',
-              alignItems: 'center',
-              fontSize: 7,
-              fontFamily: EXPR_FONT,
-              fontWeight: 700,
-              letterSpacing: '0.05em',
-              color: '#4f6ef7',
-              backgroundColor: 'rgba(79,110,247,0.1)',
-              border: '1px solid rgba(79,110,247,0.3)',
-              borderRadius: '3px',
-              px: '3px',
-              py: '1px',
-              lineHeight: 1,
-            }}>FEEL</Box>
-          </Tooltip>
-
           <textarea
             ref={textareaRef}
             value={value}
@@ -129,8 +108,10 @@ export default function ExpressionInput({
             style={{
               position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
               width: '100%', height: '100%',
-              paddingTop: EXPR_PAD_V, paddingLeft: EXPR_PAD_L,
-              paddingRight: EXPR_PAD_R, paddingBottom: EXPR_PAD_V,
+              paddingTop: EXPR_PAD_V,
+              paddingLeft: 8,
+              paddingRight: TEXTAREA_PR,
+              paddingBottom: EXPR_PAD_V,
               boxSizing: 'border-box',
               fontSize: EXPR_FS,
               fontFamily: EXPR_FONT,
@@ -140,11 +121,43 @@ export default function ExpressionInput({
               caretColor: theme.palette.text.primary,
               border: 'none', outline: 'none',
               resize: 'none',
-              overflow: 'hidden',
+              overflow: multiline ? 'hidden' : 'auto',
               whiteSpace: multiline ? 'pre-wrap' : 'nowrap',
               wordBreak: multiline ? 'break-all' : 'normal',
             }}
           />
+
+          {/* FEEL badge — positioned inside the box at the right edge */}
+          <Tooltip title="FEEL (Friendly Enough Expression Language)" placement="top">
+            <Box sx={{
+              position: 'absolute',
+              top: multiline ? 5 : '50%',
+              transform: multiline ? 'none' : 'translateY(-50%)',
+              right: FEEL_BADGE_MR,
+              display: 'inline-flex',
+              alignItems: 'center',
+              fontSize: '6.5px',
+              fontFamily: EXPR_FONT,
+              fontWeight: 700,
+              letterSpacing: '0.06em',
+              color: focused ? '#4f6ef7' : 'rgba(79,110,247,0.55)',
+              backgroundColor: focused
+                ? 'rgba(79,110,247,0.12)'
+                : isDark ? 'rgba(79,110,247,0.07)' : 'rgba(79,110,247,0.06)',
+              border: '1px solid',
+              borderColor: focused ? 'rgba(79,110,247,0.4)' : 'rgba(79,110,247,0.22)',
+              borderRadius: '3px',
+              px: '4px',
+              py: '2px',
+              lineHeight: 1,
+              cursor: 'default',
+              userSelect: 'none',
+              transition: 'all 0.15s',
+              pointerEvents: 'none', // don't intercept clicks meant for textarea
+            }}>
+              FEEL
+            </Box>
+          </Tooltip>
         </Box>
 
         {/* Autocomplete dropdown */}
@@ -173,6 +186,7 @@ export default function ExpressionInput({
           </Paper>
         )}
       </Box>
+
       {hint && (
         <Typography sx={{ fontSize: 9, color: 'text.secondary', opacity: 0.75, mt: 0.25, lineHeight: 1.4 }}>
           {hint}

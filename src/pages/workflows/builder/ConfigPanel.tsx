@@ -4,8 +4,8 @@ import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import {
   type CanvasNode, type CanvasEdge, type SelectedItem, type WorkflowInput,
-  getEffectiveNodeColor, getNodeTypeLabel,
-} from './builderTypes';
+} from './types';
+import { getEffectiveNodeColor, getNodeTypeLabel } from './nodeHelpers';
 import { getAvailableContext } from './config/context';
 import NodeIcon from './config/shared/NodeIcon';
 import StartConfig from './config/nodes/StartConfig';

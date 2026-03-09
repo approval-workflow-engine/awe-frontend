@@ -136,6 +136,7 @@ export function portYFraction(portIndex: number, totalPorts: number): number {
 }
 
 // Estimated card height for SVG edge endpoint calculation
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export function estimateCardHeight(_node: CanvasNode): number {
   return NODE_MIN_HEIGHT;
 }
@@ -270,7 +271,7 @@ export function canvasToVersionPayload(nodes: CanvasNode[], edges: CanvasEdge[])
       id: e.id,
       sourceNodeId: e.source,
       targetNodeId: e.target,
-      ...(e.sourcePort ? { ruleId: e.sourcePort } : {}),
+      ruleId: e.isDefault ? 'default' : (e.sourcePort || null),
     })),
     deleteContextVariablesOnEnd: false,
   };
@@ -489,7 +490,10 @@ export function definitionToCanvas(versionData: {
 }): { nodes: CanvasNode[]; edges: CanvasEdge[]; inputs: WorkflowInput[] } {
   const rawNodes = versionData.nodes || versionData.definition?.nodes || [];
   const rawEdges = versionData.edges || versionData.definition?.edges || [];
-  const inputs = versionData.definition?.inputs || [];
+  const inputs: WorkflowInput[] =
+    versionData.definition?.inputs ??
+    (versionData as { inputs?: WorkflowInput[] }).inputs ??
+    [];
 
   const nodes: CanvasNode[] = rawNodes.map((n, i) => ({
     id: n.nodeId || n.id || generateId('node'),

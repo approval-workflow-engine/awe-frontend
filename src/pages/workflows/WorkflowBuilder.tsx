@@ -30,7 +30,7 @@ import DarkModeIcon from "@mui/icons-material/DarkMode";
 import {
   getWorkflow,
   getWorkflowVersion,
-  validateWorkflowDefinition,
+  validateVersion,
   createWorkflowVersion,
   publishVersion,
 } from "../../api/workflowApi";
@@ -47,16 +47,14 @@ import {
   type CanvasEdge,
   type WorkflowInput,
   type SelectedItem,
-  buildStartNode,
-  canvasToDefinition,
-  canvasToVersionPayload,
+} from "./builder/types";
+import { buildStartNode } from "./builder/nodeHelpers";
+import {
   definitionToCanvas,
-} from "./builder/builderTypes";
-
-interface ValidationResult {
-  valid: boolean;
-  errors: string[];
-}
+  // canvasToDefinition,
+  canvasToVersionPayload,
+} from "./builder/serialization";
+import type { ValidationResult } from "../../types";
 
 export default function WorkflowBuilder() {
   const { workflowId, versionNumber } = useParams<{
@@ -131,8 +129,9 @@ export default function WorkflowBuilder() {
         showError: false,
       });
       if (wfRes) {
-        const body = wfRes as { name?: string; id?: string };
-        setWorkflowName(body?.name || "Workflow");
+        // Handle both bare workflow object and { workflow: {...} } wrapping
+        const body = wfRes as { name?: string; id?: string; workflow?: { name?: string; id?: string } };
+        setWorkflowName(body?.workflow?.name ?? body?.name ?? "Workflow");
       }
 
       // Load specific version if provided
@@ -142,15 +141,18 @@ export default function WorkflowBuilder() {
           { showError: false }
         );
         if (vRes) {
-          const vData = vRes as Record<string, unknown>;
+          const vRaw = vRes as Record<string, unknown>;
+          // Backend may return the version at top level or nested under a 'version' key
+          const vData: Record<string, unknown> =
+            vRaw.version && typeof vRaw.version === 'object'
+              ? (vRaw.version as Record<string, unknown>)
+              : vRaw;
           if (vData) {
             const {
               nodes: n,
               edges: e,
               inputs: i,
-            } = definitionToCanvas(
-              vData as Parameters<typeof definitionToCanvas>[0]
-            );
+            } = definitionToCanvas(vData);
             setNodes(n.length > 0 ? n : [buildStartNode()]);
             setEdges(e);
             setInputs(i);
@@ -218,7 +220,7 @@ export default function WorkflowBuilder() {
   const handleDeleteSelected = useCallback(() => {
     if (!selectedItem) return;
     if (selectedItem.type === "node") {
-      if (selectedItem.id === "start_1") return; // Cannot delete start
+      if (nodes.find(n => n.id === selectedItem.id)?.type === 'start') return; // Cannot delete start
       setNodes((prev) => prev.filter((n) => n.id !== selectedItem.id));
       setEdges((prev) =>
         prev.filter(
@@ -230,7 +232,7 @@ export default function WorkflowBuilder() {
     }
     setSelectedItem(null);
     markDirty();
-  }, [selectedItem, markDirty]);
+  }, [selectedItem, markDirty, nodes]);
 
   const handleClearCanvas = useCallback(() => {
     setNodes([buildStartNode()]);
@@ -272,8 +274,7 @@ export default function WorkflowBuilder() {
     if (!workflowId) return;
     setValidating(true);
     setValidationResult(null);
-    const def = canvasToDefinition(nodes, edges, inputs);
-    const res = await call(() => validateWorkflowDefinition(def), {
+    const res = await call(() => validateVersion(workflowId, Number(versionNumber || savedVersionNumber)), {
       showError: false,
     });
     if (res) {
@@ -298,8 +299,9 @@ export default function WorkflowBuilder() {
       showError: true,
     });
     if (res) {
-      const body = res as { versionNumber?: number; id?: string };
-      const vn = body?.versionNumber || null;
+      const body = res as { versionNumber?: number; id?: string; version?: { versionNumber?: number; id?: string } };
+      // Handle both bare { versionNumber } and nested { version: { versionNumber } }
+      const vn = body?.version?.versionNumber ?? body?.versionNumber ?? null;
       setSavedVersionNumber(vn);
       setIsDirty(false);
     }
@@ -322,11 +324,11 @@ export default function WorkflowBuilder() {
   const versionLabel = loadedVersionNumber
     ? `v${loadedVersionNumber}`
     : savedVersionNumber
-    ? `v${savedVersionNumber} (draft)`
-    : "Draft";
+      ? `v${savedVersionNumber} (draft)`
+      : "Draft";
   const canDelete =
     selectedItem &&
-    !(selectedItem.type === "node" && selectedItem.id === "start_1");
+    !(selectedItem.type === "node" && nodes.find(n => n.id === selectedItem.id)?.type === 'start');
 
   const selectedScriptNode =
     nodes.find((n) => n.id === selectedItem?.id && n.type === "script_task") ??
@@ -431,7 +433,7 @@ export default function WorkflowBuilder() {
         <Button
           size="small"
           onClick={handleValidate}
-          disabled={validating}
+          disabled={validating || (!versionNumber && !savedVersionNumber)}
           startIcon={
             validating ? (
               <CircularProgress size={12} />
@@ -448,23 +450,23 @@ export default function WorkflowBuilder() {
             color: validationResult?.valid
               ? "#22c55e"
               : validationResult
-              ? "#ef4444"
-              : "text.secondary",
+                ? "#ef4444"
+                : "text.secondary",
             borderColor: validationResult?.valid
               ? "#22c55e"
               : validationResult
-              ? "#ef4444"
-              : "divider",
+                ? "#ef4444"
+                : "divider",
           }}
           variant="outlined"
         >
           {validating
             ? "Validating…"
             : validationResult?.valid
-            ? "Valid"
-            : validationResult
-            ? `${validationResult.errors.length} errors`
-            : "Validate"}
+              ? "Valid"
+              : validationResult
+                ? `${validationResult.errors.length} errors`
+                : "Validate"}
         </Button>
 
         {/* Validate errors popover */}
@@ -743,7 +745,7 @@ export default function WorkflowBuilder() {
             This will make{" "}
             <strong>v{savedVersionNumber}</strong>{" "}
             the active version for this workflow. Any currently active version
-            will be deprecated.
+            will be moved to published status.
           </Typography>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>

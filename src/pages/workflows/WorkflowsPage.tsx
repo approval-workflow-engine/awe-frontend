@@ -21,10 +21,8 @@ import {
 } from '../../api/workflowApi';
 import { createInstance as startInstance } from '../../api/instanceApi';
 import { useApiCall } from '../../hooks/useApiCall';
-import StatusChip from '../../components/common/StatusChip';
 import type { Workflow } from '../../types';
 
-type FilterType = 'all' | 'active' | 'inactive';
 type LaunchInput = { name: string; datatype: 'string' | 'number' | 'boolean' | 'object'; value: string; };
 
 export default function WorkflowsPage() {
@@ -34,7 +32,8 @@ export default function WorkflowsPage() {
   const [workflows, setWorkflows] = useState<Workflow[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
-  const [filter, setFilter] = useState<FilterType>('all');
+  // Filter is fixed to 'all' — no filter UI is shown, so no state needed.
+  const filter = 'all';
   const [listLoading, setListLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [allWorkflows, setAllWorkflows] = useState<Workflow[] | null>(null);
@@ -65,15 +64,22 @@ export default function WorkflowsPage() {
 
   const PAGE_SIZE = 20;
 
-  const fetchWorkflows = useCallback(async (pg: number, f: FilterType) => {
+  const fetchWorkflows = useCallback(async (pg: number, f: string) => {
     setListLoading(true);
     try {
       const params: Record<string, unknown> = { page: pg, limit: PAGE_SIZE };
       if (f !== 'all') params.status = f;
       const res = await call(() => getWorkflows(params));
       if (res) {
-        const body = res as { workflows?: Workflow[]; pagination?: { total: number } };
-        setWorkflows(body?.workflows || []);
+        const body = res as {
+          workflows?: Workflow[];
+          pagination?: { total: number };
+          data?: Workflow[];
+        };
+        // Handle both { workflows, pagination } and array directly
+        const list = body?.workflows ?? (Array.isArray(body) ? (body as unknown as Workflow[]) : []);
+        const deduped = list.filter((wf, idx, self) => self.findIndex(w => w.id === wf.id) === idx);
+        setWorkflows(deduped);
         setTotal(body?.pagination?.total || 0);
       }
     } finally {
@@ -84,7 +90,7 @@ export default function WorkflowsPage() {
   useEffect(() => { fetchWorkflows(page, filter); }, [page, filter, fetchWorkflows]);
 
   // Fetch all workflows for client-side search
-  const fetchAllWorkflows = useCallback(async (f: FilterType) => {
+  const fetchAllWorkflows = useCallback(async (f: string) => {
     setSearchLoading(true);
     try {
       const params: Record<string, unknown> = { page: 1, limit: 1000 };
@@ -92,7 +98,9 @@ export default function WorkflowsPage() {
       const res = await call(() => getWorkflows(params));
       if (res) {
         const body = res as { workflows?: Workflow[] };
-        setAllWorkflows(body?.workflows || []);
+        const list = body?.workflows ?? (Array.isArray(body) ? (body as unknown as Workflow[]) : []);
+        const deduped = list.filter((wf, idx, self) => self.findIndex(w => w.id === wf.id) === idx);
+        setAllWorkflows(deduped);
       }
     } finally {
       setSearchLoading(false);
@@ -106,45 +114,32 @@ export default function WorkflowsPage() {
     }
   }, [searchQuery, allWorkflows, filter, fetchAllWorkflows]);
 
-  const getActiveVersionNumber = (wf: Workflow): string => {
-    const published = wf.versions?.find(v => v.status === 'published' || v.status === 'PUBLISHED');
-    const num = published?.versionNumber ?? published?.version;
-    if (num != null) return `v${num}`;
-    if (wf.versionCount != null && wf.versionCount > 0) return `v${wf.versionCount}`;
-    return '-';
-  };
 
-  const handleFilterChange = (f: FilterType) => {
-    setFilter(f);
-    setPage(1);
-    setAllWorkflows(null); // invalidate search cache so it re-fetches with new filter
-  };
-
-  //  New Workflow 
+    //  New Workflow
   const handleNewSubmit = async () => {
     if (!newForm.name.trim()) return;
     setNewLoading(true);
     setNewError('');
-    try {
-      const res = await call(
-        () => createWorkflow({ name: newForm.name.trim(), description: newForm.description.trim() || undefined }),
-        { showError: false }
-      );
-      if (res) {
-        setNewOpen(false);
-        setNewForm({ name: '', description: '' });
-        fetchWorkflows(1, filter);
-        setPage(1);
+    const res = await call(
+      () => createWorkflow({ name: newForm.name.trim(), description: newForm.description.trim() || undefined }),
+      {
+        showError: false,
+        onError: (err) => {
+          const e = err as { response?: { data?: { error?: { message?: string }; message?: string } }; message?: string };
+          setNewError(e?.response?.data?.error?.message || e?.response?.data?.message || e?.message || 'Failed to create workflow');
+        },
       }
-    } catch (err: unknown) {
-      const e = err as { response?: { data?: { error?: { message?: string }; message?: string } } };
-      setNewError(e?.response?.data?.error?.message || e?.response?.data?.message || 'Failed to create workflow');
-    } finally {
-      setNewLoading(false);
+    );
+    setNewLoading(false);
+    if (res) {
+      setNewOpen(false);
+      setNewForm({ name: '', description: '' });
+      fetchWorkflows(1, filter);
+      setPage(1);
     }
   };
 
-  //  Edit Workflow 
+  //  Edit Workflow
   const openEdit = (wf: Workflow) => {
     setEditTarget(wf);
     setEditForm({ name: wf.name, description: wf.description || '' });
@@ -156,24 +151,24 @@ export default function WorkflowsPage() {
     if (!editTarget || !editForm.name.trim()) return;
     setEditLoading(true);
     setEditError('');
-    try {
-      const res = await call(
-        () => updateWorkflow(editTarget.id, { name: editForm.name.trim(), description: editForm.description.trim() || undefined }),
-        { showError: false }
-      );
-      if (res) {
-        setEditOpen(false);
-        fetchWorkflows(page, filter);
+    const res = await call(
+      () => updateWorkflow(editTarget.id, { name: editForm.name.trim(), description: editForm.description.trim() || undefined }),
+      {
+        showError: false,
+        onError: (err) => {
+          const e = err as { response?: { data?: { error?: { message?: string }; message?: string } }; message?: string };
+          setEditError(e?.response?.data?.error?.message || e?.response?.data?.message || e?.message || 'Failed to update workflow');
+        },
       }
-    } catch (err: unknown) {
-      const e = err as { response?: { data?: { error?: { message?: string }; message?: string } } };
-      setEditError(e?.response?.data?.error?.message || e?.response?.data?.message || 'Failed to update workflow');
-    } finally {
-      setEditLoading(false);
+    );
+    setEditLoading(false);
+    if (res) {
+      setEditOpen(false);
+      fetchWorkflows(page, filter);
     }
   };
 
-  //  Delete Workflow 
+  //  Delete Workflow
   const openDelete = (wf: Workflow) => {
     setDeleteTarget(wf);
     setDeleteError('');
@@ -184,19 +179,29 @@ export default function WorkflowsPage() {
     if (!deleteTarget) return;
     setDeleteLoading(true);
     setDeleteError('');
-    try {
-      await call(() => deleteWorkflow(deleteTarget.id), { showError: false });
+    let succeeded = false;
+    let errMsg = '';
+    await call(
+      () => deleteWorkflow(deleteTarget.id),
+      {
+        showError: false,
+        onSuccess: () => { succeeded = true; },
+        onError: (err) => {
+          const e = err as { response?: { data?: { error?: { message?: string }; message?: string } }; message?: string };
+          errMsg = e?.response?.data?.error?.message || e?.response?.data?.message || e?.message || 'Failed to delete workflow';
+        },
+      }
+    );
+    setDeleteLoading(false);
+    if (succeeded) {
       setDeleteOpen(false);
       fetchWorkflows(page, filter);
-    } catch (err: unknown) {
-      const e = err as { response?: { data?: { error?: { message?: string }; message?: string } } };
-      setDeleteError(e?.response?.data?.error?.message || e?.response?.data?.message || 'Failed to delete workflow');
-    } finally {
-      setDeleteLoading(false);
+    } else if (errMsg) {
+      setDeleteError(errMsg);
     }
   };
 
-  //  Launch Instance 
+  //  Launch Instance
   const openLaunch = (wf: Workflow) => {
     setLaunchTarget(wf);
     setLaunchInputs([]);
@@ -209,40 +214,40 @@ export default function WorkflowsPage() {
     if (!launchTarget) return;
     setLaunchLoading(true);
     setLaunchError('');
-    try {
-      // Build context object from structured inputs
-      const context: Record<string, unknown> = {};
-      for (const inp of launchInputs) {
-        const key = inp.name.trim();
-        if (!key) continue;
-        if (inp.datatype === 'number') {
-          context[key] = inp.value.trim() === '' ? 0 : Number(inp.value);
-        } else if (inp.datatype === 'boolean') {
-          context[key] = inp.value === 'true';
-        } else if (inp.datatype === 'object') {
-          try { context[key] = JSON.parse(inp.value); }
-          catch { setLaunchError(`"${key}" must be valid JSON for object type.`); setLaunchLoading(false); return; }
-        } else {
-          context[key] = inp.value;
-        }
+    // Build context object from structured inputs
+    const context: Record<string, unknown> = {};
+    for (const inp of launchInputs) {
+      const key = inp.name.trim();
+      if (!key) continue;
+      if (inp.datatype === 'number') {
+        context[key] = inp.value.trim() === '' ? 0 : Number(inp.value);
+      } else if (inp.datatype === 'boolean') {
+        context[key] = inp.value === 'true';
+      } else if (inp.datatype === 'object') {
+        try { context[key] = JSON.parse(inp.value); }
+        catch { setLaunchError(`"${key}" must be valid JSON for object type.`); setLaunchLoading(false); return; }
+      } else {
+        context[key] = inp.value;
       }
-      const contextToSend = launchInputs.some(i => i.name.trim()) ? context : undefined;
-      const res = await call(
-        () => startInstance({ workflowId: launchTarget.id, context: contextToSend, autoAdvance: launchAutoAdvance }),
-        { showError: false }
-      );
-      if (res) {
-        const body = res as { instance?: { id: string }; id?: string };
-        const instanceId = body?.instance?.id || body?.id;
-        setLaunchOpen(false);
-        if (instanceId) navigate(`/instances/${instanceId}`);
-        else navigate('/instances');
+    }
+    const contextToSend = launchInputs.some(i => i.name.trim()) ? context : undefined;
+    const res = await call(
+      () => startInstance({ workflowId: launchTarget.id, context: contextToSend, autoAdvance: launchAutoAdvance }),
+      {
+        showError: false,
+        onError: (err) => {
+          const e = err as { response?: { data?: { error?: { message?: string }; message?: string } }; message?: string };
+          setLaunchError(e?.response?.data?.error?.message || e?.response?.data?.message || e?.message || 'Failed to start instance');
+        },
       }
-    } catch (err: unknown) {
-      const e = err as { response?: { data?: { error?: { message?: string }; message?: string } } };
-      setLaunchError(e?.response?.data?.error?.message || e?.response?.data?.message || 'Failed to start instance');
-    } finally {
-      setLaunchLoading(false);
+    );
+    setLaunchLoading(false);
+    if (res) {
+      const body = res as { instance?: { id: string }; id?: string; instanceId?: string };
+      const instanceId = body?.instance?.id ?? body?.instanceId ?? body?.id;
+      setLaunchOpen(false);
+      if (instanceId) navigate(`/instances/${instanceId}`);
+      else navigate('/instances');
     }
   };
 
@@ -250,130 +255,104 @@ export default function WorkflowsPage() {
   const isSearchActive = searchQuery.trim().length > 0;
   const displayedWorkflows = isSearchActive
     ? (allWorkflows || []).filter(wf => {
-        const q = searchQuery.toLowerCase();
-        const date = (wf.updatedAt || wf.createdAt)
-          ? new Date((wf.updatedAt || wf.createdAt) as string).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
-          : '';
-        return (
-          wf.name.toLowerCase().includes(q) ||
-          (wf.description || '').toLowerCase().includes(q) ||
-          (wf.status || '').toLowerCase().includes(q) ||
-          getActiveVersionNumber(wf).toLowerCase().includes(q) ||
-          date.toLowerCase().includes(q)
-        );
-      })
+      const q = searchQuery.toLowerCase();
+      const updatedDate = wf.updatedAt
+        ? new Date(wf.updatedAt as string).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'Asia/Kolkata' })
+        : '';
+      const createdDate = wf.createdAt
+        ? new Date(wf.createdAt as string).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'Asia/Kolkata' })
+        : '';
+      return (
+        wf.name.toLowerCase().includes(q) ||
+        (wf.description || '').toLowerCase().includes(q) ||
+        updatedDate.toLowerCase().includes(q) ||
+        createdDate.toLowerCase().includes(q)
+      );
+    })
     : workflows;
 
   return (
     <Box>
       {/* Header */}
-      <Box display="flex" alignItems="center" justifyContent="space-between" mb={3}>
+      <Box display="flex" alignItems="flex-start" justifyContent="space-between" mb={2.5}>
         <Box>
           <Typography sx={{ fontFamily: "'Syne', sans-serif", fontWeight: 700, fontSize: 22, color: 'text.primary' }}>
             Workflows
           </Typography>
           <Typography sx={{ fontSize: 13, color: 'text.secondary' }}>
-            Manage your approval workflows
+            Manage your workflows
           </Typography>
         </Box>
-        <Button
-          variant="contained"
-          startIcon={<AddIcon />}
-          onClick={() => { setNewForm({ name: '', description: '' }); setNewError(''); setNewOpen(true); }}
-          sx={{ borderRadius: '8px', fontWeight: 600, height: 36 }}
-        >
-          New Workflow
-        </Button>
-      </Box>
-
-      {/* Filter + Search row */}
-      <Box display="flex" alignItems="center" justifyContent="space-between" gap={2} mb={2.5}>
-        <Box display="flex" gap={1}>
-          {(['all', 'active', 'inactive'] as FilterType[]).map(f => (
-            <Button
-              key={f}
-              size="small"
-              variant={filter === f ? 'contained' : 'outlined'}
-              onClick={() => handleFilterChange(f)}
-              sx={{
-                borderRadius: '8px',
-                fontWeight: 600,
-                fontSize: 12,
-                textTransform: 'capitalize',
-                height: 32,
-                ...(filter === f ? {} : {
-                  borderColor: 'divider',
-                  color: 'text.secondary',
-                  '&:hover': { borderColor: 'primary.main', color: 'primary.main' },
-                }),
-              }}
-            >
-              {f}
-            </Button>
-          ))}
+        <Box display="flex" alignItems="center" gap={1.5}>
+          <TextField
+            size="small"
+            placeholder="Search workflows…"
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            sx={{
+              width: 260,
+              '& .MuiOutlinedInput-root': {
+                borderRadius: '8px', fontSize: 13,
+                '& fieldset': { borderColor: 'divider' },
+              },
+            }}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  {searchLoading
+                    ? <CircularProgress size={14} sx={{ color: 'text.disabled' }} />
+                    : <SearchIcon sx={{ fontSize: 16, color: 'text.disabled' }} />}
+                </InputAdornment>
+              ),
+              endAdornment: searchQuery ? (
+                <InputAdornment position="end">
+                  <IconButton
+                    size="small"
+                    onClick={() => { setSearchQuery(''); setAllWorkflows(null); }}
+                    sx={{ p: 0.25, color: 'text.disabled' }}
+                  >
+                    <ClearIcon sx={{ fontSize: 14 }} />
+                  </IconButton>
+                </InputAdornment>
+              ) : null,
+            }}
+          />
+          <Button
+            variant="contained"
+            startIcon={<AddIcon />}
+            onClick={() => { setNewForm({ name: '', description: '' }); setNewError(''); setNewOpen(true); }}
+            sx={{ borderRadius: '8px', fontWeight: 600, height: 36, whiteSpace: 'nowrap' }}
+          >
+            New Workflow
+          </Button>
         </Box>
-
-        <TextField
-          size="small"
-          placeholder="Search all columns…"
-          value={searchQuery}
-          onChange={e => setSearchQuery(e.target.value)}
-          sx={{
-            width: 300,
-            '& .MuiOutlinedInput-root': {
-              borderRadius: '8px', fontSize: 13,
-              '& fieldset': { borderColor: 'divider' },
-            },
-          }}
-          InputProps={{
-            startAdornment: (
-              <InputAdornment position="start">
-                {searchLoading
-                  ? <CircularProgress size={14} sx={{ color: 'text.disabled' }} />
-                  : <SearchIcon sx={{ fontSize: 16, color: 'text.disabled' }} />}
-              </InputAdornment>
-            ),
-            endAdornment: searchQuery ? (
-              <InputAdornment position="end">
-                <IconButton
-                  size="small"
-                  onClick={() => { setSearchQuery(''); setAllWorkflows(null); }}
-                  sx={{ p: 0.25, color: 'text.disabled' }}
-                >
-                  <ClearIcon sx={{ fontSize: 14 }} />
-                </IconButton>
-              </InputAdornment>
-            ) : null,
-          }}
-        />
       </Box>
 
       {/* Table */}
-      <Paper sx={{ overflow: 'hidden' }}>
+      <Paper sx={{ overflow: 'hidden', borderRadius: '10px' }}>
         <TableContainer>
           <Table size="small">
             <TableHead>
               <TableRow>
-                <TableCell sx={{ width: '22%' }}>Name</TableCell>
-                <TableCell sx={{ width: '28%' }}>Description</TableCell>
-                <TableCell>Version</TableCell>
-                <TableCell>Status</TableCell>
-                <TableCell>Last Modified</TableCell>
-                <TableCell align="right">Actions</TableCell>
+                <TableCell sx={{ width: '25%', fontWeight: 600, fontSize: 12 }}>Name</TableCell>
+                <TableCell sx={{ width: '30%', fontWeight: 600, fontSize: 12 }}>Description</TableCell>
+                <TableCell sx={{ fontWeight: 600, fontSize: 12 }}>Date Created</TableCell>
+                <TableCell sx={{ fontWeight: 600, fontSize: 12 }}>Last Modified</TableCell>
+                <TableCell align="right" sx={{ fontWeight: 600, fontSize: 12 }}>Actions</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
               {(listLoading || (isSearchActive && searchLoading)) ? (
-                [0,1,2,3].map(i => (
+                [0, 1, 2, 3].map(i => (
                   <TableRow key={i}>
-                    <TableCell colSpan={6}>
+                    <TableCell colSpan={5}>
                       <Skeleton variant="rounded" height={36} />
                     </TableCell>
                   </TableRow>
                 ))
               ) : displayedWorkflows.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6}>
+                  <TableCell colSpan={5}>
                     <Box sx={{ py: 6, textAlign: 'center' }}>
                       <Typography sx={{ fontSize: 13, color: 'text.secondary' }}>
                         {isSearchActive
@@ -403,13 +382,13 @@ export default function WorkflowsPage() {
                 </TableRow>
               ) : (
                 displayedWorkflows.map(wf => (
-                  <TableRow key={wf.id}>
-                    <TableCell>
+                  <TableRow key={wf.id} sx={{ '&:hover': { backgroundColor: 'action.hover' }, transition: 'background-color 0.1s' }}>
+                    <TableCell sx={{ py: 1.25 }}>
                       <Typography sx={{ fontSize: 13, fontWeight: 600, color: 'text.primary' }}>
                         {wf.name}
                       </Typography>
                     </TableCell>
-                    <TableCell sx={{ maxWidth: 0 }}>
+                    <TableCell sx={{ maxWidth: 0, py: 1.25 }}>
                       <Typography sx={{
                         fontSize: 12, color: 'text.secondary',
                         overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
@@ -418,16 +397,13 @@ export default function WorkflowsPage() {
                       </Typography>
                     </TableCell>
                     <TableCell>
-                      <Typography sx={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12, color: 'text.secondary' }}>
-                        {getActiveVersionNumber(wf)}
+                      <Typography sx={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 11, color: 'text.disabled' }}>
+                        {wf.createdAt ? new Date(wf.createdAt as string).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'Asia/Kolkata' }) : '-'}
                       </Typography>
                     </TableCell>
                     <TableCell>
-                      <StatusChip status={wf.status} />
-                    </TableCell>
-                    <TableCell>
                       <Typography sx={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 11, color: 'text.disabled' }}>
-                        {(wf.updatedAt || wf.createdAt) ? new Date((wf.updatedAt || wf.createdAt) as string).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '-'}
+                        {wf.updatedAt ? new Date(wf.updatedAt as string).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'Asia/Kolkata' }) : '-'}
                       </Typography>
                     </TableCell>
                     <TableCell align="right">

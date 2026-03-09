@@ -33,12 +33,11 @@ export default function ServiceTaskConfig({ node, availableContext, onUpdateConf
   const body: Array<{ jsonPath: string; valueExpression: string }> =
     (c.body as Array<{ jsonPath: string; valueExpression: string }>) ?? [];
 
-  /* bodyJson is a mirror of the body[] array as a JSON string for the text editor.
-     It must reset whenever the selected node changes, otherwise stale state persists. */
+
   const [bodyJson, setBodyJson] = useState(() => bodyToJson(body));
   useEffect(() => {
     setBodyJson(bodyToJson(body));
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [node.id]);
 
   const [bodyError, setBodyError] = useState('');
@@ -68,7 +67,7 @@ export default function ServiceTaskConfig({ node, availableContext, onUpdateConf
 
   return (
     <Box display="flex" flexDirection="column" gap={1.5}>
-      {/* Endpoint */}
+
       <Box display="flex" flexDirection="column" gap={1}>
         <Box display="flex" gap={0.5}>
           {HTTP_METHODS.map(m => (
@@ -90,19 +89,28 @@ export default function ServiceTaskConfig({ node, availableContext, onUpdateConf
             </Button>
           ))}
         </Box>
-        <ExpressionInput
-          label="URL"
-          value={(c.urlExpression as string) ?? ''}
-          onChange={v => set('urlExpression', v)}
-          placeholder="https://api.example.com/endpoint"
-          availableContext={availableContext}
-          hint="Use {context.varName} for dynamic values"
-        />
+        <Box>
+          <Typography sx={{ fontSize: 10, color: 'text.secondary', mb: 0.25, fontWeight: 500 }}>
+            URL
+          </Typography>
+          <TextField
+            size="small"
+            fullWidth
+            value={(c.urlExpression as string) ?? ''}
+            onChange={e => set('urlExpression', e.target.value)}
+            placeholder="https://api.example.com/endpoint"
+            inputProps={{ style: { fontSize: 11, fontFamily: "'JetBrains Mono', monospace", padding: '5px 8px' } }}
+            sx={{ '& .MuiOutlinedInput-root': { borderRadius: '6px', fontSize: 11, '& fieldset': { borderColor: 'divider' } } }}
+          />
+          <Typography sx={{ fontSize: 9, color: 'text.secondary', opacity: 0.75, mt: 0.25, lineHeight: 1.4 }}>
+            Use {'{'}context.varName{'}'} for dynamic path parameters
+          </Typography>
+        </Box>
       </Box>
 
       <Divider sx={{ borderColor: 'divider' }} />
 
-      {/* Headers */}
+
       <CollapsibleSection title="Headers" count={headers.length}>
         <Box display="flex" flexDirection="column" gap={0.75}>
           {headers.map((h, idx) => (
@@ -141,7 +149,7 @@ export default function ServiceTaskConfig({ node, availableContext, onUpdateConf
         </Box>
       </CollapsibleSection>
 
-      {/* Request Body */}
+
       {method !== 'GET' && method !== 'DELETE' && (
         <CollapsibleSection title="Request Body" count={body.length}>
           <Box display="flex" flexDirection="column" gap={0.5}>
@@ -179,7 +187,7 @@ export default function ServiceTaskConfig({ node, availableContext, onUpdateConf
         </CollapsibleSection>
       )}
 
-      {/* Response Map */}
+
       <CollapsibleSection title="Response Map" count={(c.responseMap as ResponseMapRow[])?.length ?? 0}>
         <ResponseMapSection
           rows={(c.responseMap as ResponseMapRow[]) ?? []}
@@ -189,7 +197,7 @@ export default function ServiceTaskConfig({ node, availableContext, onUpdateConf
         />
       </CollapsibleSection>
 
-      {/* Retry & Timeout */}
+
       <CollapsibleSection title="Retry & Timeout">
         <Box display="flex" flexDirection="column" gap={0.75}>
           <Box display="flex" alignItems="center" justifyContent="space-between">
@@ -226,7 +234,7 @@ export default function ServiceTaskConfig({ node, availableContext, onUpdateConf
         </Box>
       </CollapsibleSection>
 
-      {/* On Error */}
+
       <CollapsibleSection title="On Error">
         <OnErrorSection
           value={c.onError ?? 'terminate'}

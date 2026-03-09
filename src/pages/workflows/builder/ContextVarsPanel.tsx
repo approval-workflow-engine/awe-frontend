@@ -1,5 +1,5 @@
 import { Box, Typography, Chip } from '@mui/material';
-import { type CanvasNode, type WorkflowInput } from './builderTypes';
+import { type CanvasNode, type WorkflowInput } from './types';
 
 interface ContextVarEntry {
   name: string;
@@ -19,7 +19,7 @@ export default function ContextVarsPanel({ nodes, inputs }: ContextVarsPanelProp
     source: 'Input',
   }));
 
-  // Also collect context vars from start node's inputDataMap
+
   const startNode = nodes.find(n => n.type === 'start');
   const startInputVars: ContextVarEntry[] = [];
   if (startNode) {
@@ -35,7 +35,7 @@ export default function ContextVarsPanel({ nodes, inputs }: ContextVarsPanelProp
     if (node.type === 'start' || node.type === 'end') continue;
     const rm = node.config.responseMap;
 
-    // New schema: responseMap[] has contextVariable: { name, scope }
+
     if (Array.isArray(rm)) {
       for (const row of rm as Array<{ contextVariable?: { name?: string }; type?: string }>) {
         const varName = row.contextVariable?.name;
@@ -43,7 +43,7 @@ export default function ContextVarsPanel({ nodes, inputs }: ContextVarsPanelProp
       }
     }
 
-    // Legacy object format fallback - keys become var names
+
     if (rm && typeof rm === 'object' && !Array.isArray(rm)) {
       for (const key of Object.keys(rm as Record<string, unknown>)) {
         if (key) outputVars.push({ name: key, type: 'string', source: node.label });
@@ -51,14 +51,14 @@ export default function ContextVarsPanel({ nodes, inputs }: ContextVarsPanelProp
     }
   }
 
-  // Prefer context var names from start node's inputDataMap; fall back to raw workflow inputs
+
   const displayInputVars = startInputVars.length > 0 ? startInputVars : inputVars;
   const hasAnything = displayInputVars.length > 0 || outputVars.length > 0;
 
   return (
     <Box sx={{ flex: 1, overflowY: 'auto', px: 1, pt: 1.5, pb: 2 }}>
       <Typography sx={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'text.secondary', px: 0.5, mb: 1 }}>
-        Context Vars
+        Context Variables
       </Typography>
 
       {!hasAnything && (

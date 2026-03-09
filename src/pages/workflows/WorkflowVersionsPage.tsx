@@ -12,7 +12,7 @@ import PublishIcon from '@mui/icons-material/Publish';
 import AddIcon from '@mui/icons-material/Add';
 import SearchIcon from '@mui/icons-material/Search';
 import ClearIcon from '@mui/icons-material/Clear';
-import { getWorkflow, getWorkflowVersions, publishVersion } from '../../api/workflowApi';
+import { getWorkflow, publishVersion } from '../../api/workflowApi';
 import { useApiCall } from '../../hooks/useApiCall';
 import StatusChip from '../../components/common/StatusChip';
 import type { Workflow, WorkflowVersion } from '../../types';
@@ -26,7 +26,7 @@ export default function WorkflowVersionsPage() {
   const [versions, setVersions] = useState<WorkflowVersion[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'all' | 'draft' | 'published' | 'deprecated'>('all');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'draft' | 'published'>('all');
 
   const [publishTarget, setPublishTarget] = useState<WorkflowVersion | null>(null);
   const [publishLoading, setPublishLoading] = useState(false);
@@ -35,18 +35,27 @@ export default function WorkflowVersionsPage() {
     if (!workflowId) return;
     setLoading(true);
     try {
-      const [wfRes, versRes] = await Promise.allSettled([
-        call(() => getWorkflow(workflowId), { showError: false }),
-        call(() => getWorkflowVersions(workflowId), { showError: false }),
-      ]);
+      const res = await call(() => getWorkflow(workflowId), { showError: false });
+      if (res) {
+        // Handle both bare Workflow object and { workflow: {...} } wrapping
+        const wfBody = res as { workflow?: Workflow } | Workflow;
+        const wf = (wfBody as { workflow?: Workflow }).workflow ?? (wfBody as Workflow);
+        setWorkflow(wf || null);
 
-      if (wfRes.status === 'fulfilled' && wfRes.value) {
-        setWorkflow((wfRes.value as Workflow) || null);
-      }
-      if (versRes.status === 'fulfilled' && versRes.value) {
-        const body = versRes.value as { versions?: WorkflowVersion[] };
-        const vers = body?.versions || [];
-        setVersions([...vers].sort((a, b) => (b.versionNumber ?? 0) - (a.versionNumber ?? 0)));
+        // Extract versions from the workflow detail response.
+        // The list uses field "version" (number); normalize to "versionNumber" for consistency.
+        const rawVersions: Array<Record<string, unknown>> =
+          Array.isArray((wf as unknown as Record<string, unknown>)?.versions)
+            ? (wf as unknown as Record<string, unknown>).versions as Array<Record<string, unknown>>
+            : [];
+        const normalized = rawVersions.map(v => ({
+          ...v,
+          versionNumber:
+            (v.versionNumber as number | undefined) ??
+            (v.version as number | undefined) ??
+            0,
+        })) as WorkflowVersion[];
+        setVersions([...normalized].sort((a, b) => b.versionNumber - a.versionNumber));
       }
     } finally {
       setLoading(false);
@@ -72,16 +81,14 @@ export default function WorkflowVersionsPage() {
 
   const formatDate = (iso?: string | null) => {
     if (!iso) return '-';
-    return new Date(iso).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+    return new Date(iso).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'Asia/Kolkata' });
   };
 
   const versionStatus = (v: WorkflowVersion): string => {
     const s = v.status?.toLowerCase();
-    if (s === 'active') return 'active';
-    if (s === 'published') return 'published';
+    if (s === 'published' || s === 'active' || s === 'deprecated') return 'published';
     if (s === 'draft') return 'draft';
-    if (s === 'deprecated') return 'deprecated';
-    return v.status || 'draft';
+    return 'draft';
   };
 
   const filteredVersions = versions.filter(v => {
@@ -93,7 +100,6 @@ export default function WorkflowVersionsPage() {
       `v${v.versionNumber}`.includes(q) ||
       versionStatus(v).toLowerCase().includes(q) ||
       (v.status?.toLowerCase() || '').includes(q) ||
-      formatDate(v.publishedAt).toLowerCase().includes(q) ||
       formatDate(v.createdAt).toLowerCase().includes(q)
     );
   });
@@ -153,7 +159,7 @@ export default function WorkflowVersionsPage() {
       {/* Filter + Search row */}
       <Box display="flex" alignItems="center" justifyContent="space-between" gap={2} mb={2.5}>
         <Box display="flex" gap={1}>
-          {(['all', 'draft', 'published', 'deprecated'] as const).map(f => (
+          {(['all', 'draft', 'published'] as const).map(f => (
             <Button
               key={f}
               size="small"
@@ -332,7 +338,7 @@ export default function WorkflowVersionsPage() {
         <DialogContent sx={{ pt: '8px !important' }}>
           <Typography sx={{ fontSize: 13, color: 'text.secondary' }}>
             Publishing this version will make it the active version for this workflow.
-            Any previously active version will be deprecated.
+            Any previously active version will be moved to published status.
           </Typography>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>
