@@ -234,7 +234,7 @@ export default function WorkflowVersionsPage() {
                     <Box py={6} textAlign="center">
                       {versions.length === 0 ? (
                         <>
-                          <Typography sx={{ fontSize: 13, color: 'text.disabled' }}>No versions yet.</Typography>
+                          <Typography sx={{ fontSize: 13, color: 'text.secondary' }}>No versions yet.</Typography>
                           <Button
                             variant="outlined"
                             size="small"
@@ -246,7 +246,7 @@ export default function WorkflowVersionsPage() {
                         </>
                       ) : (
                         <>
-                          <Typography sx={{ fontSize: 13, color: 'text.disabled' }}>
+                          <Typography sx={{ fontSize: 13, color: 'text.secondary' }}>
                             No versions match the current filter{searchQuery ? ` or search` : ''}.
                           </Typography>
                           <Button

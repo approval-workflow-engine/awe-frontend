@@ -24,9 +24,9 @@ export default function ScriptTaskEditorPanel({ node, onUpdateConfig, onClose }:
   const [validateSnack, setValidateSnack] = useState(false);
   const dragRef = useRef<{ startY: number; startH: number } | null>(null);
 
-  const functionName = (node.config.mainFunction as string) || 'main';
-  const paramRows = (node.config.parameterMap as Array<{ key: string }>) ?? [];
-  const params = paramRows.map(p => p.key).filter(Boolean);
+  const functionName = (node.config.entryFunctionName as string) || (node.config.mainFunction as string) || 'main';
+  const paramRows = (node.config.parameterMap as Array<{ name?: string; key?: string }>) ?? [];
+  const params = paramRows.map(p => p.name || p.key || '').filter(Boolean);
   const signature = `def ${functionName}(${params.join(', ')}):`;
 
   // Initialise sourceCode with a starter template when empty

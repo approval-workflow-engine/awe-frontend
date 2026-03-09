@@ -375,7 +375,7 @@ export default function WorkflowsPage() {
                 <TableRow>
                   <TableCell colSpan={6}>
                     <Box sx={{ py: 6, textAlign: 'center' }}>
-                      <Typography sx={{ fontSize: 13, color: 'text.disabled' }}>
+                      <Typography sx={{ fontSize: 13, color: 'text.secondary' }}>
                         {isSearchActive
                           ? `No workflows match "${searchQuery}".`
                           : filter === 'all' ? 'No workflows yet.' : `No ${filter} workflows.`}

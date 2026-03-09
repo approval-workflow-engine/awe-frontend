@@ -34,7 +34,7 @@ export const darkTheme: Theme = createTheme({
     text: {
       primary: '#e8eaf2',
       secondary: '#8b91a8',
-      disabled: '#636882',  // was #555c78 - slightly more visible
+      disabled: '#7a7f9e',  // improved contrast from #636882 for readable metadata
     },
     divider: '#22273a',  // was #1f2437
   },
@@ -164,7 +164,7 @@ export const lightTheme: Theme = createTheme({
     text: {
       primary: '#111827',
       secondary: '#6b7280',
-      disabled: '#9ca3af',
+      disabled: '#7b8899',  // improved contrast from #9ca3af for readable metadata
     },
     divider: '#e5e7eb',
   },

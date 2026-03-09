@@ -142,7 +142,7 @@ export default function AppLayout() {
                 <Typography
                   sx={{
                     fontSize: '10px', fontWeight: 600, textTransform: 'uppercase',
-                    letterSpacing: '0.08em', color: 'text.disabled',
+                    letterSpacing: '0.08em', color: 'text.secondary',
                     px: 2, pt: si === 0 ? 1 : 2, pb: 0.5,
                   }}
                 >
@@ -256,7 +256,7 @@ export default function AppLayout() {
               <Typography sx={{ fontSize: 13, fontWeight: 600, color: 'text.primary', lineHeight: 1.2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                 {user?.name || user?.orgName || 'User'}
               </Typography>
-              <Typography sx={{ fontSize: 11, color: 'text.disabled', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              <Typography sx={{ fontSize: 11, color: 'text.secondary', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                 {user?.contactEmail || ''}
               </Typography>
             </Box>
