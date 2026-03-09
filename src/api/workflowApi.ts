@@ -33,3 +33,6 @@ export const validateVersion = (id: string, versionNumber: number | string) =>
 
 export const publishVersion = (id: string, versionNumber: number | string) =>
   axiosClient.post(`/workflows/${id}/versions/${versionNumber}/publish`);
+
+export const updateVersionStatus = (id: string, versionNumber: number | string, status: string) =>
+  axiosClient.patch(`/workflows/${id}/versions/${versionNumber}/status`, { status });

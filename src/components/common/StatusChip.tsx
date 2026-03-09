@@ -20,7 +20,8 @@ const STATUS_MAP: Record<string, StatusDef> = {
 
   // Version status
   draft:      { color: '#a855f7', label: 'Draft' },
-  published:  { color: '#22c55e', label: 'Published' },
+  valid:      { color: '#06b6d4', label: 'Valid' },
+  published:  { color: '#f59e0b', label: 'Committed' },
 
   // Instance / Task status
   IN_PROGRESS: { color: '#06b6d4', label: 'In Progress', pulse: true },

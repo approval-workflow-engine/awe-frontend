@@ -8,14 +8,60 @@ import {
 } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import EditIcon from '@mui/icons-material/Edit';
-import PublishIcon from '@mui/icons-material/Publish';
+import VisibilityIcon from '@mui/icons-material/Visibility';
+import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
+import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
+import BoltIcon from '@mui/icons-material/Bolt';
+import PowerSettingsNewIcon from '@mui/icons-material/PowerSettingsNew';
 import AddIcon from '@mui/icons-material/Add';
 import SearchIcon from '@mui/icons-material/Search';
 import ClearIcon from '@mui/icons-material/Clear';
-import { getWorkflow, publishVersion } from '../../api/workflowApi';
+import { getWorkflow, validateVersion, updateVersionStatus } from '../../api/workflowApi';
 import { useApiCall } from '../../hooks/useApiCall';
 import StatusChip from '../../components/common/StatusChip';
 import type { Workflow, WorkflowVersion } from '../../types';
+
+type LifecycleAction = 'validate' | 'commit' | 'activate' | 'deactivate';
+
+const STATUS_FILTER_OPTIONS = [
+  { value: 'all',       label: 'All' },
+  { value: 'draft',     label: 'Draft' },
+  { value: 'valid',     label: 'Valid' },
+  { value: 'published', label: 'Committed' },
+  { value: 'active',    label: 'Active' },
+];
+
+const ACTION_CONFIG: Record<LifecycleAction, {
+  title: (vn: number) => string;
+  body: string;
+  confirmLabel: string;
+  confirmColor: string;
+}> = {
+  validate: {
+    title: vn => `Validate v${vn}?`,
+    body: 'Run validation checks on this version. If successful, the status will update to Valid.',
+    confirmLabel: 'Validate',
+    confirmColor: '#06b6d4',
+  },
+  commit: {
+    title: vn => `Commit v${vn}?`,
+    body: 'Locking this version marks it as ready for activation. It can no longer be edited.',
+    confirmLabel: 'Commit',
+    confirmColor: '#f59e0b',
+  },
+  activate: {
+    title: vn => `Activate v${vn}?`,
+    body: 'This will make the selected version the live version for this workflow. The currently active version (if any) will be archived.',
+    confirmLabel: 'Activate',
+    confirmColor: '#22c55e',
+  },
+  deactivate: {
+    title: vn => `Deactivate v${vn}?`,
+    body: 'This will move the version back to Committed status. It will no longer be the live version and no new instances can be started until another version is activated.',
+    confirmLabel: 'Deactivate',
+    confirmColor: '#ef4444',
+  },
+};
 
 export default function WorkflowVersionsPage() {
   const { workflowId } = useParams<{ workflowId: string }>();
@@ -26,10 +72,10 @@ export default function WorkflowVersionsPage() {
   const [versions, setVersions] = useState<WorkflowVersion[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'all' | 'draft' | 'published'>('all');
+  const [statusFilter, setStatusFilter] = useState('all');
 
-  const [publishTarget, setPublishTarget] = useState<WorkflowVersion | null>(null);
-  const [publishLoading, setPublishLoading] = useState(false);
+  const [actionTarget, setActionTarget] = useState<{ version: WorkflowVersion; action: LifecycleAction } | null>(null);
+  const [actionLoading, setActionLoading] = useState(false);
 
   const fetchData = useCallback(async () => {
     if (!workflowId) return;
@@ -37,13 +83,10 @@ export default function WorkflowVersionsPage() {
     try {
       const res = await call(() => getWorkflow(workflowId), { showError: false });
       if (res) {
-        // Handle both bare Workflow object and { workflow: {...} } wrapping
         const wfBody = res as { workflow?: Workflow } | Workflow;
         const wf = (wfBody as { workflow?: Workflow }).workflow ?? (wfBody as Workflow);
         setWorkflow(wf || null);
 
-        // Extract versions from the workflow detail response.
-        // The list uses field "version" (number); normalize to "versionNumber" for consistency.
         const rawVersions: Array<Record<string, unknown>> =
           Array.isArray((wf as unknown as Record<string, unknown>)?.versions)
             ? (wf as unknown as Record<string, unknown>).versions as Array<Record<string, unknown>>
@@ -64,18 +107,49 @@ export default function WorkflowVersionsPage() {
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
-  const handlePublish = async () => {
-    if (!workflowId || !publishTarget) return;
-    setPublishLoading(true);
+  const normalizeStatus = (v: WorkflowVersion) => (v.status?.toLowerCase?.() || 'draft');
+
+  const hasDraft = versions.some(v => normalizeStatus(v) === 'draft');
+
+  const handleAction = async () => {
+    if (!workflowId || !actionTarget) return;
+    const { version, action } = actionTarget;
+    setActionLoading(true);
     try {
-      await call(
-        () => publishVersion(workflowId, publishTarget.versionNumber),
-        { successMsg: `Version v${publishTarget.versionNumber} published.` }
-      );
-      setPublishTarget(null);
-      fetchData();
+      if (action === 'validate') {
+        const res = await call(
+          () => validateVersion(workflowId, version.versionNumber),
+          { showError: true, successMsg: `v${version.versionNumber} validated successfully.` },
+        );
+        if (res) {
+          // If backend auto-transitions to 'valid', fetchData will pick it up
+          setActionTarget(null);
+          fetchData();
+        }
+      } else if (action === 'commit') {
+        await call(
+          () => updateVersionStatus(workflowId, version.versionNumber, 'published'),
+          { successMsg: `v${version.versionNumber} committed.` },
+        );
+        setActionTarget(null);
+        fetchData();
+      } else if (action === 'activate') {
+        await call(
+          () => updateVersionStatus(workflowId, version.versionNumber, 'active'),
+          { successMsg: `v${version.versionNumber} is now active.` },
+        );
+        setActionTarget(null);
+        fetchData();
+      } else if (action === 'deactivate') {
+        await call(
+          () => updateVersionStatus(workflowId, version.versionNumber, 'published'),
+          { successMsg: `v${version.versionNumber} deactivated and moved back to Committed.` },
+        );
+        setActionTarget(null);
+        fetchData();
+      }
     } finally {
-      setPublishLoading(false);
+      setActionLoading(false);
     }
   };
 
@@ -84,25 +158,20 @@ export default function WorkflowVersionsPage() {
     return new Date(iso).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'Asia/Kolkata' });
   };
 
-  const versionStatus = (v: WorkflowVersion): string => {
-    const s = v.status?.toLowerCase();
-    if (s === 'published' || s === 'active' || s === 'deprecated') return 'published';
-    if (s === 'draft') return 'draft';
-    return 'draft';
-  };
-
   const filteredVersions = versions.filter(v => {
-    const statusMatch = statusFilter === 'all' || versionStatus(v) === statusFilter;
+    const st = normalizeStatus(v);
+    const statusMatch = statusFilter === 'all' || st === statusFilter;
     if (!statusMatch) return false;
     if (!searchQuery.trim()) return true;
     const q = searchQuery.toLowerCase();
     return (
       `v${v.versionNumber}`.includes(q) ||
-      versionStatus(v).toLowerCase().includes(q) ||
-      (v.status?.toLowerCase() || '').includes(q) ||
+      st.includes(q) ||
       formatDate(v.createdAt).toLowerCase().includes(q)
     );
   });
+
+  const cfg = actionTarget ? ACTION_CONFIG[actionTarget.action] : null;
 
   return (
     <Box>
@@ -146,39 +215,40 @@ export default function WorkflowVersionsPage() {
             </Typography>
           )}
         </Box>
-        <Button
-          variant="contained"
-          startIcon={<AddIcon />}
-          onClick={() => navigate(`/workflows/${workflowId}/builder`)}
-          sx={{ borderRadius: '8px', fontWeight: 600, height: 36, flexShrink: 0 }}
-        >
-          New Draft
-        </Button>
+        <Tooltip title={hasDraft ? 'A draft version already exists. Complete or discard it before creating a new one.' : ''}>
+          <span>
+            <Button
+              variant="contained"
+              startIcon={<AddIcon />}
+              disabled={hasDraft}
+              onClick={() => navigate(`/workflows/${workflowId}/builder`)}
+              sx={{ borderRadius: '8px', fontWeight: 600, height: 36, flexShrink: 0 }}
+            >
+              New Draft
+            </Button>
+          </span>
+        </Tooltip>
       </Box>
 
       {/* Filter + Search row */}
       <Box display="flex" alignItems="center" justifyContent="space-between" gap={2} mb={2.5}>
-        <Box display="flex" gap={1}>
-          {(['all', 'draft', 'published'] as const).map(f => (
+        <Box display="flex" gap={1} flexWrap="wrap">
+          {STATUS_FILTER_OPTIONS.map(f => (
             <Button
-              key={f}
+              key={f.value}
               size="small"
-              variant={statusFilter === f ? 'contained' : 'outlined'}
-              onClick={() => setStatusFilter(f)}
+              variant={statusFilter === f.value ? 'contained' : 'outlined'}
+              onClick={() => setStatusFilter(f.value)}
               sx={{
-                borderRadius: '8px',
-                fontWeight: 600,
-                fontSize: 12,
-                textTransform: 'capitalize',
-                height: 32,
-                ...(statusFilter === f ? {} : {
-                  borderColor: 'divider',
-                  color: 'text.secondary',
+                borderRadius: '8px', fontWeight: 600, fontSize: 12,
+                textTransform: 'capitalize', height: 32,
+                ...(statusFilter === f.value ? {} : {
+                  borderColor: 'divider', color: 'text.secondary',
                   '&:hover': { borderColor: 'primary.main', color: 'primary.main' },
                 }),
               }}
             >
-              {f}
+              {f.label}
             </Button>
           ))}
         </Box>
@@ -190,10 +260,7 @@ export default function WorkflowVersionsPage() {
           onChange={e => setSearchQuery(e.target.value)}
           sx={{
             width: 300,
-            '& .MuiOutlinedInput-root': {
-              borderRadius: '8px', fontSize: 13,
-              '& fieldset': { borderColor: 'divider' },
-            },
+            '& .MuiOutlinedInput-root': { borderRadius: '8px', fontSize: 13, '& fieldset': { borderColor: 'divider' } },
           }}
           InputProps={{
             startAdornment: (
@@ -218,31 +285,29 @@ export default function WorkflowVersionsPage() {
             <TableHead>
               <TableRow>
                 <TableCell sx={{ width: 120 }}>Version</TableCell>
-                <TableCell sx={{ width: 120 }}>Status</TableCell>
-                <TableCell>Published</TableCell>
+                <TableCell sx={{ width: 140 }}>Status</TableCell>
                 <TableCell>Created</TableCell>
-                <TableCell align="right" sx={{ width: 80 }}>Actions</TableCell>
+                <TableCell align="right" sx={{ width: 140 }}>Actions</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
               {loading ? (
                 [0, 1, 2].map(i => (
                   <TableRow key={i}>
-                    <TableCell colSpan={5}>
+                    <TableCell colSpan={4}>
                       <Skeleton variant="rounded" height={36} />
                     </TableCell>
                   </TableRow>
                 ))
               ) : filteredVersions.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={5}>
+                  <TableCell colSpan={4}>
                     <Box py={6} textAlign="center">
                       {versions.length === 0 ? (
                         <>
                           <Typography sx={{ fontSize: 13, color: 'text.secondary' }}>No versions yet.</Typography>
                           <Button
-                            variant="outlined"
-                            size="small"
+                            variant="outlined" size="small"
                             onClick={() => navigate(`/workflows/${workflowId}/builder`)}
                             sx={{ mt: 2, borderRadius: '8px', borderColor: 'divider', color: 'text.secondary' }}
                           >
@@ -267,58 +332,103 @@ export default function WorkflowVersionsPage() {
                   </TableCell>
                 </TableRow>
               ) : (
-                filteredVersions.map(v => (
-                  <TableRow key={v.id} hover>
-                    <TableCell>
-                      <Typography sx={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 13, color: 'text.primary', fontWeight: 600 }}>
-                        v{v.versionNumber}
-                      </Typography>
-                    </TableCell>
-                    <TableCell>
-                      <StatusChip status={versionStatus(v)} />
-                    </TableCell>
-                    <TableCell>
-                      <Typography sx={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 11, color: 'text.disabled' }}>
-                        {formatDate(v.publishedAt)}
-                      </Typography>
-                    </TableCell>
-                    <TableCell>
-                      <Typography sx={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 11, color: 'text.disabled' }}>
-                        {formatDate(v.createdAt)}
-                      </Typography>
-                    </TableCell>
-                    <TableCell align="right">
-                      <Box display="flex" alignItems="center" justifyContent="flex-end" gap={0.25}>
-                        <Tooltip title="Open in Builder">
-                          <IconButton
-                            size="small"
-                            onClick={() => navigate(`/workflows/${workflowId}/builder/${v.versionNumber}`)}
-                            sx={{ color: 'text.disabled', '&:hover': { color: 'primary.main' } }}
-                          >
-                            <EditIcon fontSize="small" />
-                          </IconButton>
-                        </Tooltip>
-                        {v.status?.toLowerCase() === 'draft' && (
-                          <Tooltip title="Publish this version">
+                filteredVersions.map(v => {
+                  const st = normalizeStatus(v);
+                  const isDraft = st === 'draft';
+                  const isValid = st === 'valid';
+                  const isCommitted = st === 'published';
+
+                  return (
+                    <TableRow key={v.id} hover>
+                      <TableCell>
+                        <Typography sx={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 13, color: 'text.primary', fontWeight: 600 }}>
+                          v{v.versionNumber}
+                        </Typography>
+                      </TableCell>
+                      <TableCell>
+                        <StatusChip status={st} />
+                      </TableCell>
+                      <TableCell>
+                        <Typography sx={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 11, color: 'text.disabled' }}>
+                          {formatDate(v.createdAt)}
+                        </Typography>
+                      </TableCell>
+                      <TableCell align="right">
+                        <Box display="flex" alignItems="center" justifyContent="flex-end" gap={0.25}>
+
+                          {/* Open in Builder */}
+                          <Tooltip title={(isDraft || isValid) ? 'Edit in Builder' : 'View in Builder'}>
                             <IconButton
                               size="small"
-                              onClick={() => setPublishTarget(v)}
-                              sx={{ color: 'text.disabled', '&:hover': { color: '#22c55e' } }}
+                              onClick={() => navigate(`/workflows/${workflowId}/builder/${v.versionNumber}`)}
+                              sx={{ color: 'text.disabled', '&:hover': { color: 'primary.main' } }}
                             >
-                              <PublishIcon fontSize="small" />
+                              {(isDraft || isValid) ? <EditIcon fontSize="small" /> : <VisibilityIcon fontSize="small" />}
                             </IconButton>
                           </Tooltip>
-                        )}
-                      </Box>
-                    </TableCell>
-                  </TableRow>
-                ))
+
+                          {/* Validate (Draft only) */}
+                          {isDraft && (
+                            <Tooltip title="Validate this version">
+                              <IconButton
+                                size="small"
+                                onClick={() => setActionTarget({ version: v, action: 'validate' })}
+                                sx={{ color: 'text.disabled', '&:hover': { color: '#06b6d4' } }}
+                              >
+                                <CheckCircleOutlineIcon fontSize="small" />
+                              </IconButton>
+                            </Tooltip>
+                          )}
+
+                          {/* Commit (Draft or Valid) */}
+                          {(isDraft || isValid) && (
+                            <Tooltip title="Commit (lock for activation)">
+                              <IconButton
+                                size="small"
+                                onClick={() => setActionTarget({ version: v, action: 'commit' })}
+                                sx={{ color: 'text.disabled', '&:hover': { color: '#f59e0b' } }}
+                              >
+                                <LockOutlinedIcon fontSize="small" />
+                              </IconButton>
+                            </Tooltip>
+                          )}
+
+                          {/* Activate (Committed only) */}
+                          {isCommitted && (
+                            <Tooltip title="Activate (make live)">
+                              <IconButton
+                                size="small"
+                                onClick={() => setActionTarget({ version: v, action: 'activate' })}
+                                sx={{ color: 'text.disabled', '&:hover': { color: '#22c55e' } }}
+                              >
+                                <BoltIcon fontSize="small" />
+                              </IconButton>
+                            </Tooltip>
+                          )}
+
+                          {/* Deactivate (Active only) */}
+                          {st === 'active' && (
+                            <Tooltip title="Deactivate (move back to Committed)">
+                              <IconButton
+                                size="small"
+                                onClick={() => setActionTarget({ version: v, action: 'deactivate' })}
+                                sx={{ color: 'text.disabled', '&:hover': { color: '#ef4444' } }}
+                              >
+                                <PowerSettingsNewIcon fontSize="small" />
+                              </IconButton>
+                            </Tooltip>
+                          )}
+
+                        </Box>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })
               )}
             </TableBody>
           </Table>
         </TableContainer>
 
-        {/* Results count footer */}
         {!loading && versions.length > 0 && (
           <Box px={2} py={1.25} borderTop="1px solid" sx={{ borderColor: 'divider' }}>
             <Typography sx={{ fontSize: 12, color: 'text.disabled' }}>
@@ -330,31 +440,39 @@ export default function WorkflowVersionsPage() {
         )}
       </Paper>
 
-      {/* Publish confirmation dialog */}
-      <Dialog open={!!publishTarget} onClose={() => { if (!publishLoading) setPublishTarget(null); }} maxWidth="xs" fullWidth>
-        <DialogTitle sx={{ fontFamily: "'Syne', sans-serif", fontWeight: 700, fontSize: 16 }}>
-          Publish v{publishTarget?.versionNumber}?
-        </DialogTitle>
-        <DialogContent sx={{ pt: '8px !important' }}>
-          <Typography sx={{ fontSize: 13, color: 'text.secondary' }}>
-            Publishing this version will make it the active version for this workflow.
-            Any previously active version will be moved to published status.
-          </Typography>
-        </DialogContent>
-        <DialogActions sx={{ px: 3, pb: 2 }}>
-          <Button size="small" onClick={() => setPublishTarget(null)} disabled={publishLoading} sx={{ color: 'text.secondary' }}>
-            Cancel
-          </Button>
-          <Button
-            variant="contained"
-            size="small"
-            disabled={publishLoading}
-            onClick={handlePublish}
-            sx={{ borderRadius: '8px', fontWeight: 600, backgroundColor: '#22c55e', color: '#fff', '&:hover': { backgroundColor: '#16a34a' } }}
-          >
-            {publishLoading ? <CircularProgress size={14} /> : 'Publish'}
-          </Button>
-        </DialogActions>
+      {/* Action Confirmation Dialog */}
+      <Dialog open={!!actionTarget} onClose={() => { if (!actionLoading) setActionTarget(null); }} maxWidth="xs" fullWidth>
+        {actionTarget && cfg && (
+          <>
+            <DialogTitle sx={{ fontFamily: "'Syne', sans-serif", fontWeight: 700, fontSize: 16 }}>
+              {cfg.title(actionTarget.version.versionNumber)}
+            </DialogTitle>
+            <DialogContent sx={{ pt: '8px !important' }}>
+              <Typography sx={{ fontSize: 13, color: 'text.secondary' }}>
+                {cfg.body}
+              </Typography>
+            </DialogContent>
+            <DialogActions sx={{ px: 3, pb: 2 }}>
+              <Button size="small" onClick={() => setActionTarget(null)} disabled={actionLoading} sx={{ color: 'text.secondary' }}>
+                Cancel
+              </Button>
+              <Button
+                variant="contained"
+                size="small"
+                disabled={actionLoading}
+                onClick={handleAction}
+                sx={{
+                  borderRadius: '8px', fontWeight: 600,
+                  backgroundColor: cfg.confirmColor,
+                  color: '#fff',
+                  '&:hover': { backgroundColor: cfg.confirmColor, filter: 'brightness(0.9)' },
+                }}
+              >
+                {actionLoading ? <CircularProgress size={14} sx={{ color: '#fff' }} /> : cfg.confirmLabel}
+              </Button>
+            </DialogActions>
+          </>
+        )}
       </Dialog>
     </Box>
   );
