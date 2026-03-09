@@ -189,7 +189,7 @@ export default function Dashboard() {
                 ))
               ) : instances.length === 0 ? (
                 <Box sx={{ px: 2.5, py: 4, textAlign: 'center' }}>
-                  <Typography sx={{ fontSize: 13, color: 'text.disabled' }}>No instances yet</Typography>
+                  <Typography sx={{ fontSize: 13, color: 'text.secondary' }}>No instances yet</Typography>
                 </Box>
               ) : (
                 instances.map(inst => (
@@ -201,7 +201,7 @@ export default function Dashboard() {
                       borderBottom: '1px solid', borderColor: 'divider',
                       display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                       cursor: 'pointer',
-                      '&:hover': { backgroundColor: 'rgba(255,255,255,0.03)' },
+                      '&:hover': { backgroundColor: 'action.hover' },
                       '&:last-child': { borderBottom: 0 },
                     }}
                   >
@@ -245,7 +245,7 @@ export default function Dashboard() {
                 ))
               ) : tasks.length === 0 ? (
                 <Box sx={{ px: 2.5, py: 4, textAlign: 'center' }}>
-                  <Typography sx={{ fontSize: 13, color: 'text.disabled' }}>No pending tasks</Typography>
+                  <Typography sx={{ fontSize: 13, color: 'text.secondary' }}>No pending tasks</Typography>
                 </Box>
               ) : (
                 tasks.map(task => (
@@ -257,7 +257,7 @@ export default function Dashboard() {
                       borderBottom: '1px solid', borderColor: 'divider',
                       display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                       cursor: 'pointer',
-                      '&:hover': { backgroundColor: 'rgba(255,255,255,0.03)' },
+                      '&:hover': { backgroundColor: 'action.hover' },
                       '&:last-child': { borderBottom: 0 },
                     }}
                   >
@@ -265,7 +265,7 @@ export default function Dashboard() {
                       <Typography sx={{ fontSize: 13, color: 'text.primary', fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                         {task.title || task.nodeId || 'Untitled Task'}
                       </Typography>
-                      <Typography sx={{ fontSize: 11, color: 'text.disabled', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      <Typography sx={{ fontSize: 11, color: 'text.secondary', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                         {task.assignee || task.assigneeEmail || '-'}
                       </Typography>
                     </Box>

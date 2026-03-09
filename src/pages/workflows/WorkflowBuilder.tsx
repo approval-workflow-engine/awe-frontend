@@ -18,13 +18,14 @@ import {
   DialogActions,
 } from "@mui/material";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
-import SettingsInputComponentIcon from "@mui/icons-material/SettingsInputComponent";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import ErrorIcon from "@mui/icons-material/Error";
 import SaveIcon from "@mui/icons-material/Save";
 import PublishIcon from "@mui/icons-material/Publish";
 import DeleteIcon from "@mui/icons-material/Delete";
 import LayersClearIcon from "@mui/icons-material/LayersClear";
+import LightModeIcon from "@mui/icons-material/LightMode";
+import DarkModeIcon from "@mui/icons-material/DarkMode";
 
 import {
   getWorkflow,
@@ -34,6 +35,7 @@ import {
   publishVersion,
 } from "../../api/workflowApi";
 import { useApiCall } from "../../hooks/useApiCall";
+import { useThemeMode } from "../../context/useThemeMode";
 import NodePalette from "./builder/NodePalette";
 import CanvasPanel from "./builder/CanvasPanel";
 import ConfigPanel from "./builder/ConfigPanel";
@@ -62,6 +64,7 @@ export default function WorkflowBuilder() {
   }>();
   const navigate = useNavigate();
   const { call } = useApiCall();
+  const { mode, toggleTheme } = useThemeMode();
 
   //  Data
   const [workflowName, setWorkflowName] = useState("");
@@ -232,6 +235,7 @@ export default function WorkflowBuilder() {
   const handleClearCanvas = useCallback(() => {
     setNodes([buildStartNode()]);
     setEdges([]);
+    setInputs([]);
     setSelectedItem(null);
     setCodeEditorOpen(false);
     markDirty();
@@ -291,7 +295,7 @@ export default function WorkflowBuilder() {
     setSaving(true);
     const def = canvasToDefinition(nodes, edges, inputs);
     const res = await call(() => createWorkflowVersion(workflowId, def), {
-      successMsg: "Draft saved.",
+      successMsg: "Saved.",
       showError: true,
     });
     if (res) {
@@ -407,23 +411,6 @@ export default function WorkflowBuilder() {
           sx={{ my: "auto", height: 24, borderColor: "divider" }}
         />
 
-        {/* Inputs */}
-        <Button
-          size="small"
-          startIcon={<SettingsInputComponentIcon sx={{ fontSize: 14 }} />}
-          onClick={() => setInputsOpen(true)}
-          sx={{
-            fontSize: 12,
-            color: "text.secondary",
-            borderColor: "divider",
-            height: 30,
-            borderRadius: "8px",
-          }}
-          variant="outlined"
-        >
-          Inputs
-        </Button>
-
         {/* Clear Canvas */}
         <Button
           size="small"
@@ -526,7 +513,7 @@ export default function WorkflowBuilder() {
           </Box>
         </Popover>
 
-        {/* Save Draft */}
+        {/* Save */}
         <Button
           size="small"
           variant="outlined"
@@ -547,7 +534,7 @@ export default function WorkflowBuilder() {
             color: "text.secondary",
           }}
         >
-          Save Draft
+          Save
         </Button>
 
         {/* Publish */}
@@ -565,20 +552,22 @@ export default function WorkflowBuilder() {
           }
           sx={{
             fontSize: 12,
-            height: 34,
+            height: 30,
             borderRadius: "8px",
-            fontWeight: 700,
-            backgroundColor: "#22c55e",
-            color: "#12141c",
-            "&:hover": { backgroundColor: "#16a34a" },
+            fontWeight: 600,
+            backgroundColor: "rgba(79,110,247,0.9)",
+            color: "#fff",
+            boxShadow: "none",
+            "&:hover": { backgroundColor: "#4f6ef7", boxShadow: "none" },
             "&.Mui-disabled": {
-              backgroundColor: "#22c55e33",
-              color: "#22c55e66",
+              backgroundColor: "rgba(79,110,247,0.25)",
+              color: "rgba(79,110,247,0.5)",
             },
           }}
         >
           Publish
         </Button>
+
       </Box>
 
       {/*  Three-panel layout + code editor  */}
@@ -607,6 +596,26 @@ export default function WorkflowBuilder() {
             <NodePalette />
             <Divider />
             <ContextVarsPanel nodes={nodes} inputs={inputs} />
+            <Divider />
+            {/* Theme toggle */}
+            <Box
+              sx={{
+                display: "flex",
+                justifyContent: "flex-end",
+                px: 1.5,
+                py: 0.75,
+              }}
+            >
+              <Tooltip title={mode === "dark" ? "Switch to light mode" : "Switch to dark mode"} placement="right">
+                <IconButton
+                  size="small"
+                  onClick={toggleTheme}
+                  sx={{ color: "text.disabled", "&:hover": { color: "text.primary" } }}
+                >
+                  {mode === "dark" ? <LightModeIcon fontSize="small" /> : <DarkModeIcon fontSize="small" />}
+                </IconButton>
+              </Tooltip>
+            </Box>
           </Box>
 
           <CanvasPanel
@@ -754,9 +763,10 @@ export default function WorkflowBuilder() {
             sx={{
               borderRadius: "8px",
               fontWeight: 600,
-              backgroundColor: "#22c55e",
-              color: "#12141c",
-              "&:hover": { backgroundColor: "#16a34a" },
+              backgroundColor: "rgba(79,110,247,0.9)",
+              color: "#fff",
+              boxShadow: "none",
+              "&:hover": { backgroundColor: "#4f6ef7", boxShadow: "none" },
             }}
           >
             {publishing ? <CircularProgress size={14} /> : "Publish"}

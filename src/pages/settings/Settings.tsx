@@ -272,7 +272,7 @@ export default function Settings() {
             </>
           ) : (
             <Box py={5} textAlign="center">
-              <Typography sx={{ fontSize: 13, color: 'text.disabled' }}>
+              <Typography sx={{ fontSize: 13, color: 'text.secondary' }}>
                 No system information available.
               </Typography>
             </Box>
@@ -443,7 +443,7 @@ export default function Settings() {
                     ? activeKeys.map((key, idx) => renderRow(key, idx, activeKeys.length))
                     : (
                       <Box sx={{ px: 1.5, py: 2 }}>
-                        <Typography sx={{ fontSize: 12, color: 'text.disabled' }}>No active keys.</Typography>
+                        <Typography sx={{ fontSize: 12, color: 'text.secondary' }}>No active keys.</Typography>
                       </Box>
                     )
                   }
@@ -458,7 +458,7 @@ export default function Settings() {
                         borderTop: '1px solid', borderColor: 'divider', pt: 1.5,
                       }}
                     >
-                      <Typography sx={{ fontSize: 11, fontWeight: 600, color: 'text.disabled', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                      <Typography sx={{ fontSize: 11, fontWeight: 600, color: 'text.secondary', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
                         Revoked
                       </Typography>
                       <Chip
@@ -486,7 +486,7 @@ export default function Settings() {
             );
           })() : (
             <Box sx={{ py: 3, textAlign: 'center' }}>
-              <Typography sx={{ fontSize: 13, color: 'text.disabled' }}>
+              <Typography sx={{ fontSize: 13, color: 'text.secondary' }}>
                 No API keys found. Generate one using the button above.
               </Typography>
             </Box>

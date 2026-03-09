@@ -76,7 +76,7 @@ export default function NodePalette() {
             fontWeight: 600,
             textTransform: 'uppercase',
             letterSpacing: '0.08em',
-            color: 'text.disabled',
+            color: 'text.secondary',
           }}
         >
           Nodes

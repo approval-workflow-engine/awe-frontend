@@ -13,7 +13,7 @@ import VisibilityIcon from "@mui/icons-material/Visibility";
 import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
 import { Link as RouterLink, useNavigate } from "react-router-dom";
 import LogoMark from "../../components/common/LogoMark";
-import { cardStyle, inputStyle, buttonStyle } from "../../styles/authStyles";
+import { inputStyle } from "../../styles/authStyles";
 import { loginSystem } from "../../api/authApi";
 import { useApp } from "../../context/useApp";
 import { useApiCall } from "../../hooks/useApiCall";
@@ -38,8 +38,7 @@ export default function LoginPage() {
       { errorMsg: "Invalid email or password" }
     );
     if (data) {
-      // Backend wraps responses in ApiResponse: { success, data: { ... } }
-      // Handle both wrapped and bare formats defensively.
+      // Handle both wrapped and bare response formats defensively.
       const body = data as unknown as {
         data?: { system?: User; accessToken?: string; refreshToken?: string };
         system?: User; accessToken?: string; refreshToken?: string;
@@ -63,10 +62,39 @@ export default function LoginPage() {
       sx={{
         bgcolor: "background.default",
         backgroundImage: "radial-gradient(ellipse at top, rgba(79,110,247,0.07), transparent 55%)",
+        px: 2,
       }}
     >
-      <Paper sx={cardStyle} elevation={0}>
-        <LogoMark />
+      <Paper
+        elevation={0}
+        sx={{
+          width: "100%",
+          maxWidth: 400,
+          p: "32px",
+          border: "1px solid",
+          borderColor: "divider",
+          borderRadius: "16px",
+        }}
+      >
+        {/* Branding */}
+        <Box display="flex" flexDirection="column" alignItems="center" mb={3}>
+          <LogoMark />
+          <Typography
+            sx={{
+              fontFamily: "'Syne', sans-serif",
+              fontWeight: 700,
+              fontSize: 20,
+              color: "text.primary",
+              mt: 1.5,
+              mb: 0.5,
+            }}
+          >
+            Welcome back
+          </Typography>
+          <Typography sx={{ fontSize: 13, color: "text.secondary" }}>
+            Sign in to your AWE account
+          </Typography>
+        </Box>
 
         <form onSubmit={handleSubmit}>
           <TextField
@@ -87,13 +115,18 @@ export default function LoginPage() {
             type={showPw ? "text" : "password"}
             size="small"
             value={form.password}
-            sx={{ ...inputStyle, mb: 2 }}
+            sx={{ ...inputStyle, mb: 2.5 }}
             onChange={handleChange}
             autoComplete="current-password"
             InputProps={{
               endAdornment: (
                 <InputAdornment position="end">
-                  <IconButton onClick={() => setShowPw(p => !p)} edge="end" size="small">
+                  <IconButton
+                    onClick={() => setShowPw(p => !p)}
+                    edge="end"
+                    size="small"
+                    sx={{ color: "text.disabled" }}
+                  >
                     {showPw ? <VisibilityOffIcon fontSize="small" /> : <VisibilityIcon fontSize="small" />}
                   </IconButton>
                 </InputAdornment>
@@ -105,17 +138,17 @@ export default function LoginPage() {
             fullWidth
             variant="contained"
             type="submit"
-            disabled={loading}
-            sx={buttonStyle}
+            disabled={loading || !form.email.trim() || !form.password.trim()}
+            sx={{ height: 40, fontWeight: 600, fontSize: 14, borderRadius: "8px" }}
           >
             {loading ? "Signing in…" : "Sign In"}
           </Button>
         </form>
 
-        <Typography textAlign="center" mt={2.5} variant="body2" color="text.secondary">
+        <Typography textAlign="center" mt={2.5} sx={{ fontSize: 13, color: "text.secondary" }}>
           Don't have an account?{" "}
           <MuiLink component={RouterLink} to="/register" underline="hover" color="primary">
-            Register System
+            Register
           </MuiLink>
         </Typography>
       </Paper>

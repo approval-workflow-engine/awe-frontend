@@ -19,62 +19,61 @@ export default function ContextVarsPanel({ nodes, inputs }: ContextVarsPanelProp
     source: 'Input',
   }));
 
+  // Also collect context vars from start node's inputDataMap
+  const startNode = nodes.find(n => n.type === 'start');
+  const startInputVars: ContextVarEntry[] = [];
+  if (startNode) {
+    const idm = (startNode.config.inputDataMap as Array<{ contextVariable?: { name?: string }; type?: string; label?: string }>) ?? [];
+    for (const row of idm) {
+      const varName = row.contextVariable?.name;
+      if (varName) startInputVars.push({ name: varName, type: row.type || 'string', source: 'Start' });
+    }
+  }
+
   const outputVars: ContextVarEntry[] = [];
   for (const node of nodes) {
-    if (node.type === 'start') continue;
+    if (node.type === 'start' || node.type === 'end') continue;
     const rm = node.config.responseMap;
 
-    // Service task: responseMap is KVRow[] where key = outputVarName
-    if (node.type === 'service_task' && Array.isArray(rm)) {
-      for (const row of rm as Array<{ key?: string }>) {
-        if (row.key) outputVars.push({ name: row.key, type: 'string', source: node.label });
+    // New schema: responseMap[] has contextVariable: { name, scope }
+    if (Array.isArray(rm)) {
+      for (const row of rm as Array<{ contextVariable?: { name?: string }; type?: string }>) {
+        const varName = row.contextVariable?.name;
+        if (varName) outputVars.push({ name: varName, type: row.type || 'string', source: node.label });
       }
     }
 
-    // User task: responseMap is {name, label, type, defaultValue}[] where name = outputVarName
-    if (node.type === 'user_task' && Array.isArray(rm)) {
-      for (const row of rm as Array<{ name?: string; type?: string }>) {
-        if (row.name) outputVars.push({ name: row.name, type: row.type || 'string', source: node.label });
-      }
-    }
-
-    // Object format (legacy fallback) — keys become var names
+    // Legacy object format fallback — keys become var names
     if (rm && typeof rm === 'object' && !Array.isArray(rm)) {
       for (const key of Object.keys(rm as Record<string, unknown>)) {
         if (key) outputVars.push({ name: key, type: 'string', source: node.label });
       }
     }
-
-    // Script task declared outputs
-    if (node.type === 'script_task') {
-      const outputs = (node.config.scriptOutputs as Array<{ name: string; type?: string }>) ?? [];
-      for (const o of outputs) {
-        if (o.name) outputVars.push({ name: o.name, type: o.type || 'string', source: node.label });
-      }
-    }
   }
 
-  const hasAnything = inputVars.length > 0 || outputVars.length > 0;
+  // Prefer context var names from start node's inputDataMap; fall back to raw workflow inputs
+  const displayInputVars = startInputVars.length > 0 ? startInputVars : inputVars;
+  const hasAnything = displayInputVars.length > 0 || outputVars.length > 0;
 
   return (
     <Box sx={{ flex: 1, overflowY: 'auto', px: 1, pt: 1.5, pb: 2 }}>
-      <Typography sx={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'text.disabled', px: 0.5, mb: 1 }}>
+      <Typography sx={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'text.secondary', px: 0.5, mb: 1 }}>
         Context Vars
       </Typography>
 
       {!hasAnything && (
-        <Typography sx={{ fontSize: 10, color: 'text.disabled', px: 0.5, fontStyle: 'italic' }}>
+        <Typography sx={{ fontSize: 10, color: 'text.secondary', px: 0.5, fontStyle: 'italic' }}>
           No variables yet
         </Typography>
       )}
 
-      {inputVars.length > 0 && (
+      {displayInputVars.length > 0 && (
         <Box mb={1}>
-          <Typography sx={{ fontSize: 9, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'text.disabled', px: 0.5, mb: 0.5 }}>
+          <Typography sx={{ fontSize: 9, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'text.secondary', px: 0.5, mb: 0.5 }}>
             Inputs
           </Typography>
           <Box display="flex" flexDirection="column" gap={0.5}>
-            {inputVars.map((v, i) => (
+            {displayInputVars.map((v, i) => (
               <VarRow key={i} entry={v} isInput />
             ))}
           </Box>
@@ -83,7 +82,7 @@ export default function ContextVarsPanel({ nodes, inputs }: ContextVarsPanelProp
 
       {outputVars.length > 0 && (
         <Box>
-          <Typography sx={{ fontSize: 9, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'text.disabled', px: 0.5, mb: 0.5 }}>
+          <Typography sx={{ fontSize: 9, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'text.secondary', px: 0.5, mb: 0.5 }}>
             Node Outputs
           </Typography>
           <Box display="flex" flexDirection="column" gap={0.5}>

@@ -336,7 +336,7 @@ export default function CanvasPanel({
   return (
     <Box
       ref={containerRef}
-      sx={{ flex: 1, overflow: 'auto', position: 'relative', backgroundColor: 'background.default', cursor: connectingFrom ? 'crosshair' : 'default', userSelect: connectingFrom ? 'none' : 'auto' }}
+      sx={{ flex: 1, overflow: 'auto', position: 'relative', backgroundColor: 'background.default', cursor: connectingFrom ? 'crosshair' : 'default', userSelect: connectingFrom ? 'none' : 'auto', '&::-webkit-scrollbar': { display: 'none' }, scrollbarWidth: 'none' }}
       onMouseMove={handleMouseMove} onMouseUp={handleMouseUp} onMouseLeave={handleMouseUp}
       onDragOver={e => { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; }}
       onDrop={handleDrop}

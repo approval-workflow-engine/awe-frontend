@@ -31,7 +31,10 @@ export function getNodeColor(type: string): string {
 
 export function getEffectiveNodeColor(node: CanvasNode): string {
   if (node.type === 'end') {
-    return (node.config.failure as boolean) ? '#ef4444' : '#22c55e';
+    const success = node.config.success as boolean | undefined;
+    // legacy: failure flag (inverted); new: success flag
+    const isFailure = (success === false) || ((node.config as Record<string, unknown>).failure === true);
+    return isFailure ? '#ef4444' : '#22c55e';
   }
   return getNodeColor(node.type);
 }
@@ -48,7 +51,28 @@ export function getNodeTypeLabel(type: string): string {
   return map[type] || type;
 }
 
-//  Canvas State Types
+//  Schema Types 
+
+export const DataType = {
+  NUMBER:   'number',
+  STRING:   'string',
+  BOOLEAN:  'boolean',
+  DATE:     'date',
+  TIME:     'time',
+  DATETIME: 'date-time',
+  LIST:     'list',
+  OBJECT:   'object',
+  NULL:     'null',
+} as const;
+
+export type DataType = (typeof DataType)[keyof typeof DataType];
+
+export interface ContextVariable {
+  name: string;
+  scope: 'global' | 'next';
+}
+
+//  Canvas State Types 
 
 export interface CanvasNode {
   id: string;
@@ -79,7 +103,7 @@ export type SelectedItem =
   | { id: string; type: 'edge' }
   | null;
 
-//  Port System
+//  Port System 
 
 export interface NodePort {
   id: string;
@@ -89,8 +113,14 @@ export interface NodePort {
 export function getOutputPorts(node: CanvasNode): NodePort[] {
   switch (node.type) {
     case 'exclusive_gateway': {
-      const branches = (node.config.branches as Array<{ label: string }>) ?? [];
-      return branches.map((b, i) => ({ id: `branch_${i}`, label: b.label || `Branch ${i + 1}` }));
+      const rules = (node.config.rules as Array<{ id: string; label?: string }>) ?? [];
+      const defaultRule = (node.config.defaultRule as { id?: string; label?: string } | undefined);
+      const defaultId = defaultRule?.id ?? 'default';
+      const defaultLabel = defaultRule?.label || 'Default';
+      return [
+        ...rules.map(r => ({ id: r.id, label: r.label || 'Condition' })),
+        { id: defaultId, label: defaultLabel },
+      ];
     }
     case 'end':
       return [];
@@ -110,7 +140,7 @@ export function estimateCardHeight(_node: CanvasNode): number {
   return NODE_MIN_HEIGHT;
 }
 
-//  Helpers
+//  Helpers 
 
 export function generateId(prefix: string): string {
   return `${prefix}_${Math.random().toString(36).slice(2, 8)}`;
@@ -121,47 +151,70 @@ export function buildStartNode(): CanvasNode {
     id: 'start_1',
     type: 'start',
     label: 'Start',
-    config: {},
+    config: { inputDataMap: [] },
     x: 80,
     y: 200,
   };
 }
 
-// Converts canvas state → API definition payload
-type KVArr = Array<{ key: string; value: string }>;
-
-function kvArrToObj(arr: KVArr | undefined): Record<string, string> {
-  return Object.fromEntries((arr ?? []).filter(r => r.key).map(r => [r.key, r.value]));
-}
+//  Serialization (Canvas → API Definition) 
 
 function serializeNodeConfig(node: CanvasNode): Record<string, unknown> {
   const c = node.config;
 
+  if (node.type === 'start') {
+    return { inputDataMap: c.inputDataMap ?? [] };
+  }
+
+  if (node.type === 'end') {
+    return {
+      success: c.success ?? true,
+      message: c.message ?? undefined,
+      resultMap: c.resultMap ?? [],
+    };
+  }
+
+  if (node.type === 'user_task') {
+    return {
+      title: c.title,
+      description: c.description,
+      assignee: c.assignee,
+      maxAttempts: c.maxAttempts,
+      requestMap: c.requestMap ?? [],
+      responseMap: c.responseMap ?? [],
+    };
+  }
+
   if (node.type === 'service_task') {
     return {
       method: c.method || 'GET',
-      url: c.url,
-      headers: kvArrToObj(c.headers as KVArr),
-      requestMap: kvArrToObj(c.requestMap as KVArr),
-      responseMap: kvArrToObj(c.responseMap as KVArr),
+      urlExpression: c.urlExpression ?? '',
+      maxAttempts: c.maxAttempts,
+      timeoutMs: c.timeoutMs,
+      retryDelayMs: c.retryDelayMs,
+      headers: c.headers ?? [],
+      body: c.body ?? [],
+      responseMap: c.responseMap ?? [],
+      onError: c.onError,
     };
   }
 
   if (node.type === 'script_task') {
     return {
-      sourceCode: c.sourceCode,
-      mainFunction: (c.mainFunction as string) || 'main',
-      parameterMap: kvArrToObj(c.parameterMap as KVArr),
+      runtime: 'python3',
+      sourceCode: c.sourceCode ?? '',
+      entryFunctionName: c.entryFunctionName ?? 'main',
+      maxAttempts: c.maxAttempts,
+      parameterMap: c.parameterMap ?? [],
+      responseMap: c.responseMap ?? [],
+      onError: c.onError,
     };
   }
 
-  if (node.type === 'user_task') {
-    const resArr = (c.responseMap as Array<{ name: string; label: string; type: string; defaultValue: unknown }>) ?? [];
+  if (node.type === 'exclusive_gateway') {
     return {
-      requestMap: kvArrToObj(c.requestMap as KVArr),
-      responseMap: Object.fromEntries(
-        resArr.filter(r => r.name).map(r => [r.name, { label: r.label, type: r.type, default: r.defaultValue }])
-      ),
+      rules: c.rules ?? [],
+      defaultRule: c.defaultRule ?? { id: 'default' },
     };
   }
 
@@ -193,40 +246,166 @@ export function canvasToDefinition(
   };
 }
 
-// Converts API version response → canvas state
-function objToKvArr(obj: Record<string, string> | undefined): Array<{ key: string; value: string }> {
-  return Object.entries(obj ?? {}).map(([key, value]) => ({ key, value }));
+//  Deserialization (API Definition → Canvas) 
+
+type KVArr = Array<{ key: string; value: string }>;
+
+function kvArrToNewFormat<T>(arr: KVArr | undefined, mapFn: (row: { key: string; value: string }) => T): T[] {
+  return (arr ?? []).filter(r => r.key || r.value).map(mapFn);
 }
 
 function deserializeNodeConfig(type: string, c: Record<string, unknown>): Record<string, unknown> {
-  if (type === 'service_task') {
-    return {
-      method: c.method || 'GET',
-      url: c.url,
-      headers: objToKvArr(c.headers as Record<string, string>),
-      requestMap: objToKvArr(c.requestMap as Record<string, string>),
-      responseMap: objToKvArr(c.responseMap as Record<string, string>),
-    };
+  if (type === 'start') {
+    // InputDataMap may already be in new format or missing
+    return { inputDataMap: c.inputDataMap ?? [] };
   }
 
-  if (type === 'script_task') {
+  if (type === 'end') {
+    // Backward compat: old schema had failure:bool, new has success:bool
+    if (c.success !== undefined) return c; // already new format
+    const wasFailure = c.failure === true;
     return {
-      sourceCode: c.sourceCode,
-      mainFunction: c.mainFunction,
-      parameterMap: objToKvArr(c.parameterMap as Record<string, string>),
+      success: !wasFailure,
+      message: c.message,
+      resultMap: (c.resultMap as unknown[]) ?? [],
     };
   }
 
   if (type === 'user_task') {
-    const resObj = (c.responseMap as Record<string, { label?: string; type?: string; default?: unknown }>) ?? {};
+    // Detect old KVRow requestMap format
+    const reqRaw = c.requestMap;
+    const resRaw = c.responseMap;
+    const newReqMap: Array<{ label: string; valueExpression: string }> =
+      Array.isArray(reqRaw) && reqRaw.length > 0 && 'key' in (reqRaw[0] as object)
+        ? kvArrToNewFormat(reqRaw as KVArr, r => ({ label: r.key, valueExpression: r.value }))
+        : (reqRaw as Array<{ label: string; valueExpression: string }>) ?? [];
+
+    let newResMap: unknown[];
+    if (Array.isArray(resRaw) && resRaw.length > 0 && 'name' in (resRaw[0] as object) && !('fieldId' in (resRaw[0] as object))) {
+      // Old format: {name, label, type, defaultValue}
+      const old = resRaw as Array<{ name?: string; label?: string; type?: string; defaultValue?: unknown }>;
+      newResMap = old.map(r => ({
+        fieldId: r.name ?? generateId('field'),
+        label: r.label ?? r.name ?? '',
+        type: r.type ?? DataType.STRING,
+        required: false,
+        contextVariable: r.name ? { name: r.name, scope: 'global' as const } : undefined,
+      }));
+    } else {
+      newResMap = (resRaw as unknown[]) ?? [];
+    }
+
     return {
-      requestMap: objToKvArr(c.requestMap as Record<string, string>),
-      responseMap: Object.entries(resObj).map(([name, v]) => ({
-        name,
-        label: v.label ?? '',
-        type: v.type ?? 'string',
-        defaultValue: v.default ?? '',
-      })),
+      title: c.title,
+      description: c.description,
+      assignee: c.assignee,
+      maxAttempts: c.maxAttempts,
+      requestMap: newReqMap,
+      responseMap: newResMap,
+    };
+  }
+
+  if (type === 'service_task') {
+    // Detect old format: had url instead of urlExpression
+    const urlExpr = (c.urlExpression as string) ?? (c.url as string) ?? '';
+    const headersRaw = c.headers;
+    const bodyRaw = c.body ?? c.requestMap; // old: requestMap, new: body
+    const resRaw = c.responseMap;
+
+    const newHeaders: Array<{ key: string; valueExpression: string }> =
+      Array.isArray(headersRaw) && headersRaw.length > 0 && 'key' in (headersRaw[0] as object)
+        ? kvArrToNewFormat(headersRaw as KVArr, r => ({ key: r.key, valueExpression: r.value }))
+        : (headersRaw as Array<{ key: string; valueExpression: string }>) ?? [];
+
+    const newBody: Array<{ jsonPath: string; valueExpression: string }> =
+      Array.isArray(bodyRaw) && bodyRaw.length > 0 && 'key' in (bodyRaw[0] as object)
+        ? kvArrToNewFormat(bodyRaw as KVArr, r => ({ jsonPath: r.key, valueExpression: r.value }))
+        : (bodyRaw as Array<{ jsonPath: string; valueExpression: string }>) ?? [];
+
+    let newResMap: unknown[];
+    if (Array.isArray(resRaw) && resRaw.length > 0 && 'key' in (resRaw[0] as object)) {
+      // Old KVRow: key=varName, value=jsonKey
+      newResMap = kvArrToNewFormat(resRaw as KVArr, r => ({
+        jsonPath: r.value,
+        type: DataType.STRING,
+        contextVariable: r.key ? { name: r.key, scope: 'global' as const } : undefined,
+      }));
+    } else if (Array.isArray(resRaw) && resRaw.length > 0 && typeof (resRaw[0] as Record<string, unknown>).key === 'string') {
+      newResMap = [];
+    } else {
+      newResMap = (resRaw as unknown[]) ?? [];
+    }
+
+    return {
+      method: c.method || 'GET',
+      urlExpression: urlExpr,
+      maxAttempts: c.maxAttempts,
+      timeoutMs: c.timeoutMs,
+      retryDelayMs: c.retryDelayMs,
+      headers: newHeaders,
+      body: newBody,
+      responseMap: newResMap,
+      onError: c.onError,
+    };
+  }
+
+  if (type === 'script_task') {
+    const paramRaw = c.parameterMap;
+    // Old format: {key, value}[]; new: {name, valueExpression}[]
+    const newParams: Array<{ name: string; valueExpression: string }> =
+      Array.isArray(paramRaw) && paramRaw.length > 0 && 'key' in (paramRaw[0] as object)
+        ? kvArrToNewFormat(paramRaw as KVArr, r => ({ name: r.key, valueExpression: r.value }))
+        : (paramRaw as Array<{ name: string; valueExpression: string }>) ?? [];
+
+    // scriptOutputs (old) → responseMap (new)
+    const resRaw = c.responseMap;
+    const scriptOutputs = c.scriptOutputs;
+    let newResMap: unknown[];
+    if (Array.isArray(resRaw) && resRaw.length > 0) {
+      newResMap = resRaw as unknown[];
+    } else if (Array.isArray(scriptOutputs) && scriptOutputs.length > 0) {
+      const old = scriptOutputs as Array<{ name?: string; type?: string }>;
+      newResMap = old.map(o => ({
+        jsonPath: o.name ?? '',
+        type: (o.type as DataType) ?? DataType.STRING,
+        contextVariable: o.name ? { name: o.name, scope: 'global' as const } : undefined,
+      }));
+    } else {
+      newResMap = [];
+    }
+
+    return {
+      runtime: 'python3',
+      sourceCode: c.sourceCode ?? '',
+      entryFunctionName: (c.entryFunctionName as string) ?? (c.mainFunction as string) ?? 'main',
+      maxAttempts: c.maxAttempts,
+      parameterMap: newParams,
+      responseMap: newResMap,
+      onError: c.onError,
+      // keep codeMode / file fields for ScriptTaskEditorPanel
+      codeMode: c.codeMode,
+      attachedFileName: c.attachedFileName,
+      fileCodeOriginal: c.fileCodeOriginal,
+    };
+  }
+
+  if (type === 'exclusive_gateway') {
+    // Detect old format: had branches[] array
+    if (Array.isArray(c.branches)) {
+      const oldBranches = c.branches as Array<{ label?: string; condition?: string | null }>;
+      const nonDefault = oldBranches.filter(b => b.label !== 'Default' && b.condition !== null);
+      return {
+        rules: nonDefault.map((b, i) => ({
+          id: generateId('rule'),
+          label: b.label ?? `Condition ${i + 1}`,
+          conditionExpression: b.condition ?? '',
+        })),
+        defaultRule: { id: 'default', label: 'Default' },
+      };
+    }
+    return {
+      rules: (c.rules as unknown[]) ?? [],
+      defaultRule: c.defaultRule ?? { id: 'default' },
     };
   }
 
