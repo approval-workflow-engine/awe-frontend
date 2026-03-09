@@ -25,8 +25,8 @@ export const validateWorkflowDefinition = (definition: WorkflowDefinition) =>
 export const getWorkflowVersions = (id: string) =>
   axiosClient.get(`/workflows/${id}/versions`);
 
-export const createWorkflowVersion = (id: string, definition: WorkflowDefinition) =>
-  axiosClient.post(`/workflows/${id}/versions`, { definition });
+export const createWorkflowVersion = (id: string, payload: Record<string, unknown>) =>
+  axiosClient.post(`/workflows/${id}/versions`, payload);
 
 export const getWorkflowVersion = (id: string, versionNumber: number | string) =>
   axiosClient.get(`/workflows/${id}/versions/${versionNumber}`);

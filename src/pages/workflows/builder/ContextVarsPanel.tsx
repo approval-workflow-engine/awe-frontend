@@ -43,7 +43,7 @@ export default function ContextVarsPanel({ nodes, inputs }: ContextVarsPanelProp
       }
     }
 
-    // Legacy object format fallback — keys become var names
+    // Legacy object format fallback - keys become var names
     if (rm && typeof rm === 'object' && !Array.isArray(rm)) {
       for (const key of Object.keys(rm as Record<string, unknown>)) {
         if (key) outputVars.push({ name: key, type: 'string', source: node.label });

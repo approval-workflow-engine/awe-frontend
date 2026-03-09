@@ -72,9 +72,9 @@ export default function WorkflowsPage() {
       if (f !== 'all') params.status = f;
       const res = await call(() => getWorkflows(params));
       if (res) {
-        const body = res as { data?: { workflows?: Workflow[]; pagination?: { total: number } } };
-        setWorkflows(body?.data?.workflows || []);
-        setTotal(body?.data?.pagination?.total || 0);
+        const body = res as { workflows?: Workflow[]; pagination?: { total: number } };
+        setWorkflows(body?.workflows || []);
+        setTotal(body?.pagination?.total || 0);
       }
     } finally {
       setListLoading(false);
@@ -91,8 +91,8 @@ export default function WorkflowsPage() {
       if (f !== 'all') params.status = f;
       const res = await call(() => getWorkflows(params));
       if (res) {
-        const body = res as { data?: { workflows?: Workflow[] } };
-        setAllWorkflows(body?.data?.workflows || []);
+        const body = res as { workflows?: Workflow[] };
+        setAllWorkflows(body?.workflows || []);
       }
     } finally {
       setSearchLoading(false);
@@ -111,7 +111,7 @@ export default function WorkflowsPage() {
     const num = published?.versionNumber ?? published?.version;
     if (num != null) return `v${num}`;
     if (wf.versionCount != null && wf.versionCount > 0) return `v${wf.versionCount}`;
-    return '—';
+    return '-';
   };
 
   const handleFilterChange = (f: FilterType) => {
@@ -232,8 +232,8 @@ export default function WorkflowsPage() {
         { showError: false }
       );
       if (res) {
-        const body = res as { data?: { instance?: { id: string } }; instance?: { id: string } };
-        const instanceId = body?.data?.instance?.id || (body as unknown as { instance?: { id: string } })?.instance?.id;
+        const body = res as { instance?: { id: string }; id?: string };
+        const instanceId = body?.instance?.id || body?.id;
         setLaunchOpen(false);
         if (instanceId) navigate(`/instances/${instanceId}`);
         else navigate('/instances');
@@ -414,7 +414,7 @@ export default function WorkflowsPage() {
                         fontSize: 12, color: 'text.secondary',
                         overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                       }}>
-                        {wf.description || '—'}
+                        {wf.description || '-'}
                       </Typography>
                     </TableCell>
                     <TableCell>

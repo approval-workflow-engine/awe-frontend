@@ -156,7 +156,7 @@ export default function UserTaskConfig({ node, availableContext, onUpdateConfig 
                 </Box>
                 <Box display="flex" gap={0.5} alignItems="center">
                   <Typography sx={{ fontSize: 9, color: 'text.disabled' }}>id:</Typography>
-                  <Typography sx={{ fontSize: 9, color: 'text.secondary' }}>{row.fieldId || '—'}</Typography>
+                  <Typography sx={{ fontSize: 9, color: 'text.secondary' }}>{row.fieldId || '-'}</Typography>
                 </Box>
               </Box>
               {expandedRes.has(idx) && (

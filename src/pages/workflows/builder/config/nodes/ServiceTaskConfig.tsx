@@ -146,7 +146,7 @@ export default function ServiceTaskConfig({ node, availableContext, onUpdateConf
         <CollapsibleSection title="Request Body" count={body.length}>
           <Box display="flex" flexDirection="column" gap={0.5}>
             <Typography sx={{ fontSize: 9, color: 'text.secondary', opacity: 0.8 }}>
-              JSON body — use {'{'}context.varName{'}'} for dynamic values
+              JSON body - use {'{'}context.varName{'}'} for dynamic values
             </Typography>
             <Box sx={{
               border: '1px solid',

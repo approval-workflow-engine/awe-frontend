@@ -49,6 +49,7 @@ import {
   type SelectedItem,
   buildStartNode,
   canvasToDefinition,
+  canvasToVersionPayload,
   definitionToCanvas,
 } from "./builder/builderTypes";
 
@@ -130,8 +131,8 @@ export default function WorkflowBuilder() {
         showError: false,
       });
       if (wfRes) {
-        const body = wfRes as { data?: { name?: string; id?: string } };
-        setWorkflowName(body?.data?.name || "Workflow");
+        const body = wfRes as { name?: string; id?: string };
+        setWorkflowName(body?.name || "Workflow");
       }
 
       // Load specific version if provided
@@ -141,8 +142,7 @@ export default function WorkflowBuilder() {
           { showError: false }
         );
         if (vRes) {
-          const body = vRes as { data?: Record<string, unknown> };
-          const vData = body?.data as Record<string, unknown> | undefined;
+          const vData = vRes as Record<string, unknown>;
           if (vData) {
             const {
               nodes: n,
@@ -277,8 +277,7 @@ export default function WorkflowBuilder() {
       showError: false,
     });
     if (res) {
-      const body = res as { data?: ValidationResult };
-      setValidationResult(body?.data || null);
+      setValidationResult((res as ValidationResult) || null);
       setValidateAnchor(e.currentTarget);
     } else {
       setValidationResult({
@@ -293,14 +292,14 @@ export default function WorkflowBuilder() {
   const handleSaveDraft = async () => {
     if (!workflowId) return;
     setSaving(true);
-    const def = canvasToDefinition(nodes, edges, inputs);
-    const res = await call(() => createWorkflowVersion(workflowId, def), {
+    const payload = canvasToVersionPayload(nodes, edges);
+    const res = await call(() => createWorkflowVersion(workflowId, payload as Record<string, unknown>), {
       successMsg: "Saved.",
       showError: true,
     });
     if (res) {
-      const body = res as { data?: { versionNumber?: number; id?: string } };
-      const vn = body?.data?.versionNumber || null;
+      const body = res as { versionNumber?: number; id?: string };
+      const vn = body?.versionNumber || null;
       setSavedVersionNumber(vn);
       setIsDirty(false);
     }
@@ -310,13 +309,13 @@ export default function WorkflowBuilder() {
   const handlePublish = async () => {
     if (!workflowId || !savedVersionNumber) return;
     setPublishing(true);
-    await call(() => publishVersion(workflowId, savedVersionNumber), {
+    const res = await call(() => publishVersion(workflowId, savedVersionNumber), {
       successMsg: `Version v${savedVersionNumber} published.`,
       showError: true,
     });
     setPublishing(false);
     setPublishConfirmOpen(false);
-    navigate(`/workflows/${workflowId}/versions`);
+    if (res) navigate(`/workflows/${workflowId}/versions`);
   };
 
   //  Derived values
@@ -742,7 +741,7 @@ export default function WorkflowBuilder() {
         <DialogContent sx={{ pt: "8px !important" }}>
           <Typography sx={{ fontSize: 13, color: "text.secondary" }}>
             This will make{" "}
-            <strong style={{ color: "#e8eaf2" }}>v{savedVersionNumber}</strong>{" "}
+            <strong>v{savedVersionNumber}</strong>{" "}
             the active version for this workflow. Any currently active version
             will be deprecated.
           </Typography>

@@ -41,12 +41,11 @@ export default function WorkflowVersionsPage() {
       ]);
 
       if (wfRes.status === 'fulfilled' && wfRes.value) {
-        const body = wfRes.value as { data?: Workflow };
-        setWorkflow(body?.data || null);
+        setWorkflow((wfRes.value as Workflow) || null);
       }
       if (versRes.status === 'fulfilled' && versRes.value) {
-        const body = versRes.value as { data?: { versions?: WorkflowVersion[] } };
-        const vers = body?.data?.versions || [];
+        const body = versRes.value as { versions?: WorkflowVersion[] };
+        const vers = body?.versions || [];
         setVersions([...vers].sort((a, b) => (b.versionNumber ?? 0) - (a.versionNumber ?? 0)));
       }
     } finally {
@@ -72,7 +71,7 @@ export default function WorkflowVersionsPage() {
   };
 
   const formatDate = (iso?: string | null) => {
-    if (!iso) return '—';
+    if (!iso) return '-';
     return new Date(iso).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
   };
 

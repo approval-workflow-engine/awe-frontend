@@ -352,7 +352,7 @@ export default function RegisterPage() {
               "&:hover": { backgroundColor: "#d97706" },
             }}
           >
-            I've stored my key — Close
+            I've stored my key - Close
           </Button>
         </DialogContent>
       </Dialog>

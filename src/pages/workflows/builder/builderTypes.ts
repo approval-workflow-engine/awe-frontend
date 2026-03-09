@@ -246,6 +246,36 @@ export function canvasToDefinition(
   };
 }
 
+/* Maps canvas node types to backend domain node types. */
+const NODE_TYPE_API_MAP: Record<string, string> = {
+  user_task: 'user',
+  service_task: 'service',
+  script_task: 'script',
+  exclusive_gateway: 'decision',
+  start: 'start',
+  end: 'end',
+};
+
+/* Converts canvas state to the payload shape expected by POST /workflows/:id/versions. */
+export function canvasToVersionPayload(nodes: CanvasNode[], edges: CanvasEdge[]) {
+  return {
+    nodes: nodes.map(n => ({
+      id: n.id,
+      type: NODE_TYPE_API_MAP[n.type] ?? n.type,
+      label: n.label,
+      position: { x: n.x, y: n.y },
+      configuration: serializeNodeConfig(n),
+    })),
+    edges: edges.map(e => ({
+      id: e.id,
+      sourceNodeId: e.source,
+      targetNodeId: e.target,
+      ...(e.sourcePort ? { ruleId: e.sourcePort } : {}),
+    })),
+    deleteContextVariablesOnEnd: false,
+  };
+}
+
 //  Deserialization (API Definition → Canvas) 
 
 type KVArr = Array<{ key: string; value: string }>;
