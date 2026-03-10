@@ -136,6 +136,7 @@ export function portYFraction(portIndex: number, totalPorts: number): number {
 }
 
 // Estimated card height for SVG edge endpoint calculation
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export function estimateCardHeight(_node: CanvasNode): number {
   return NODE_MIN_HEIGHT;
 }
@@ -243,6 +244,36 @@ export function canvasToDefinition(
       condition: e.condition || undefined,
       isDefault: e.isDefault || undefined,
     })),
+  };
+}
+
+/* Maps canvas node types to backend domain node types. */
+const NODE_TYPE_API_MAP: Record<string, string> = {
+  user_task: 'user',
+  service_task: 'service',
+  script_task: 'script',
+  exclusive_gateway: 'decision',
+  start: 'start',
+  end: 'end',
+};
+
+/* Converts canvas state to the payload shape expected by POST /workflows/:id/versions. */
+export function canvasToVersionPayload(nodes: CanvasNode[], edges: CanvasEdge[]) {
+  return {
+    nodes: nodes.map(n => ({
+      id: n.id,
+      type: NODE_TYPE_API_MAP[n.type] ?? n.type,
+      label: n.label,
+      position: { x: n.x, y: n.y },
+      configuration: serializeNodeConfig(n),
+    })),
+    edges: edges.map(e => ({
+      id: e.id,
+      sourceNodeId: e.source,
+      targetNodeId: e.target,
+      ruleId: e.isDefault ? 'default' : (e.sourcePort || null),
+    })),
+    deleteContextVariablesOnEnd: false,
   };
 }
 
@@ -459,7 +490,10 @@ export function definitionToCanvas(versionData: {
 }): { nodes: CanvasNode[]; edges: CanvasEdge[]; inputs: WorkflowInput[] } {
   const rawNodes = versionData.nodes || versionData.definition?.nodes || [];
   const rawEdges = versionData.edges || versionData.definition?.edges || [];
-  const inputs = versionData.definition?.inputs || [];
+  const inputs: WorkflowInput[] =
+    versionData.definition?.inputs ??
+    (versionData as { inputs?: WorkflowInput[] }).inputs ??
+    [];
 
   const nodes: CanvasNode[] = rawNodes.map((n, i) => ({
     id: n.nodeId || n.id || generateId('node'),

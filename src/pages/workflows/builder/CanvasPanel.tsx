@@ -11,27 +11,29 @@ import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import {
   type CanvasNode, type CanvasEdge, type SelectedItem,
   NODE_WIDTH, NODE_MIN_HEIGHT,
+} from './types';
+import {
   getEffectiveNodeColor, getNodeTypeLabel, generateId,
   getOutputPorts, portYFraction, estimateCardHeight,
-} from './builderTypes';
+} from './nodeHelpers';
 
 const CANVAS_W = 3200;
 const CANVAS_H = 2000;
 
-//  NodeIcon
+
 
 function NodeIcon({ type, color, isFailureEnd }: { type: string; color: string; isFailureEnd?: boolean }) {
   const s = { fontSize: 16, color } as const;
-  if (type === 'start')             return <PlayCircleIcon sx={s} />;
-  if (type === 'user_task')         return <PersonIcon sx={s} />;
-  if (type === 'service_task')      return <HttpIcon sx={s} />;
-  if (type === 'script_task')       return <CodeIcon sx={s} />;
+  if (type === 'start') return <PlayCircleIcon sx={s} />;
+  if (type === 'user_task') return <PersonIcon sx={s} />;
+  if (type === 'service_task') return <HttpIcon sx={s} />;
+  if (type === 'script_task') return <CodeIcon sx={s} />;
   if (type === 'exclusive_gateway') return <AltRouteIcon sx={s} />;
-  if (type === 'end')               return isFailureEnd ? <WarningAmberIcon sx={s} /> : <StopCircleIcon sx={s} />;
+  if (type === 'end') return isFailureEnd ? <WarningAmberIcon sx={s} /> : <StopCircleIcon sx={s} />;
   return <CodeIcon sx={s} />;
 }
 
-//  Edge SVG
+
 
 interface EdgePathProps {
   edge: CanvasEdge; nodes: CanvasNode[]; isSelected: boolean; onClick: (e: React.MouseEvent) => void;
@@ -44,7 +46,16 @@ function EdgePath({ edge, nodes, isSelected, onClick }: EdgePathProps) {
   if (!src || !tgt) return null;
 
   const srcPorts = getOutputPorts(src);
-  const portIdx = Math.max(0, srcPorts.findIndex(p => p.id === edge.sourcePort));
+
+  // Default edges always originate from the last port (the default port).
+  // Non-default edges look up their port by sourcePort id; if not found, fall back to 0.
+  let portIdx: number;
+  if (edge.isDefault) {
+    portIdx = Math.max(0, srcPorts.length - 1);
+  } else {
+    const idx = srcPorts.findIndex(p => p.id === edge.sourcePort);
+    portIdx = idx >= 0 ? idx : 0;
+  }
   const srcH = estimateCardHeight(src);
   const tgtH = estimateCardHeight(tgt);
 
@@ -83,7 +94,7 @@ function EdgePath({ edge, nodes, isSelected, onClick }: EdgePathProps) {
   );
 }
 
-//  Node Card
+
 
 interface NodeCardProps {
   node: CanvasNode;
@@ -140,7 +151,7 @@ function NodeCard({
         '&:active': { cursor: connectingMode ? 'crosshair' : 'grabbing' },
       }}
     >
-      {/* Colored icon box */}
+
       <Box sx={{
         width: 34, height: 34, borderRadius: '8px',
         background: `linear-gradient(145deg, ${color} 0%, ${color}cc 100%)`,
@@ -151,7 +162,7 @@ function NodeCard({
         <NodeIcon type={node.type} color="#fff" isFailureEnd={isFailureEnd} />
       </Box>
 
-      {/* Node name + type */}
+
       <Box sx={{ flex: 1, minWidth: 0 }}>
         <Typography sx={{
           fontSize: 12, fontWeight: 600, color: 'text.primary',
@@ -170,7 +181,7 @@ function NodeCard({
         </Typography>
       </Box>
 
-      {/* Input port - left edge, except Start */}
+
       {!isStart && (
         <Box sx={{
           position: 'absolute', left: -6, top: '50%', transform: 'translateY(-50%)',
@@ -182,7 +193,7 @@ function NodeCard({
         }} />
       )}
 
-      {/* Output ports - right edge */}
+
       {ports.map((port, idx) => (
         <Box key={port.id}>
           {port.label && (
@@ -218,7 +229,7 @@ function NodeCard({
   );
 }
 
-//  Main Canvas Panel
+
 
 interface CanvasPanelProps {
   nodes: CanvasNode[];
@@ -256,12 +267,12 @@ export default function CanvasPanel({
   }, [connectingFrom]);
 
   const handleMouseMove = useCallback((e: React.MouseEvent) => {
-    // Node drag
+
     if (dragRef.current) {
       const { nodeId, startX, startY, origX, origY } = dragRef.current;
       onUpdateNode(nodeId, { x: Math.max(0, origX + e.clientX - startX), y: Math.max(0, origY + e.clientY - startY) });
     }
-    // Connection preview
+
     if (connectingFrom && containerRef.current) {
       const rect = containerRef.current.getBoundingClientRect();
       setDragMousePos({
@@ -292,9 +303,22 @@ export default function CanvasPanel({
 
   const handleDropConnect = useCallback((targetId: string) => {
     if (!connectingFrom || connectingFrom.nodeId === targetId) { onCancelConnect(); return; }
-    onAddEdge({ id: generateId('edge'), source: connectingFrom.nodeId, target: targetId, sourcePort: connectingFrom.portId, condition: '', isDefault: false });
+
+    const srcNode = nodes.find(n => n.id === connectingFrom.nodeId);
+    const portId = connectingFrom.portId;
+
+    // Determine if this edge is the default branch of a gateway.
+    // The default port is the last entry from getOutputPorts (its id matches defaultRule.id or 'default').
+    let isDefault = false;
+    if (srcNode?.type === 'exclusive_gateway') {
+      const defaultRule = srcNode.config.defaultRule as { id?: string } | undefined;
+      const defaultPortId = defaultRule?.id ?? 'default';
+      isDefault = portId === defaultPortId;
+    }
+
+    onAddEdge({ id: generateId('edge'), source: connectingFrom.nodeId, target: targetId, sourcePort: portId, condition: '', isDefault });
     onCancelConnect();
-  }, [connectingFrom, onAddEdge, onCancelConnect]);
+  }, [connectingFrom, nodes, onAddEdge, onCancelConnect]);
 
   const handleStartConnect = useCallback((nodeId: string, portId: string) => {
     const sourceNode = nodes.find(n => n.id === nodeId);
@@ -317,7 +341,7 @@ export default function CanvasPanel({
     onStartConnect(nodeId, portId);
   }, [nodes, edges, onStartConnect]);
 
-  // Compute preview bezier endpoints
+
   const previewPath = (() => {
     if (!connectingFrom || !dragMousePos) return null;
     const srcNode = nodes.find(n => n.id === connectingFrom.nodeId);
@@ -342,13 +366,7 @@ export default function CanvasPanel({
       onDrop={handleDrop}
       onClick={() => { if (connectingFrom) { onCancelConnect(); return; } onSelectItem(null); }}
     >
-      {/* {connectingFrom && (
-        <Box sx={{ position: 'sticky', top: 0, left: 0, right: 0, zIndex: 100, backgroundColor: 'rgba(79,110,247,0.9)', backdropFilter: 'blur(8px)', py: 0.75, px: 2, textAlign: 'center' }}>
-          <Typography sx={{ fontSize: 12, color: '#fff', fontWeight: 500 }}>
-            Drag to a destination node to connect - or press <strong>Escape</strong> to cancel
-          </Typography>
-        </Box>
-      )} */}
+
       {connError && (
         <Box sx={{ position: 'sticky', top: connectingFrom ? 36 : 0, left: 0, right: 0, zIndex: 99, backgroundColor: 'rgba(239,68,68,0.9)', backdropFilter: 'blur(8px)', py: 0.75, px: 2, textAlign: 'center' }}>
           <Typography sx={{ fontSize: 12, color: '#fff', fontWeight: 500 }}>{connError}</Typography>
@@ -372,7 +390,7 @@ export default function CanvasPanel({
               onClick={e => { e.stopPropagation(); onSelectItem({ id: edge.id, type: 'edge' }); }}
             />
           ))}
-          {/* Connection preview bezier */}
+
           {previewPath && (
             <path d={previewPath} fill="none" stroke="#4f6ef7" strokeWidth={1.5}
               strokeDasharray="6,4" opacity={0.7} />

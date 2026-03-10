@@ -58,7 +58,7 @@ export interface RegisterPayload {
 }
 
 export interface RegisterResponse {
-  apiKey: string;
+  apiKey?: string;
 }
 
 //  Workflow 
@@ -68,20 +68,26 @@ export interface Workflow {
   id: string;
   name: string;
   description?: string;
-  status: WorkflowStatus;
+  status?: WorkflowStatus;
   versionCount?: number;
   versions?: WorkflowVersion[];
+  /** Returned by GET /workflows list endpoint (singular, not an array) */
+  latestVersion?: {
+    id: string;
+    version: number;
+    status: string;
+    updatedAt?: string;
+  };
   createdAt: string;
   updatedAt?: string;
 }
 
-export type VersionStatus = 'draft' | 'published' | 'DRAFT' | 'PUBLISHED';
+export type VersionStatus = 'draft' | 'published' | 'active' | 'valid';
 
 export interface WorkflowVersion {
   id: string;
   workflowId: string;
   versionNumber: number;
-  version?: number;
   status: VersionStatus;
   definition?: WorkflowDefinition;
   nodes?: WorkflowNode[];
@@ -209,8 +215,7 @@ export interface ExecutionLog {
   createdAt?: string;
 }
 
-//  Task 
-export type TaskStatus = 'IN_PROGRESS' | 'COMPLETED' | 'REJECTED' | 'in_progress' | 'completed' | 'rejected';
+export type TaskStatus = 'IN_PROGRESS' | 'COMPLETED' | 'REJECTED';
 
 export interface Task {
   id: string;

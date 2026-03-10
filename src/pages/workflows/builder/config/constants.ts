@@ -5,7 +5,7 @@ export const EXPR_FONT = "'JetBrains Mono', monospace";
 export const EXPR_FS = 11;
 export const EXPR_LH = 18;
 export const EXPR_PAD_V = 5;
-export const EXPR_PAD_L = 37;
+export const EXPR_PAD_L = 46;
 export const EXPR_PAD_R = 8;
 
 // HTTP method list and color mapping for ServiceTaskConfig

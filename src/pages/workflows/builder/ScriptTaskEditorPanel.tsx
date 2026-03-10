@@ -7,7 +7,7 @@ import DragHandleIcon from '@mui/icons-material/DragHandle';
 import AttachFileIcon from '@mui/icons-material/AttachFile';
 import EditIcon from '@mui/icons-material/Edit';
 import Editor from '@monaco-editor/react';
-import { type CanvasNode } from './builderTypes';
+import { type CanvasNode } from './types';
 
 const MIN_HEIGHT = 200;
 const MAX_HEIGHT = 600;
@@ -29,7 +29,7 @@ export default function ScriptTaskEditorPanel({ node, onUpdateConfig, onClose }:
   const params = paramRows.map(p => p.name || p.key || '').filter(Boolean);
   const signature = `def ${functionName}(${params.join(', ')}):`;
 
-  // Initialise sourceCode with a starter template when empty
+
   useEffect(() => {
     if (!node.config.sourceCode) {
       onUpdateConfig({
@@ -37,7 +37,7 @@ export default function ScriptTaskEditorPanel({ node, onUpdateConfig, onClose }:
         sourceCode: `\t# code here\n`,
       });
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [node.id]);
 
   const handleDragHandleMouseDown = useCallback((e: React.MouseEvent) => {
@@ -48,7 +48,7 @@ export default function ScriptTaskEditorPanel({ node, onUpdateConfig, onClose }:
   useEffect(() => {
     const onMove = (e: MouseEvent) => {
       if (!dragRef.current) return;
-      const delta = dragRef.current.startY - e.clientY; // drag up = increase height
+      const delta = dragRef.current.startY - e.clientY;
       const newH = Math.min(MAX_HEIGHT, Math.max(MIN_HEIGHT, dragRef.current.startH + delta));
       setPanelHeight(newH);
     };
@@ -77,7 +77,7 @@ export default function ScriptTaskEditorPanel({ node, onUpdateConfig, onClose }:
         overflow: 'hidden',
       }}
     >
-      {/* Drag handle */}
+
       <Box
         onMouseDown={handleDragHandleMouseDown}
         sx={{
@@ -92,7 +92,7 @@ export default function ScriptTaskEditorPanel({ node, onUpdateConfig, onClose }:
         <DragHandleIcon sx={{ fontSize: 12, color: 'text.disabled' }} />
       </Box>
 
-      {/* Header */}
+
       <Box
         sx={{
           px: 1.5, py: 0.75, flexShrink: 0,
@@ -134,7 +134,7 @@ export default function ScriptTaskEditorPanel({ node, onUpdateConfig, onClose }:
         </IconButton>
       </Box>
 
-      {/* File info strip - shown when in file mode with an attached file */}
+
       {codeMode === 'file' && attachedFileName && (
         <Box
           sx={{
@@ -165,7 +165,7 @@ export default function ScriptTaskEditorPanel({ node, onUpdateConfig, onClose }:
         </Box>
       )}
 
-      {/* Dynamic function signature strip */}
+
       <Box
         sx={{
           px: 1.5, py: 0.5, flexShrink: 0,
@@ -181,15 +181,15 @@ export default function ScriptTaskEditorPanel({ node, onUpdateConfig, onClose }:
             color: 'text.disabled',
             lineHeight: 1.5,
             flex: 1,
-            pl:6
+            pl: 6
           }}
         >
           {signature}
         </Typography>
-        
+
       </Box>
 
-      {/* Monaco editor - edits only the body */}
+
       <Box sx={{ flex: 1, overflow: 'hidden' }}>
         <Editor
           height="100%"
@@ -205,7 +205,7 @@ export default function ScriptTaskEditorPanel({ node, onUpdateConfig, onClose }:
             lineNumbers: 'on',
             wordWrap: 'on',
             automaticLayout: true,
-            padding: { top: 0 , bottom: 8 },
+            padding: { top: 0, bottom: 8 },
             tabSize: 4,
           }}
         />

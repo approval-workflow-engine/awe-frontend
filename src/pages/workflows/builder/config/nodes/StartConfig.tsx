@@ -43,16 +43,24 @@ export default function StartConfig({ node, onUpdateConfig, onChangeInputs, avai
 
   const sync = useCallback((newRows: InputDataMapRow[]) => {
     onUpdateConfig({ ...node.config, inputDataMap: newRows });
+    const validTypes: WorkflowInput['type'][] = ['string', 'number', 'boolean', 'object'];
     onChangeInputs(newRows.map(r => ({
       name: r.contextVariable.name,
-      type: (r.type as WorkflowInput['type']) || 'string',
+      type: validTypes.includes(r.type as WorkflowInput['type']) ? (r.type as WorkflowInput['type']) : 'string',
       required: r.required ?? false,
     })));
   }, [node.config, onUpdateConfig, onChangeInputs]);
 
   const update = (idx: number, patch: Partial<InputDataMapRow>) =>
     sync(rows.map((r, i) => i === idx ? { ...r, ...patch } : r));
-  const remove = (idx: number) => sync(rows.filter((_, i) => i !== idx));
+  const remove = (idx: number) => {
+    setExpanded(s => {
+      const n = new Set<number>();
+      s.forEach(i => { if (i < idx) n.add(i); else if (i > idx) n.add(i - 1); });
+      return n;
+    });
+    sync(rows.filter((_, i) => i !== idx));
+  };
 
   return (
     <Box display="flex" flexDirection="column" gap={1.25}>

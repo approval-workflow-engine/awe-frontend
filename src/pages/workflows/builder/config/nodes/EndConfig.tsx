@@ -38,14 +38,21 @@ export default function EndConfig({ node, onUpdateConfig, availableContext }: Pr
   const set = (key: string, val: unknown) => onUpdateConfig({ ...c, [key]: val });
   const updateRow = (idx: number, patch: Partial<ResultMapRow>) =>
     set('resultMap', resultMap.map((r, i) => i === idx ? { ...r, ...patch } : r));
-  const removeRow = (idx: number) => set('resultMap', resultMap.filter((_, i) => i !== idx));
+  const removeRow = (idx: number) => {
+    setExpanded(s => {
+      const n = new Set<number>();
+      s.forEach(i => { if (i < idx) n.add(i); else if (i > idx) n.add(i - 1); });
+      return n;
+    });
+    set('resultMap', resultMap.filter((_, i) => i !== idx));
+  };
 
-  // End node has no downstream, so next-scoped vars are irrelevant
+
   const endCtx = availableContext.filter(v => v.scope !== 'next');
 
   return (
     <Box display="flex" flexDirection="column" gap={1.5}>
-      {/* Success / Failure toggle */}
+
       <Box sx={{
         p: 1.25, borderRadius: '8px', border: '1px solid',
         borderColor: isSuccess ? 'rgba(34,197,94,0.3)' : 'rgba(239,68,68,0.3)',

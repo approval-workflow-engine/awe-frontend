@@ -44,14 +44,14 @@ export default function UserTaskConfig({ node, availableContext, onUpdateConfig 
     (c.requestMap as Array<{ label: string; valueExpression: string }>) ?? [];
   const resMap: ResponseMapRowUser[] = (c.responseMap as ResponseMapRowUser[]) ?? [];
 
-  const [expandedRes, setExpandedRes] = useState<Set<number>>(new Set());
-  const toggleRes = (idx: number) => setExpandedRes(s => {
+  const [expandedRes, setExpandedRes] = useState<Set<string>>(new Set());
+  const toggleRes = (fieldId: string) => setExpandedRes(s => {
     const n = new Set(s);
-    if (n.has(idx)) n.delete(idx); else n.add(idx);
+    if (n.has(fieldId)) n.delete(fieldId); else n.add(fieldId);
     return n;
   });
 
-  // Tracks which fields had uiType manually overridden, so auto-mapping is skipped
+
   const manualUiTypeIds = useRef<Set<string>>(new Set());
 
   const updateReq = (idx: number, patch: Partial<{ label: string; valueExpression: string }>) =>
@@ -63,6 +63,7 @@ export default function UserTaskConfig({ node, availableContext, onUpdateConfig 
   const removeRes = (idx: number) => {
     const row = resMap[idx];
     manualUiTypeIds.current.delete(row.fieldId);
+    setExpandedRes(s => { const n = new Set(s); n.delete(row.fieldId); return n; });
     set('responseMap', resMap.filter((_, i) => i !== idx));
   };
 
@@ -90,7 +91,7 @@ export default function UserTaskConfig({ node, availableContext, onUpdateConfig 
           label="Assignee (optional)"
           value={(c.assignee as string) ?? ''}
           onChange={v => set('assignee', v)}
-          placeholder="user@example.com or context.assigneeEmail"
+          placeholder="context.assigneeEmail"
           availableContext={availableContext}
           hint="If left empty, the task will be unassigned and visible to all users"
         />
@@ -98,10 +99,10 @@ export default function UserTaskConfig({ node, availableContext, onUpdateConfig 
 
       <Divider sx={{ borderColor: 'divider' }} />
 
-      <CollapsibleSection title="Request Data" count={reqMap.length}>
+      <CollapsibleSection title="Display Data" count={reqMap.length}>
         <Box display="flex" flexDirection="column" gap={0.75}>
           <Typography sx={{ fontSize: 9, color: 'text.secondary', opacity: 0.8, mb: 0.25 }}>
-            Data displayed to the assignee
+            Data shown to the reviewer/approver
           </Typography>
           {reqMap.map((row, idx) => (
             <Box key={idx} sx={{
@@ -125,10 +126,10 @@ export default function UserTaskConfig({ node, availableContext, onUpdateConfig 
         </Box>
       </CollapsibleSection>
 
-      <CollapsibleSection title="Response Fields" count={resMap.length}>
+      <CollapsibleSection title="Input Fields" count={resMap.length}>
         <Box display="flex" flexDirection="column" gap={0.75}>
           <Typography sx={{ fontSize: 9, color: 'text.secondary', opacity: 0.8, mb: 0.25 }}>
-            Fields the assignee must fill in
+            Fields the reviewer/approver must fill in
           </Typography>
           {resMap.map((row, idx) => (
             <Box key={idx} sx={{
@@ -140,14 +141,14 @@ export default function UserTaskConfig({ node, availableContext, onUpdateConfig 
                   <TextField size="small" placeholder="Field label" value={row.label}
                     onChange={e => {
                       const slug = e.target.value.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '');
-                      updateRes(idx, { label: e.target.value, fieldId: row.fieldId || slug });
+                      updateRes(idx, { label: e.target.value, fieldId: row.fieldId || slug || generateId('field') });
                     }}
                     sx={{ flex: 1, '& .MuiOutlinedInput-root': { borderRadius: '6px', fontSize: 11, '& fieldset': { borderColor: 'divider' } } }}
                     inputProps={{ style: { padding: '4px 8px', fontSize: 11 } }} />
                   <DataTypeSelect value={row.type || DataType.STRING} onChange={v => handleResTypeChange(idx, v)} exclude={[DataType.NULL]} />
-                  <Tooltip title={expandedRes.has(idx) ? 'Collapse' : 'More options'}>
-                    <IconButton size="small" onClick={() => toggleRes(idx)} sx={{ p: 0.25, color: 'text.disabled', '&:hover': { color: 'text.primary' } }}>
-                      <KeyboardArrowRightIcon sx={{ fontSize: 13, transform: expandedRes.has(idx) ? 'rotate(90deg)' : 'none', transition: 'transform 0.15s' }} />
+                  <Tooltip title={expandedRes.has(row.fieldId) ? 'Collapse' : 'More options'}>
+                    <IconButton size="small" onClick={() => toggleRes(row.fieldId)} sx={{ p: 0.25, color: 'text.disabled', '&:hover': { color: 'text.primary' } }}>
+                      <KeyboardArrowRightIcon sx={{ fontSize: 13, transform: expandedRes.has(row.fieldId) ? 'rotate(90deg)' : 'none', transition: 'transform 0.15s' }} />
                     </IconButton>
                   </Tooltip>
                   <IconButton className="delete-btn" size="small" onClick={() => removeRes(idx)} sx={{ p: 0.25, color: 'text.disabled', '&:hover': { color: '#ef4444' } }}>
@@ -156,10 +157,10 @@ export default function UserTaskConfig({ node, availableContext, onUpdateConfig 
                 </Box>
                 <Box display="flex" gap={0.5} alignItems="center">
                   <Typography sx={{ fontSize: 9, color: 'text.disabled' }}>id:</Typography>
-                  <Typography sx={{ fontSize: 9, color: 'text.secondary' }}>{row.fieldId || '—'}</Typography>
+                  <Typography sx={{ fontSize: 9, color: 'text.secondary' }}>{row.fieldId || '-'}</Typography>
                 </Box>
               </Box>
-              {expandedRes.has(idx) && (
+              {expandedRes.has(row.fieldId) && (
                 <Box sx={{ px: 0.75, py: 0.75, borderTop: '1px solid', borderColor: 'divider', display: 'flex', flexDirection: 'column', gap: 0.75 }}>
                   <Box display="flex" alignItems="center" gap={1} justifyContent="space-between">
                     <Box display="flex" gap={0.5} alignItems="center">

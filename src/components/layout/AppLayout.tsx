@@ -9,7 +9,6 @@ import DashboardIcon from '@mui/icons-material/Dashboard';
 import AccountTreeIcon from '@mui/icons-material/AccountTree';
 import PlayCircleIcon from '@mui/icons-material/PlayCircle';
 import AssignmentIcon from '@mui/icons-material/Assignment';
-import BugReportIcon from '@mui/icons-material/BugReport';
 import SecurityIcon from '@mui/icons-material/Security';
 import SettingsIcon from '@mui/icons-material/Settings';
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
@@ -49,7 +48,6 @@ const NAV_SECTIONS: NavSection[] = [
   {
     label: 'System',
     items: [
-      { label: 'Debug',    path: '/debug',    icon: BugReportIcon },
       { label: 'Audit',    path: '/audit',    icon: SecurityIcon },
       { label: 'Settings', path: '/settings', icon: SettingsIcon },
     ],

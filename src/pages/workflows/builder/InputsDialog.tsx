@@ -4,7 +4,7 @@ import {
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
-import { type WorkflowInput } from './builderTypes';
+import { type WorkflowInput } from './types';
 
 interface InputsDialogProps {
   open: boolean;
@@ -119,6 +119,6 @@ export default function InputsDialog({ open, onClose, inputs, onChange }: Inputs
           Done
         </Button>
       </DialogActions>
-    </Dialog>
+    </Dialog >
   );
 }

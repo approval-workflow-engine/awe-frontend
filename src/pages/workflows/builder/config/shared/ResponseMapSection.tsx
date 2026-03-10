@@ -30,13 +30,20 @@ const EMPTY_CV: ContextVariable = { name: '', scope: 'global' };
 export default function ResponseMapSection({ rows, onChange, availableContext, hint }: Props) {
   const update = (idx: number, patch: Partial<ResponseMapRow>) =>
     onChange(rows.map((r, i) => i === idx ? { ...r, ...patch } : r));
-  const remove = (idx: number) => onChange(rows.filter((_, i) => i !== idx));
   const [expanded, setExpanded] = useState<Set<number>>(new Set());
   const toggleExpand = (idx: number) => setExpanded(s => {
     const n = new Set(s);
     if (n.has(idx)) n.delete(idx); else n.add(idx);
     return n;
   });
+  const remove = (idx: number) => {
+    setExpanded(s => {
+      const n = new Set<number>();
+      s.forEach(i => { if (i < idx) n.add(i); else if (i > idx) n.add(i - 1); });
+      return n;
+    });
+    onChange(rows.filter((_, i) => i !== idx));
+  };
 
   return (
     <Box display="flex" flexDirection="column" gap={0.75}>

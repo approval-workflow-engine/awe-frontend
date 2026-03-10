@@ -8,14 +8,9 @@ import {
   InputAdornment,
   IconButton,
   Link as MuiLink,
-  Dialog,
-  DialogContent,
-  Tooltip,
 } from "@mui/material";
 import VisibilityIcon from "@mui/icons-material/Visibility";
 import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
-import ContentCopyIcon from "@mui/icons-material/ContentCopy";
-import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import { Link as RouterLink, useNavigate } from "react-router-dom";
 import LogoMark from "../../components/common/LogoMark";
 import { inputStyle } from "../../styles/authStyles";
@@ -33,8 +28,6 @@ export default function RegisterPage() {
     confirmPassword: "",
   });
   const [pwError, setPwError] = useState("");
-  const [apiKey, setApiKey] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
 
   const navigate = useNavigate();
   const { loading, call } = useApiCall();
@@ -60,30 +53,14 @@ export default function RegisterPage() {
     };
     const data = await call(
       () => registerSystem(payload),
-      { showError: true }
+      {
+        showError: true,
+        successMsg: "Registration successful. You can now sign in.",
+      }
     );
     if (data) {
-      const resp = data as { data?: { apiKey?: string } };
-      const key = resp?.data?.apiKey || null;
-      if (key) {
-        setApiKey(key);
-      } else {
-        navigate("/login", { replace: true });
-      }
+      navigate("/login", { replace: true });
     }
-  };
-
-  const handleCopy = () => {
-    if (apiKey) {
-      navigator.clipboard.writeText(apiKey).then(() => {
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
-      });
-    }
-  };
-
-  const handleDone = () => {
-    navigate("/login", { replace: true });
   };
 
   return (
@@ -236,126 +213,6 @@ export default function RegisterPage() {
           </MuiLink>
         </Typography>
       </Paper>
-
-      {/* Non-dismissible API Key Modal */}
-      <Dialog
-        open={!!apiKey}
-        disableEscapeKeyDown
-        onClose={() => { /* Prevent closing by clicking outside */ }}
-        slotProps={{ backdrop: { onClick: (e) => e.stopPropagation() } }}
-        PaperProps={{
-          sx: {
-            width: "100%",
-            maxWidth: 480,
-            p: 0,
-            border: "1px solid",
-            borderColor: "divider",
-            backgroundColor: "background.paper",
-          },
-        }}
-      >
-        <DialogContent sx={{ p: 3 }}>
-          {/* Header */}
-          <Box display="flex" alignItems="center" gap={1.5} mb={2}>
-            <Box
-              sx={{
-                width: 36, height: 36, borderRadius: "10px",
-                backgroundColor: "rgba(245,158,11,0.12)",
-                display: "flex", alignItems: "center", justifyContent: "center",
-                flexShrink: 0,
-              }}
-            >
-              <WarningAmberIcon sx={{ color: "#f59e0b", fontSize: 20 }} />
-            </Box>
-            <Box>
-              <Typography sx={{ fontFamily: "'Syne', sans-serif", fontWeight: 700, fontSize: 16, color: "text.primary" }}>
-                Your API Key
-              </Typography>
-              <Typography sx={{ fontSize: 12, color: "text.secondary" }}>
-                System registered successfully
-              </Typography>
-            </Box>
-          </Box>
-
-          {/* Warning banner */}
-          <Box
-            sx={{
-              p: 1.5,
-              borderRadius: "8px",
-              backgroundColor: "rgba(245,158,11,0.08)",
-              border: "1px solid rgba(245,158,11,0.25)",
-              mb: 2,
-              display: "flex",
-              alignItems: "flex-start",
-              gap: 1,
-            }}
-          >
-            <WarningAmberIcon sx={{ color: "#f59e0b", fontSize: 16, mt: 0.1, flexShrink: 0 }} />
-            <Typography sx={{ fontSize: 12, color: "#f59e0b", lineHeight: 1.5 }}>
-              This API key will <strong>never be shown again</strong>. Copy it now and store it securely before closing this dialog.
-            </Typography>
-          </Box>
-
-          {/* API Key display */}
-          <Box
-            sx={{
-              p: 2,
-              borderRadius: "8px",
-              backgroundColor: "action.hover",
-              border: "1px solid",
-              borderColor: "divider",
-              mb: 2,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              gap: 1,
-            }}
-          >
-            <Typography
-              sx={{
-                fontFamily: "'JetBrains Mono', monospace",
-                fontSize: 13,
-                color: "#f59e0b",
-                wordBreak: "break-all",
-                flex: 1,
-              }}
-            >
-              {apiKey}
-            </Typography>
-            <Tooltip title={copied ? "Copied!" : "Copy to clipboard"}>
-              <IconButton
-                onClick={handleCopy}
-                size="small"
-                sx={{
-                  color: copied ? "#22c55e" : "text.disabled",
-                  flexShrink: 0,
-                  "&:hover": { color: "#f59e0b" },
-                }}
-              >
-                <ContentCopyIcon fontSize="small" />
-              </IconButton>
-            </Tooltip>
-          </Box>
-
-          {/* Confirm button */}
-          <Button
-            fullWidth
-            variant="contained"
-            onClick={handleDone}
-            sx={{
-              height: 40,
-              fontWeight: 600,
-              fontSize: 14,
-              borderRadius: "8px",
-              backgroundColor: "#f59e0b",
-              color: "#0a0b0f",
-              "&:hover": { backgroundColor: "#d97706" },
-            }}
-          >
-            I've stored my key — Close
-          </Button>
-        </DialogContent>
-      </Dialog>
     </Box>
   );
 }

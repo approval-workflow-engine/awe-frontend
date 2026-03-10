@@ -32,7 +32,7 @@ export default function NumberInput({ value, onChange, min = 1, allowEmpty = tru
 
     if (raw === '') {
       if (allowEmpty) onChange(undefined);
-      // When !allowEmpty, defer enforcement to blur — don't reset mid-typing
+      // When !allowEmpty, defer enforcement to blur - don't reset mid-typing
       return;
     }
     const n = parseInt(raw, 10);
