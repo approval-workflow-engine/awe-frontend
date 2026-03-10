@@ -1,19 +1,15 @@
-import { Box, Typography, Paper } from '@mui/material';
+import { Box, Paper } from "@mui/material";
+import PageHeader from "../../components/common/PageHeader";
 
 export default function TasksPage() {
   return (
     <Box>
-      <Box mb={3}>
-        <Typography sx={{ fontFamily: "'Syne', sans-serif", fontWeight: 700, fontSize: 22, color: 'text.primary' }}>
-          Pending Tasks
-        </Typography>
-        <Typography sx={{ fontSize: 13, color: 'text.secondary' }}>
-          Review and complete tasks assigned to you
-        </Typography>
-      </Box>
-      <Paper sx={{ p: 6, textAlign: 'center' }}>
-        
-      </Paper>
+      <PageHeader
+        title="Pending Tasks"
+        subtitle="Review and complete tasks assigned to you"
+      />
+
+      <Paper sx={{ p: 6, textAlign: "center" }} />
     </Box>
   );
 }

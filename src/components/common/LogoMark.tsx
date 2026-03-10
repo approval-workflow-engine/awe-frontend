@@ -1,11 +1,14 @@
 import { Box, Typography } from "@mui/material";
 import Logo from "./Logo";
+
 export default function LogoMark() {
   return (
     <Box
       textAlign="center"
       mb={3}
-      sx={{ display: "flex", flexDirection:"column", alignItems: "center", justifyContent: "center" }}
+      display="flex"
+      flexDirection="column"
+      alignItems="center"
     >
       <Logo />
 
