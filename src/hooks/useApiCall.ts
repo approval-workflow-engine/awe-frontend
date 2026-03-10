@@ -1,6 +1,6 @@
-import { useState, useCallback } from 'react';
-import { useSnackbar } from 'notistack';
-import type { AxiosResponse } from 'axios';
+import { useState, useCallback } from "react";
+import { useSnackbar } from "notistack";
+import type { AxiosResponse } from "axios";
 
 interface ApiCallOptions {
   onSuccess?: (data: unknown) => void;
@@ -15,7 +15,7 @@ interface UseApiCallReturn {
   error: string | null;
   call: <T = unknown>(
     apiFn: () => Promise<AxiosResponse<T>>,
-    options?: ApiCallOptions
+    options?: ApiCallOptions,
   ) => Promise<T | null>;
 }
 
@@ -27,9 +27,15 @@ export function useApiCall(): UseApiCallReturn {
   const call = useCallback(
     async <T = unknown>(
       apiFn: () => Promise<AxiosResponse<T>>,
-      options: ApiCallOptions = {}
+      options: ApiCallOptions = {},
     ): Promise<T | null> => {
-      const { onSuccess, onError, successMsg, errorMsg, showError = true } = options;
+      const {
+        onSuccess,
+        onError,
+        successMsg,
+        errorMsg,
+        showError = true,
+      } = options;
       setLoading(true);
       setError(null);
       try {
@@ -40,30 +46,41 @@ export function useApiCall(): UseApiCallReturn {
 
         const payload =
           raw !== null &&
-          typeof raw === 'object' &&
-          typeof raw.success === 'boolean' &&
-          'data' in raw
+          typeof raw === "object" &&
+          typeof raw.success === "boolean" &&
+          "data" in raw
             ? (raw.data as T)
             : response.data;
-        if (successMsg) enqueueSnackbar(successMsg, { variant: 'success' });
+        if (successMsg) enqueueSnackbar(successMsg, { variant: "success" });
+        // clear previous banner error on a successful interaction
+        setError(null);
         if (onSuccess) onSuccess(payload);
         return payload as T;
       } catch (err: unknown) {
-        const e = err as { response?: { data?: { error?: { message?: string }; message?: string } }; message?: string };
+        const e = err as {
+          response?: {
+            data?: { error?: { message?: string }; message?: string };
+          };
+          message?: string;
+        };
         const message =
           e.response?.data?.error?.message ||
           e.response?.data?.message ||
           e.message ||
-          'An error occurred';
+          "An error occurred";
         setError(message);
-        if (showError) enqueueSnackbar(errorMsg || message, { variant: 'error' });
+        if (showError) {
+          enqueueSnackbar(errorMsg || message, { variant: "error" });
+          // also propagate to global error banner
+          setError(errorMsg || message);
+        }
         if (onError) onError(err);
         return null;
       } finally {
         setLoading(false);
       }
     },
-    [enqueueSnackbar]
+    [enqueueSnackbar, setError],
   );
 
   return { loading, error, call };

@@ -88,6 +88,7 @@ const ACTION_CONFIG: Record<
 };
 
 export default function WorkflowVersionsPage() {
+
   const { workflowId } = useParams<{ workflowId: string }>();
   const navigate = useNavigate();
   const { call } = useApiCall();
@@ -105,13 +106,17 @@ export default function WorkflowVersionsPage() {
   const [actionLoading, setActionLoading] = useState(false);
 
   const fetchData = useCallback(async () => {
+
     if (!workflowId) return;
+
     setLoading(true);
+
     try {
       const res = await call(() => getWorkflow(workflowId), {
         showError: false,
       });
       if (res) {
+
         const wfBody = res as { workflow?: Workflow } | Workflow;
         const wf =
           (wfBody as { workflow?: Workflow }).workflow ?? (wfBody as Workflow);
@@ -135,11 +140,16 @@ export default function WorkflowVersionsPage() {
           [...normalized].sort((a, b) => b.versionNumber - a.versionNumber)
         );
       }
+
     } finally {
       setLoading(false);
     }
+
   }, [workflowId, call]);
 
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
   useEffect(() => {
     fetchData();
   }, [fetchData]);
@@ -150,9 +160,13 @@ export default function WorkflowVersionsPage() {
   const hasDraft = versions.some((v) => normalizeStatus(v) === "draft");
 
   const handleAction = async () => {
+
     if (!workflowId || !actionTarget) return;
+
     const { version, action } = actionTarget;
+
     setActionLoading(true);
+
     try {
       if (action === "validate") {
         const res = await call(
@@ -214,7 +228,10 @@ export default function WorkflowVersionsPage() {
     const statusMatch = statusFilter === "all" || st === statusFilter;
     if (!statusMatch) return false;
     if (!searchQuery.trim()) return true;
+
     const q = searchQuery.toLowerCase();
+    const st = normalizeStatus(v);
+
     return (
       `v${v.versionNumber}`.includes(q) ||
       st.includes(q) ||
@@ -226,8 +243,11 @@ export default function WorkflowVersionsPage() {
 
   return (
     <Box>
+
       {/* Header */}
-      <Box display="flex" alignItems="flex-start" gap={1.5} mb={3}>
+
+      <Box display="flex" alignItems="center" gap={2} mb={3}>
+
         <IconButton
           onClick={() => navigate("/workflows")}
           size="small"
@@ -248,6 +268,7 @@ export default function WorkflowVersionsPage() {
             >
               {workflow?.name || "Version History"}
             </Typography>
+
             {!loading && versions.length > 0 && (
               <Chip
                 label={`${versions.length} version${
@@ -264,7 +285,9 @@ export default function WorkflowVersionsPage() {
                 }}
               />
             )}
+
           </Box>
+
           {workflow?.description && (
             <Typography
               sx={{
@@ -280,6 +303,7 @@ export default function WorkflowVersionsPage() {
               {workflow.description}
             </Typography>
           )}
+
         </Box>
         <Tooltip
           title={
@@ -305,6 +329,7 @@ export default function WorkflowVersionsPage() {
             </Button>
           </span>
         </Tooltip>
+
       </Box>
 
       {/* Filter + Search row */}
@@ -381,23 +406,27 @@ export default function WorkflowVersionsPage() {
 
       <Paper sx={{ overflow: "hidden" }}>
         <TableContainer>
+
           <Table size="small">
+
             <TableHead>
               <TableRow>
-                <TableCell sx={{ width: 120 }}>Version</TableCell>
-                <TableCell sx={{ width: 140 }}>Status</TableCell>
+                <TableCell>Version</TableCell>
+                <TableCell>Status</TableCell>
                 <TableCell>Created</TableCell>
                 <TableCell align="right" sx={{ width: 140 }}>
                   Actions
                 </TableCell>
               </TableRow>
             </TableHead>
+
             <TableBody>
+
               {loading ? (
                 [0, 1, 2].map((i) => (
                   <TableRow key={i}>
                     <TableCell colSpan={4}>
-                      <Skeleton variant="rounded" height={36} />
+                      <Skeleton height={36} />
                     </TableCell>
                   </TableRow>
                 ))
@@ -464,7 +493,11 @@ export default function WorkflowVersionsPage() {
                   const isCommitted = st === "published";
 
                   return (
+
                     <TableRow key={v.id} hover>
+
+                      <TableCell>v{v.versionNumber}</TableCell>
+
                       <TableCell>
                         <Typography
                           sx={{
@@ -477,9 +510,7 @@ export default function WorkflowVersionsPage() {
                           v{v.versionNumber}
                         </Typography>
                       </TableCell>
-                      <TableCell>
-                        <StatusChip status={st} />
-                      </TableCell>
+
                       <TableCell>
                         <Typography
                           sx={{
@@ -491,6 +522,7 @@ export default function WorkflowVersionsPage() {
                           {formatDate(v.createdAt)}
                         </Typography>
                       </TableCell>
+
                       <TableCell align="right">
                         <Box
                           display="flex"
@@ -611,12 +643,17 @@ export default function WorkflowVersionsPage() {
                           )}
                         </Box>
                       </TableCell>
+
                     </TableRow>
                   );
                 })
+
               )}
+
             </TableBody>
+
           </Table>
+
         </TableContainer>
 
         {!loading && versions.length > 0 && (
@@ -673,10 +710,9 @@ export default function WorkflowVersionsPage() {
               >
                 Cancel
               </Button>
+
               <Button
                 variant="contained"
-                size="small"
-                disabled={actionLoading}
                 onClick={handleAction}
                 sx={{
                   borderRadius: "8px",
@@ -695,10 +731,13 @@ export default function WorkflowVersionsPage() {
                   cfg.confirmLabel
                 )}
               </Button>
+
             </DialogActions>
           </>
         )}
+
       </Dialog>
+
     </Box>
   );
 }
