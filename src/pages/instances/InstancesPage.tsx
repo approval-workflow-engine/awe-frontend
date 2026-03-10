@@ -1,19 +1,15 @@
-import { Box, Typography, Paper } from '@mui/material';
+import { Box, Paper } from "@mui/material";
+import PageHeader from "../../components/common/PageHeader";
 
 export default function InstancesPage() {
   return (
     <Box>
-      <Box mb={3}>
-        <Typography sx={{ fontFamily: "'Syne', sans-serif", fontWeight: 700, fontSize: 22, color: 'text.primary' }}>
-          Instances
-        </Typography>
-        <Typography sx={{ fontSize: 13, color: 'text.secondary' }}>
-          Monitor running and completed workflow instances
-        </Typography>
-      </Box>
-      <Paper sx={{ p: 6, textAlign: 'center' }}>
-        
-      </Paper>
+      <PageHeader
+        title="Instances"
+        subtitle="Monitor running and completed workflow instances"
+      />
+
+      <Paper sx={{ p: 6, textAlign: "center" }} />
     </Box>
   );
 }

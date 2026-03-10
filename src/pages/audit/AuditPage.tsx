@@ -1,19 +1,15 @@
-import { Box, Typography, Paper } from '@mui/material';
+import { Box, Paper } from "@mui/material";
+import PageHeader from "../../components/common/PageHeader";
 
 export default function AuditPage() {
   return (
     <Box>
-      <Box mb={3}>
-        <Typography sx={{ fontFamily: "'Syne', sans-serif", fontWeight: 700, fontSize: 22, color: 'text.primary' }}>
-          Audit Log
-        </Typography>
-        <Typography sx={{ fontSize: 13, color: 'text.secondary' }}>
-          Track system activity and changes
-        </Typography>
-      </Box>
-      <Paper sx={{ p: 6, textAlign: 'center' }}>
-        
-      </Paper>
+      <PageHeader
+        title="Audit Log"
+        subtitle="Track system activity and changes"
+      />
+
+      <Paper sx={{ p: 6, textAlign: "center" }} />
     </Box>
   );
 }
