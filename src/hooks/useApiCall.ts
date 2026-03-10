@@ -35,7 +35,9 @@ export function useApiCall(): UseApiCallReturn {
       try {
         const response = await apiFn();
         // Unwrap ApiResponse envelope { success: boolean, data: T } if present
+        // console.log(response.error)
         const raw = response.data as { success?: boolean; data?: unknown };
+
         const payload =
           raw !== null &&
           typeof raw === 'object' &&
