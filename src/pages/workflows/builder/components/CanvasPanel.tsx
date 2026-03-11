@@ -129,6 +129,7 @@ function EdgePath({ edge, nodes, isSelected, onClick }: EdgePathProps) {
 interface NodeCardProps {
   node: CanvasNode;
   isSelected: boolean;
+  hasError: boolean;
   isConnectingFrom: string | false;
   connectingMode: boolean;
   onSelect: () => void;
@@ -140,6 +141,7 @@ interface NodeCardProps {
 function NodeCard({
   node,
   isSelected,
+  hasError,
   isConnectingFrom,
   connectingMode,
   onSelect,
@@ -180,11 +182,13 @@ function NodeCard({
         minHeight: NODE_MIN_HEIGHT,
         borderRadius: "12px",
         border: "1.5px solid",
-        borderColor: isSelected ? color : "divider",
+        borderColor: isSelected ? color : hasError ? "#ef4444" : "divider",
         backgroundColor: "background.paper",
         boxShadow: isSelected
           ? `0 0 0 3px ${color}28, 0 8px 24px rgba(0,0,0,0.13)`
-          : "0 2px 8px rgba(0,0,0,0.07), 0 0 0 1px rgba(0,0,0,0.03)",
+          : hasError
+            ? "0 0 0 2px rgba(239,68,68,0.25), 0 2px 8px rgba(0,0,0,0.07)"
+            : "0 2px 8px rgba(0,0,0,0.07), 0 0 0 1px rgba(0,0,0,0.03)",
         overflow: "visible",
         cursor: connectingMode ? "crosshair" : "grab",
         zIndex: isSelected ? 10 : 1,
@@ -316,6 +320,32 @@ function NodeCard({
           />
         </Box>
       ))}
+
+      {hasError && (
+        <Box
+          sx={{
+            position: "absolute",
+            top: -7,
+            right: -7,
+            width: 16,
+            height: 16,
+            borderRadius: "50%",
+            backgroundColor: "#ef4444",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 25,
+            boxShadow: "0 1px 4px rgba(239,68,68,0.5)",
+            pointerEvents: "none",
+          }}
+        >
+          <Typography
+            sx={{ fontSize: 9, color: "#fff", fontWeight: 700, lineHeight: 1 }}
+          >
+            !
+          </Typography>
+        </Box>
+      )}
     </Box>
   );
 }
@@ -325,6 +355,7 @@ interface CanvasPanelProps {
   edges: CanvasEdge[];
   selectedItem: SelectedItem;
   connectingFrom: { nodeId: string; portId: string } | null;
+  errorNodeIds?: Set<string>;
   onUpdateNode: (id: string, updates: Partial<CanvasNode>) => void;
   onAddNode: (node: CanvasNode) => void;
   onAddEdge: (edge: CanvasEdge) => void;
@@ -338,6 +369,7 @@ export default function CanvasPanel({
   edges,
   selectedItem,
   connectingFrom,
+  errorNodeIds,
   onUpdateNode,
   onAddNode,
   onAddEdge,
@@ -632,6 +664,7 @@ export default function CanvasPanel({
             isSelected={
               selectedItem?.type === "node" && selectedItem.id === node.id
             }
+            hasError={errorNodeIds?.has(node.id) ?? false}
             isConnectingFrom={
               connectingFrom?.nodeId === node.id ? connectingFrom.portId : false
             }

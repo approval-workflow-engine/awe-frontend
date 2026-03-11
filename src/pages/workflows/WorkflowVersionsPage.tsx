@@ -26,24 +26,20 @@ import {
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import EditIcon from "@mui/icons-material/Edit";
 import VisibilityIcon from "@mui/icons-material/Visibility";
-import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
 import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
 import BoltIcon from "@mui/icons-material/Bolt";
 import PowerSettingsNewIcon from "@mui/icons-material/PowerSettingsNew";
 import AddIcon from "@mui/icons-material/Add";
 import SearchIcon from "@mui/icons-material/Search";
 import ClearIcon from "@mui/icons-material/Clear";
-import { useSnackbar } from "notistack";
 import {
   getWorkflow,
-  validateVersion,
   updateVersionStatus,
 } from "../../api/workflowApi";
 import { useApiCall } from "../../hooks/useApiCall";
-import DialogErrorAlert from "../../components/common/DialogErrorAlert";
-import type { Workflow, WorkflowVersion, ValidationResult } from "../../types";
+import type { Workflow, WorkflowVersion } from "../../types";
 
-type LifecycleAction = "validate" | "commit" | "activate" | "deactivate";
+type LifecycleAction = "commit" | "activate" | "deactivate";
 
 const STATUS_COLORS: Record<string, { bg: string; color: string }> = {
   draft:     { bg: "rgba(59,130,246,0.12)",  color: "#3b82f6" },
@@ -68,12 +64,6 @@ const ACTION_CONFIG: Record<
     confirmColor: string;
   }
 > = {
-  validate: {
-    title: (vn) => `Validate v${vn}?`,
-    body: "Run validation checks on this version. If successful, the status will update to Valid.",
-    confirmLabel: "Validate",
-    confirmColor: "#06b6d4",
-  },
   commit: {
     title: (vn) => `Commit v${vn}?`,
     body: "Locking this version marks it as ready for activation. It can no longer be edited.",
@@ -99,13 +89,11 @@ export default function WorkflowVersionsPage() {
   const { workflowId } = useParams<{ workflowId: string }>();
   const navigate = useNavigate();
   const { call } = useApiCall();
-  const { enqueueSnackbar } = useSnackbar();
 
   const [workflow, setWorkflow] = useState<Workflow | null>(null);
   const [versions, setVersions] = useState<WorkflowVersion[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
-  const [validationErrors, setValidationErrors] = useState<string[]>([]);
 
   const [actionTarget, setActionTarget] = useState<{
     version: WorkflowVersion;
@@ -164,6 +152,10 @@ export default function WorkflowVersionsPage() {
 
   const hasDraft = versions.some((v) => normalizeStatus(v) === "draft");
 
+  const openAction = (version: WorkflowVersion, action: LifecycleAction) => {
+    setActionTarget({ version, action });
+  };
+
   const handleAction = async () => {
 
     if (!workflowId || !actionTarget) return;
@@ -173,28 +165,7 @@ export default function WorkflowVersionsPage() {
     setActionLoading(true);
 
     try {
-      if (action === "validate") {
-        // Use showError:true so HTTP errors surface via snackbar automatically.
-        // We handle the business-logic result (valid/invalid) manually.
-        const res = await call(
-          () => validateVersion(workflowId, version.versionNumber),
-          { showError: true }
-        );
-        if (res) {
-          const vres = res as ValidationResult;
-          if (vres.valid) {
-            enqueueSnackbar(`v${version.versionNumber} validated successfully.`, {
-              variant: "success",
-            });
-            setActionTarget(null);
-            setValidationErrors([]);
-            fetchData();
-          } else {
-            const errs = vres.errors?.map((e) => e.message) ?? [];
-            setValidationErrors(errs.length > 0 ? errs : ["Validation failed."]);
-          }
-        }
-      } else if (action === "commit") {
+      if (action === "commit") {
         await call(
           () =>
             updateVersionStatus(workflowId, version.versionNumber, "published"),
@@ -540,37 +511,13 @@ export default function WorkflowVersionsPage() {
                             </IconButton>
                           </Tooltip>
 
-                          {/* Validate (Draft only) */}
-                          {isDraft && (
-                            <Tooltip title="Validate this version">
-                              <IconButton
-                                size="small"
-                                onClick={() =>
-                                  setActionTarget({
-                                    version: v,
-                                    action: "validate",
-                                  })
-                                }
-                                sx={{
-                                  color: "text.disabled",
-                                  "&:hover": { color: "#06b6d4" },
-                                }}
-                              >
-                                <CheckCircleOutlineIcon fontSize="small" />
-                              </IconButton>
-                            </Tooltip>
-                          )}
-
                           {/* Commit (Draft or Valid) */}
                           {(isDraft || isValid) && (
                             <Tooltip title="Commit (lock for activation)">
                               <IconButton
                                 size="small"
                                 onClick={() =>
-                                  setActionTarget({
-                                    version: v,
-                                    action: "commit",
-                                  })
+                                  openAction(v, "commit")
                                 }
                                 sx={{
                                   color: "text.disabled",
@@ -588,10 +535,7 @@ export default function WorkflowVersionsPage() {
                               <IconButton
                                 size="small"
                                 onClick={() =>
-                                  setActionTarget({
-                                    version: v,
-                                    action: "activate",
-                                  })
+                                  openAction(v, "activate")
                                 }
                                 sx={{
                                   color: "text.disabled",
@@ -609,10 +553,7 @@ export default function WorkflowVersionsPage() {
                               <IconButton
                                 size="small"
                                 onClick={() =>
-                                  setActionTarget({
-                                    version: v,
-                                    action: "deactivate",
-                                  })
+                                  openAction(v, "deactivate")
                                 }
                                 sx={{
                                   color: "text.disabled",
@@ -623,6 +564,7 @@ export default function WorkflowVersionsPage() {
                               </IconButton>
                             </Tooltip>
                           )}
+
                         </Box>
                       </TableCell>
 
@@ -662,10 +604,7 @@ export default function WorkflowVersionsPage() {
       <Dialog
         open={!!actionTarget}
         onClose={() => {
-          if (!actionLoading) {
-            setActionTarget(null);
-            setValidationErrors([]);
-          }
+          if (!actionLoading) setActionTarget(null);
         }}
         maxWidth="xs"
         fullWidth
@@ -685,15 +624,11 @@ export default function WorkflowVersionsPage() {
               <Typography sx={{ fontSize: 13, color: "text.secondary" }}>
                 {cfg.body}
               </Typography>
-              <DialogErrorAlert errors={validationErrors.length > 0 ? validationErrors : undefined} />
             </DialogContent>
             <DialogActions sx={{ px: 3, pb: 2 }}>
               <Button
                 size="small"
-                onClick={() => {
-                  setActionTarget(null);
-                  setValidationErrors([]);
-                }}
+                onClick={() => setActionTarget(null)}
                 disabled={actionLoading}
                 sx={{ color: "text.secondary" }}
               >
@@ -724,7 +659,6 @@ export default function WorkflowVersionsPage() {
             </DialogActions>
           </>
         )}
-
       </Dialog>
 
     </Box>

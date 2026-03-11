@@ -9,12 +9,14 @@ import {
 import CloseIcon from "@mui/icons-material/Close";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
+import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
 import {
   type CanvasNode,
   type CanvasEdge,
   type SelectedItem,
   type WorkflowInput,
 } from "../type/types";
+import type { ValidationError } from "../../../../types";
 import { getEffectiveNodeColor, getNodeTypeLabel } from "../utils/nodeHelpers";
 import { getAvailableContext } from "../config/context";
 import NodeIcon from "../config/shared/NodeIcon";
@@ -30,6 +32,7 @@ interface Props {
   nodes: CanvasNode[];
   edges: CanvasEdge[];
   inputs: WorkflowInput[];
+  nodeErrors?: ValidationError[];
   onClose: () => void;
   onUpdateNode: (id: string, patch: Partial<CanvasNode>) => void;
   onUpdateEdge: (id: string, patch: Partial<CanvasEdge>) => void;
@@ -43,6 +46,7 @@ export default function ConfigPanel({
   nodes,
   edges,
   inputs,
+  nodeErrors,
   onClose,
   onUpdateNode,
   onUpdateEdge,
@@ -278,6 +282,39 @@ export default function ConfigPanel({
           gap: 1,
         }}
       >
+        {nodeErrors && nodeErrors.length > 0 && (
+          <Box
+            sx={{
+              borderRadius: "8px",
+              border: "1px solid rgba(239,68,68,0.3)",
+              backgroundColor: "rgba(239,68,68,0.06)",
+              p: 1,
+            }}
+          >
+            <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, mb: 0.5 }}>
+              <ErrorOutlineIcon sx={{ fontSize: 12, color: "#ef4444" }} />
+              <Typography
+                sx={{
+                  fontSize: 10,
+                  fontWeight: 700,
+                  color: "#ef4444",
+                  textTransform: "uppercase",
+                  letterSpacing: "0.05em",
+                }}
+              >
+                Validation Errors
+              </Typography>
+            </Box>
+            {nodeErrors.map((err, i) => (
+              <Typography
+                key={i}
+                sx={{ fontSize: 11, color: "#ef4444", lineHeight: 1.6 }}
+              >
+                • {err.message}
+              </Typography>
+            ))}
+          </Box>
+        )}
         {renderConfig()}
       </Box>
     </Box>
