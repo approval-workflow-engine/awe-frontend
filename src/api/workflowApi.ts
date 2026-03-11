@@ -23,7 +23,11 @@ export const validateWorkflowDefinition = (definition: WorkflowDefinition) =>
   axiosClient.post('/workflows/validate', { definition });
 
 export const createWorkflowVersion = (id: string, payload: Record<string, unknown>) =>
+  // {
+  // console.log(payload)
   axiosClient.post(`/workflows/${id}/versions`, payload);
+// }
+  
 
 export const getWorkflowVersion = (id: string, versionNumber: number | string) =>
   axiosClient.get(`/workflows/${id}/versions/${versionNumber}`);
