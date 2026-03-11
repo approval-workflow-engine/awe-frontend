@@ -312,7 +312,7 @@ export default function WorkflowBuilder() {
     const payload = canvasToVersionPayload(nodes, edges);
     const res = await call(
       () =>
-        createWorkflowVersion(workflowId, payload as Record<string, unknown>),
+        createWorkflowVersion(workflowId, ),
       {
         successMsg: "Saved.",
         showError: true,

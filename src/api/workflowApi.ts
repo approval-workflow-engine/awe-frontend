@@ -22,11 +22,9 @@ export const updateWorkflowStatus = (id: string, status: string) =>
 export const validateWorkflowDefinition = (definition: WorkflowDefinition) =>
   axiosClient.post('/workflows/validate', { definition });
 
-export const createWorkflowVersion = (id: string, payload: Record<string, unknown>) =>
-  // {
-  // console.log(payload)
-  axiosClient.post(`/workflows/${id}/versions`, payload);
-// }
+export const createWorkflowVersion = (workflowId: string) => {
+  return axiosClient.post(`/workflows/${workflowId}/versions`);
+};
   
 
 export const getWorkflowVersion = (id: string, versionNumber: number | string) =>
@@ -37,3 +35,7 @@ export const validateVersion = (id: string, versionNumber: number | string) =>
 
 export const updateVersionStatus = (id: string, versionNumber: number | string, status: string) =>
   axiosClient.patch(`/workflows/${id}/versions/${versionNumber}/status`, { status });
+
+
+export const getLatestWorkflowVersion = (workflowId: string) =>
+  axiosClient.get(`/workflows/${workflowId}/latest`);
