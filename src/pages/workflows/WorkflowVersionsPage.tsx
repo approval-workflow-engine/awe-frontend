@@ -164,6 +164,11 @@ export default function WorkflowVersionsPage() {
 
   const hasDraft = versions.some((v) => normalizeStatus(v) === "draft");
 
+  const openAction = (version: WorkflowVersion, action: LifecycleAction) => {
+    setValidationErrors([]);
+    setActionTarget({ version, action });
+  };
+
   const handleAction = async () => {
 
     if (!workflowId || !actionTarget) return;
@@ -546,10 +551,7 @@ export default function WorkflowVersionsPage() {
                               <IconButton
                                 size="small"
                                 onClick={() =>
-                                  setActionTarget({
-                                    version: v,
-                                    action: "validate",
-                                  })
+                                  openAction(v, "validate")
                                 }
                                 sx={{
                                   color: "text.disabled",
@@ -567,10 +569,7 @@ export default function WorkflowVersionsPage() {
                               <IconButton
                                 size="small"
                                 onClick={() =>
-                                  setActionTarget({
-                                    version: v,
-                                    action: "commit",
-                                  })
+                                  openAction(v, "commit")
                                 }
                                 sx={{
                                   color: "text.disabled",
@@ -588,10 +587,7 @@ export default function WorkflowVersionsPage() {
                               <IconButton
                                 size="small"
                                 onClick={() =>
-                                  setActionTarget({
-                                    version: v,
-                                    action: "activate",
-                                  })
+                                  openAction(v, "activate")
                                 }
                                 sx={{
                                   color: "text.disabled",
@@ -609,10 +605,7 @@ export default function WorkflowVersionsPage() {
                               <IconButton
                                 size="small"
                                 onClick={() =>
-                                  setActionTarget({
-                                    version: v,
-                                    action: "deactivate",
-                                  })
+                                  openAction(v, "deactivate")
                                 }
                                 sx={{
                                   color: "text.disabled",

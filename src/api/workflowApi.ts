@@ -1,5 +1,5 @@
 import axiosClient from './axiosClient';
-import type { PaginationParams, WorkflowDefinition } from '../types';
+import type { PaginationParams } from '../types';
 
 export const getWorkflows = (params?: PaginationParams) =>
   axiosClient.get('/workflows', { params });
@@ -19,15 +19,8 @@ export const deleteWorkflow = (id: string) =>
 export const updateWorkflowStatus = (id: string, status: string) =>
   axiosClient.patch(`/workflows/${id}/status`, { status });
 
-export const validateWorkflowDefinition = (definition: WorkflowDefinition) =>
-  axiosClient.post('/workflows/validate', { definition });
-
 export const createWorkflowVersion = (id: string, payload: Record<string, unknown>) =>
-  // {
-  // console.log(payload)
   axiosClient.post(`/workflows/${id}/versions`, payload);
-// }
-  
 
 export const getWorkflowVersion = (id: string, versionNumber: number | string) =>
   axiosClient.get(`/workflows/${id}/versions/${versionNumber}`);

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useParams, useNavigate, useBlocker } from "react-router-dom";
 import {
   Box,
@@ -293,6 +293,7 @@ export default function WorkflowBuilder() {
         showError: false,
       },
     );
+    console.log(JSON.stringify(res))
     if (res) {
       setValidationResult((res as ValidationResult) || null);
       setValidateAnchor(e.currentTarget);
@@ -382,6 +383,15 @@ export default function WorkflowBuilder() {
   const versionLabel = currentVersionNum
     ? `v${currentVersionNum}`
     : "New Draft";
+
+  const errorNodeIds = useMemo(() => {
+    if (!validationResult || validationResult.valid) return new Set<string>();
+    return new Set(
+      validationResult.errors
+        .filter((e) => e.nodeId)
+        .map((e) => e.nodeId as string),
+    );
+  }, [validationResult]);
 
   const canDelete =
     !isReadOnly &&
@@ -603,22 +613,27 @@ export default function WorkflowBuilder() {
                   Validation Errors
                 </Typography>
                 <List disablePadding dense>
-                  {validationResult?.errors.map((err, i) => (
-                    <ListItem key={i} sx={{ px: 0, py: 0.25 }}>
-                      <Typography
-                        sx={{
-                          fontSize: 11,
-                          color: "text.secondary",
-                          lineHeight: 1.5,
-                        }}
-                      >
-                        • {err.message}
-                        {err.nodeId && (
-                          <span style={{ opacity: 0.6 }}> (node: {err.nodeId})</span>
-                        )}
-                      </Typography>
-                    </ListItem>
-                  ))}
+                  {validationResult?.errors.map((err, i) => {
+                    const nodeLabel = err.nodeId
+                      ? (nodes.find((n) => n.id === err.nodeId)?.label ?? err.nodeId)
+                      : null;
+                    return (
+                      <ListItem key={i} sx={{ px: 0, py: 0.25 }}>
+                        <Typography
+                          sx={{
+                            fontSize: 11,
+                            color: "text.secondary",
+                            lineHeight: 1.5,
+                          }}
+                        >
+                          • {err.message}
+                          {nodeLabel && (
+                            <span style={{ opacity: 0.6 }}> — {nodeLabel}</span>
+                          )}
+                        </Typography>
+                      </ListItem>
+                    );
+                  })}
                 </List>
               </Box>
             </Popover>
@@ -847,6 +862,7 @@ export default function WorkflowBuilder() {
             edges={edges}
             selectedItem={selectedItem}
             connectingFrom={isReadOnly ? null : connectingFrom}
+            errorNodeIds={errorNodeIds}
             onUpdateNode={isReadOnly ? () => undefined : handleUpdateNode}
             onAddNode={isReadOnly ? () => undefined : handleAddNode}
             onAddEdge={isReadOnly ? () => undefined : handleAddEdge}
@@ -865,6 +881,13 @@ export default function WorkflowBuilder() {
               nodes={nodes}
               edges={edges}
               inputs={inputs}
+              nodeErrors={
+                selectedItem.type === "node"
+                  ? (validationResult?.errors.filter(
+                      (e) => e.nodeId === selectedItem.id,
+                    ) ?? [])
+                  : undefined
+              }
               onClose={() => setSelectedItem(null)}
               onUpdateNode={isReadOnly ? () => undefined : handleUpdateNode}
               onUpdateEdge={isReadOnly ? () => undefined : handleUpdateEdge}

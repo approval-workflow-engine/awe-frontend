@@ -42,7 +42,6 @@ export function useApiCall(): UseApiCallReturn {
       try {
         const response = await apiFn();
         // Unwrap ApiResponse envelope { success: boolean, data: T } if present
-        // console.log(response.error)
         const raw = response.data as { success?: boolean; data?: unknown };
 
         const payload =
@@ -62,8 +61,6 @@ export function useApiCall(): UseApiCallReturn {
         setError(message);
         if (showError) {
           enqueueSnackbar(errorMsg || message, { variant: "error" });
-          // also propagate to global error banner
-          setError(errorMsg || message);
         }
         if (onError) onError(err);
         return null;

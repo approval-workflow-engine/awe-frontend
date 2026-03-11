@@ -29,6 +29,9 @@ function serializeConfiguration(apiType: string, config: Record<string, any>): R
             return {
                 ...config,
                 runtime: "python3" as const,
+                // Required by schema — default to empty/fallback when user hasn't filled them in yet
+                sourceCode: typeof config.sourceCode === "string" ? config.sourceCode : "",
+                entryFunctionName: typeof config.entryFunctionName === "string" ? config.entryFunctionName : "main",
                 parameterMap: Array.isArray(config.parameterMap) ? config.parameterMap : [],
                 responseMap: Array.isArray(config.responseMap) ? config.responseMap : [],
             };
@@ -38,6 +41,8 @@ function serializeConfiguration(apiType: string, config: Record<string, any>): R
             const svc: Record<string, any> = {
                 ...config,
                 method: VALID_HTTP_METHODS.includes(config.method) ? config.method : "GET",
+                // Required by schema — default to empty string when user hasn't filled it in yet
+                urlExpression: typeof config.urlExpression === "string" ? config.urlExpression : "",
                 responseMap: Array.isArray(config.responseMap) ? config.responseMap : [],
             };
             // Only normalize headers/body when the field is already present in config;
