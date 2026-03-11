@@ -1,6 +1,7 @@
 import { useState, useCallback } from "react";
 import { useSnackbar } from "notistack";
 import type { AxiosResponse } from "axios";
+import { extractApiError } from "../utils/apiError";
 
 interface ApiCallOptions {
   onSuccess?: (data: unknown) => void;
@@ -57,17 +58,7 @@ export function useApiCall(): UseApiCallReturn {
         if (onSuccess) onSuccess(payload);
         return payload as T;
       } catch (err: unknown) {
-        const e = err as {
-          response?: {
-            data?: { error?: { message?: string }; message?: string };
-          };
-          message?: string;
-        };
-        const message =
-          e.response?.data?.error?.message ||
-          e.response?.data?.message ||
-          e.message ||
-          "An error occurred";
+        const message = extractApiError(err);
         setError(message);
         if (showError) {
           enqueueSnackbar(errorMsg || message, { variant: "error" });

@@ -21,6 +21,8 @@ import {
 } from '../../api/workflowApi';
 import { createInstance as startInstance } from '../../api/instanceApi';
 import { useApiCall } from '../../hooks/useApiCall';
+import { extractApiError } from '../../utils/apiError';
+import DialogErrorAlert from '../../components/common/DialogErrorAlert';
 import type { Workflow } from '../../types';
 
 type LaunchInput = { name: string; datatype: 'string' | 'number' | 'boolean' | 'object'; value: string; };
@@ -125,8 +127,7 @@ export default function WorkflowsPage() {
       {
         showError: false,
         onError: (err) => {
-          const e = err as { response?: { data?: { error?: { message?: string }; message?: string } }; message?: string };
-          setNewError(e?.response?.data?.error?.message || e?.response?.data?.message || e?.message || 'Failed to create workflow');
+          setNewError(extractApiError(err, 'Failed to create workflow'));
         },
       }
     );
@@ -156,8 +157,7 @@ export default function WorkflowsPage() {
       {
         showError: false,
         onError: (err) => {
-          const e = err as { response?: { data?: { error?: { message?: string }; message?: string } }; message?: string };
-          setEditError(e?.response?.data?.error?.message || e?.response?.data?.message || e?.message || 'Failed to update workflow');
+          setEditError(extractApiError(err, 'Failed to update workflow'));
         },
       }
     );
@@ -187,8 +187,7 @@ export default function WorkflowsPage() {
         showError: false,
         onSuccess: () => { succeeded = true; },
         onError: (err) => {
-          const e = err as { response?: { data?: { error?: { message?: string }; message?: string } }; message?: string };
-          errMsg = e?.response?.data?.error?.message || e?.response?.data?.message || e?.message || 'Failed to delete workflow';
+          errMsg = extractApiError(err, 'Failed to delete workflow');
         },
       }
     );
@@ -236,8 +235,7 @@ export default function WorkflowsPage() {
       {
         showError: false,
         onError: (err) => {
-          const e = err as { response?: { data?: { error?: { message?: string }; message?: string } }; message?: string };
-          setLaunchError(e?.response?.data?.error?.message || e?.response?.data?.message || e?.message || 'Failed to start instance');
+          setLaunchError(extractApiError(err, 'Failed to start instance'));
         },
       }
     );
@@ -510,9 +508,7 @@ export default function WorkflowsPage() {
             onChange={e => setNewForm(p => ({ ...p, description: e.target.value }))}
             sx={{ '& .MuiOutlinedInput-root': { borderRadius: '8px' } }}
           />
-          {newError && (
-            <Typography sx={{ fontSize: 12, color: '#ef4444', mt: 1.5 }}>{newError}</Typography>
-          )}
+          <DialogErrorAlert message={newError} />
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>
           <Button size="small" onClick={() => setNewOpen(false)} sx={{ color: 'text.secondary' }}>Cancel</Button>
@@ -548,9 +544,7 @@ export default function WorkflowsPage() {
             onChange={e => setEditForm(p => ({ ...p, description: e.target.value }))}
             sx={{ '& .MuiOutlinedInput-root': { borderRadius: '8px' } }}
           />
-          {editError && (
-            <Typography sx={{ fontSize: 12, color: '#ef4444', mt: 1.5 }}>{editError}</Typography>
-          )}
+          <DialogErrorAlert message={editError} />
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>
           <Button size="small" onClick={() => setEditOpen(false)} sx={{ color: 'text.secondary' }}>Cancel</Button>
@@ -570,11 +564,7 @@ export default function WorkflowsPage() {
           <Typography sx={{ fontSize: 13, color: 'text.secondary' }}>
             Are you sure you want to delete <strong>{deleteTarget?.name}</strong>? This action cannot be undone.
           </Typography>
-          {deleteError && (
-            <Box sx={{ mt: 1.5, p: 1.5, borderRadius: '8px', backgroundColor: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)' }}>
-              <Typography sx={{ fontSize: 12, color: '#ef4444' }}>{deleteError}</Typography>
-            </Box>
-          )}
+          <DialogErrorAlert message={deleteError} />
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>
           <Button size="small" onClick={() => setDeleteOpen(false)} disabled={deleteLoading} sx={{ color: 'text.secondary' }}>Cancel</Button>
@@ -678,11 +668,7 @@ export default function WorkflowsPage() {
             />
           </Box>
 
-          {launchError && (
-            <Box sx={{ mt: 1.5, p: 1.5, borderRadius: '8px', backgroundColor: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)' }}>
-              <Typography sx={{ fontSize: 12, color: '#ef4444' }}>{launchError}</Typography>
-            </Box>
-          )}
+          <DialogErrorAlert message={launchError} />
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>
           <Button size="small" onClick={() => setLaunchOpen(false)} disabled={launchLoading} sx={{ color: 'text.secondary' }}>Cancel</Button>
