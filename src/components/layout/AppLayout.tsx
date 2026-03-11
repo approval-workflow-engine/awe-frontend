@@ -3,7 +3,7 @@ import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import {
   Box, Drawer, List, ListItem, ListItemButton, ListItemIcon,
   ListItemText, Typography, IconButton, Divider, Avatar, Tooltip,
-  Dialog, DialogTitle, DialogContent, DialogActions, Button,
+  Dialog, Button,
 } from '@mui/material';
 import DashboardIcon from '@mui/icons-material/Dashboard';
 import AccountTreeIcon from '@mui/icons-material/AccountTree';
@@ -264,28 +264,40 @@ export default function AppLayout() {
       </Drawer>
 
       {/* Logout Confirmation */}
-      <Dialog open={logoutConfirmOpen} onClose={() => setLogoutConfirmOpen(false)} maxWidth="xs" fullWidth >
-        <DialogTitle sx={{ fontFamily: "'Syne', sans-serif", fontWeight: 700, fontSize: 16 }}>
-          Sign out?
-        </DialogTitle>
-        <DialogContent sx={{ pt: '8px !important' }}>
-          <Typography sx={{ fontSize: 13, color: 'text.secondary' }}>
+      <Dialog
+        open={logoutConfirmOpen}
+        onClose={() => setLogoutConfirmOpen(false)}
+        maxWidth="xs"
+        fullWidth
+        PaperProps={{ sx: { borderRadius: '12px', overflow: 'hidden' } }}
+      >
+        <Box sx={{ px: 3, pt: 2.5, pb: 2.5 }}>
+          <Typography
+            sx={{ fontFamily: "'Syne', sans-serif", fontWeight: 700, fontSize: 15, mb: 0.75 }}
+          >
+            Sign out?
+          </Typography>
+          <Typography sx={{ fontSize: 12, color: 'text.secondary', mb: 2.5, lineHeight: 1.6 }}>
             Are you sure you want to sign out?
           </Typography>
-        </DialogContent>
-        <DialogActions sx={{ px: 3, pb: 2 }}>
-          <Button size="small" onClick={() => setLogoutConfirmOpen(false)} sx={{ color: 'text.secondary' }}>
-            Cancel
-          </Button>
-          <Button
-            variant="contained"
-            size="small"
-            onClick={() => { setLogoutConfirmOpen(false); logout(); }}
-            sx={{ borderRadius: '8px', fontWeight: 600 }}
-          >
-            Sign Out
-          </Button>
-        </DialogActions>
+          <Box display="flex" justifyContent="flex-end" gap={1}>
+            <Button
+              size="small"
+              onClick={() => setLogoutConfirmOpen(false)}
+              sx={{ color: 'text.secondary', borderRadius: '8px' }}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="contained"
+              size="small"
+              onClick={() => { setLogoutConfirmOpen(false); logout(); }}
+              sx={{ borderRadius: '8px', fontWeight: 600 }}
+            >
+              Sign Out
+            </Button>
+          </Box>
+        </Box>
       </Dialog>
 
       {/* Main content */}
