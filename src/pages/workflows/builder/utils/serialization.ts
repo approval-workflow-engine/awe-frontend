@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import type { WorkflowDefinition, WorkflowNode, WorkflowEdge } from "../../../types";
-import type { CanvasNode, CanvasEdge, WorkflowInput } from "./types";
+import type { WorkflowDefinition, WorkflowNode, WorkflowEdge } from "../../../../types";
+import type { CanvasNode, CanvasEdge, WorkflowInput } from "../type/types";
 import { generateId } from "./nodeHelpers";
 
 const VALID_HTTP_METHODS = ["GET", "POST", "PUT", "PATCH", "DELETE"] as const;
