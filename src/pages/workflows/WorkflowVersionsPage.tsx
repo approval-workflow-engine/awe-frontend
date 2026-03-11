@@ -39,18 +39,23 @@ import {
   updateVersionStatus,
 } from "../../api/workflowApi";
 import { useApiCall } from "../../hooks/useApiCall";
-import StatusChip from "../../components/common/StatusChip";
 import type { Workflow, WorkflowVersion } from "../../types";
 
 type LifecycleAction = "validate" | "commit" | "activate" | "deactivate";
 
-const STATUS_FILTER_OPTIONS = [
-  { value: "all", label: "All" },
-  { value: "draft", label: "Draft" },
-  { value: "valid", label: "Valid" },
-  { value: "published", label: "Committed" },
-  { value: "active", label: "Active" },
-];
+const STATUS_COLORS: Record<string, { bg: string; color: string }> = {
+  draft:     { bg: "rgba(59,130,246,0.12)",  color: "#3b82f6" },
+  valid:     { bg: "rgba(6,182,212,0.12)",   color: "#06b6d4" },
+  published: { bg: "rgba(245,158,11,0.12)",  color: "#f59e0b" },
+  active:    { bg: "rgba(34,197,94,0.12)",   color: "#22c55e" },
+};
+
+const STATUS_LABELS: Record<string, string> = {
+  draft:     "Draft",
+  valid:     "Valid",
+  published: "Committed",
+  active:    "Active",
+};
 
 const ACTION_CONFIG: Record<
   LifecycleAction,
@@ -97,7 +102,6 @@ export default function WorkflowVersionsPage() {
   const [versions, setVersions] = useState<WorkflowVersion[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
 
   const [actionTarget, setActionTarget] = useState<{
     version: WorkflowVersion;
@@ -150,9 +154,6 @@ export default function WorkflowVersionsPage() {
   useEffect(() => {
     fetchData();
   }, [fetchData]);
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
 
   const normalizeStatus = (v: WorkflowVersion) =>
     v.status?.toLowerCase?.() || "draft";
@@ -177,7 +178,6 @@ export default function WorkflowVersionsPage() {
           }
         );
         if (res) {
-          // If backend auto-transitions to 'valid', fetchData will pick it up
           setActionTarget(null);
           fetchData();
         }
@@ -224,17 +224,13 @@ export default function WorkflowVersionsPage() {
   };
 
   const filteredVersions = versions.filter((v) => {
-    const st = normalizeStatus(v);
-    const statusMatch = statusFilter === "all" || st === statusFilter;
-    if (!statusMatch) return false;
     if (!searchQuery.trim()) return true;
-
     const q = searchQuery.toLowerCase();
     const st = normalizeStatus(v);
-
     return (
       `v${v.versionNumber}`.includes(q) ||
       st.includes(q) ||
+      (STATUS_LABELS[st] ?? st).toLowerCase().includes(q) ||
       formatDate(v.createdAt).toLowerCase().includes(q)
     );
   });
@@ -245,7 +241,6 @@ export default function WorkflowVersionsPage() {
     <Box>
 
       {/* Header */}
-
       <Box display="flex" alignItems="center" gap={2} mb={3}>
 
         <IconButton
@@ -255,6 +250,7 @@ export default function WorkflowVersionsPage() {
         >
           <ArrowBackIcon fontSize="small" />
         </IconButton>
+
         <Box flex={1} minWidth={0}>
           <Box display="flex" alignItems="center" gap={1} mb={0.25}>
             <Typography
@@ -285,7 +281,6 @@ export default function WorkflowVersionsPage() {
                 }}
               />
             )}
-
           </Box>
 
           {workflow?.description && (
@@ -303,80 +298,17 @@ export default function WorkflowVersionsPage() {
               {workflow.description}
             </Typography>
           )}
-
-        </Box>
-        <Tooltip
-          title={
-            hasDraft
-              ? "A draft version already exists. Complete or discard it before creating a new one."
-              : ""
-          }
-        >
-          <span>
-            <Button
-              variant="contained"
-              startIcon={<AddIcon />}
-              disabled={hasDraft}
-              onClick={() => navigate(`/workflows/${workflowId}/builder`)}
-              sx={{
-                borderRadius: "8px",
-                fontWeight: 600,
-                height: 36,
-                flexShrink: 0,
-              }}
-            >
-              New Draft
-            </Button>
-          </span>
-        </Tooltip>
-
-      </Box>
-
-      {/* Filter + Search row */}
-      <Box
-        display="flex"
-        alignItems="center"
-        justifyContent="space-between"
-        gap={2}
-        mb={2.5}
-      >
-        <Box display="flex" gap={1} flexWrap="wrap">
-          {STATUS_FILTER_OPTIONS.map((f) => (
-            <Button
-              key={f.value}
-              size="small"
-              variant={statusFilter === f.value ? "contained" : "outlined"}
-              onClick={() => setStatusFilter(f.value)}
-              sx={{
-                borderRadius: "8px",
-                fontWeight: 600,
-                fontSize: 12,
-                textTransform: "capitalize",
-                height: 32,
-                ...(statusFilter === f.value
-                  ? {}
-                  : {
-                      borderColor: "divider",
-                      color: "text.secondary",
-                      "&:hover": {
-                        borderColor: "primary.main",
-                        color: "primary.main",
-                      },
-                    }),
-              }}
-            >
-              {f.label}
-            </Button>
-          ))}
         </Box>
 
+        {/* Search bar — left of New Draft */}
         <TextField
           size="small"
-          placeholder="Search all columns…"
+          placeholder="Search versions…"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           sx={{
-            width: 300,
+            width: 220,
+            flexShrink: 0,
             "& .MuiOutlinedInput-root": {
               borderRadius: "8px",
               fontSize: 13,
@@ -402,6 +334,32 @@ export default function WorkflowVersionsPage() {
             ) : null,
           }}
         />
+
+        <Tooltip
+          title={
+            hasDraft
+              ? "A draft version already exists. Complete or discard it before creating a new one."
+              : ""
+          }
+        >
+          <span>
+            <Button
+              variant="contained"
+              startIcon={<AddIcon />}
+              disabled={hasDraft}
+              onClick={() => navigate(`/workflows/${workflowId}/builder`)}
+              sx={{
+                borderRadius: "8px",
+                fontWeight: 600,
+                height: 36,
+                flexShrink: 0,
+              }}
+            >
+              New Draft
+            </Button>
+          </span>
+        </Tooltip>
+
       </Box>
 
       <Paper sx={{ overflow: "hidden" }}>
@@ -462,15 +420,11 @@ export default function WorkflowVersionsPage() {
                           <Typography
                             sx={{ fontSize: 13, color: "text.secondary" }}
                           >
-                            No versions match the current filter
-                            {searchQuery ? ` or search` : ""}.
+                            No versions match your search.
                           </Typography>
                           <Button
                             size="small"
-                            onClick={() => {
-                              setStatusFilter("all");
-                              setSearchQuery("");
-                            }}
+                            onClick={() => setSearchQuery("")}
                             sx={{
                               mt: 1.5,
                               borderRadius: "8px",
@@ -478,7 +432,7 @@ export default function WorkflowVersionsPage() {
                               fontSize: 12,
                             }}
                           >
-                            Clear filters
+                            Clear search
                           </Button>
                         </>
                       )}
@@ -491,24 +445,39 @@ export default function WorkflowVersionsPage() {
                   const isDraft = st === "draft";
                   const isValid = st === "valid";
                   const isCommitted = st === "published";
+                  const statusStyle = STATUS_COLORS[st] ?? { bg: "action.selected", color: "text.secondary" };
 
                   return (
 
                     <TableRow key={v.id} hover>
-
-                      <TableCell>v{v.versionNumber}</TableCell>
 
                       <TableCell>
                         <Typography
                           sx={{
                             fontFamily: "'JetBrains Mono', monospace",
                             fontSize: 13,
-                            color: "text.primary",
                             fontWeight: 600,
+                            color: "text.primary",
                           }}
                         >
                           v{v.versionNumber}
                         </Typography>
+                      </TableCell>
+
+                      <TableCell>
+                        <Chip
+                          label={STATUS_LABELS[st] ?? st}
+                          size="small"
+                          sx={{
+                            fontSize: 11,
+                            height: 20,
+                            fontWeight: 600,
+                            fontFamily: "'JetBrains Mono', monospace",
+                            backgroundColor: statusStyle.bg,
+                            color: statusStyle.color,
+                            "& .MuiChip-label": { px: 0.75 },
+                          }}
+                        />
                       </TableCell>
 
                       <TableCell>
