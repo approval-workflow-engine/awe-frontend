@@ -1,59 +1,94 @@
-import { useEffect, useState, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useEffect, useState, useCallback } from "react";
+import { useParams, useNavigate } from "react-router-dom";
 import {
-  Box, Typography, Paper, Table, TableBody, TableCell, TableContainer,
-  TableHead, TableRow, IconButton, Tooltip, Button, CircularProgress,
-  Dialog, DialogTitle, DialogContent, DialogActions, Skeleton,
-  InputAdornment, TextField, Chip,
-} from '@mui/material';
+  Box,
+  Typography,
+  Paper,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  IconButton,
+  Tooltip,
+  Button,
+  CircularProgress,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Skeleton,
+  InputAdornment,
+  TextField,
+  Chip,
+} from "@mui/material";
+import ArrowBackIcon from "@mui/icons-material/ArrowBack";
+import EditIcon from "@mui/icons-material/Edit";
+import VisibilityIcon from "@mui/icons-material/Visibility";
+import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
+import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
+import BoltIcon from "@mui/icons-material/Bolt";
+import PowerSettingsNewIcon from "@mui/icons-material/PowerSettingsNew";
+import AddIcon from "@mui/icons-material/Add";
+import SearchIcon from "@mui/icons-material/Search";
+import ClearIcon from "@mui/icons-material/Clear";
+import {
+  getWorkflow,
+  validateVersion,
+  updateVersionStatus,
+} from "../../api/workflowApi";
+import { useApiCall } from "../../hooks/useApiCall";
+import type { Workflow, WorkflowVersion } from "../../types";
 
-import ArrowBackIcon from '@mui/icons-material/ArrowBack';
-import EditIcon from '@mui/icons-material/Edit';
-import VisibilityIcon from '@mui/icons-material/Visibility';
-import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
-import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
-import BoltIcon from '@mui/icons-material/Bolt';
-import PowerSettingsNewIcon from '@mui/icons-material/PowerSettingsNew';
-import AddIcon from '@mui/icons-material/Add';
-import SearchIcon from '@mui/icons-material/Search';
-import ClearIcon from '@mui/icons-material/Clear';
+type LifecycleAction = "validate" | "commit" | "activate" | "deactivate";
 
-import { getWorkflow, validateVersion, updateVersionStatus } from '../../api/workflowApi';
-import { useApiCall } from '../../hooks/useApiCall';
-import StatusChip from '../../components/common/StatusChip';
-import type { Workflow, WorkflowVersion } from '../../types';
+const STATUS_COLORS: Record<string, { bg: string; color: string }> = {
+  draft:     { bg: "rgba(59,130,246,0.12)",  color: "#3b82f6" },
+  valid:     { bg: "rgba(6,182,212,0.12)",   color: "#06b6d4" },
+  published: { bg: "rgba(245,158,11,0.12)",  color: "#f59e0b" },
+  active:    { bg: "rgba(34,197,94,0.12)",   color: "#22c55e" },
+};
 
-type LifecycleAction = 'validate' | 'commit' | 'activate' | 'deactivate';
+const STATUS_LABELS: Record<string, string> = {
+  draft:     "Draft",
+  valid:     "Valid",
+  published: "Committed",
+  active:    "Active",
+};
 
-const ACTION_CONFIG: Record<LifecycleAction, {
-  title: (vn: number) => string;
-  body: string;
-  confirmLabel: string;
-  confirmColor: string;
-}> = {
+const ACTION_CONFIG: Record<
+  LifecycleAction,
+  {
+    title: (vn: number) => string;
+    body: string;
+    confirmLabel: string;
+    confirmColor: string;
+  }
+> = {
   validate: {
-    title: vn => `Validate v${vn}?`,
-    body: 'Run validation checks on this version.',
-    confirmLabel: 'Validate',
-    confirmColor: '#06b6d4',
+    title: (vn) => `Validate v${vn}?`,
+    body: "Run validation checks on this version. If successful, the status will update to Valid.",
+    confirmLabel: "Validate",
+    confirmColor: "#06b6d4",
   },
   commit: {
-    title: vn => `Commit v${vn}?`,
-    body: 'Locking this version marks it as ready for activation.',
-    confirmLabel: 'Commit',
-    confirmColor: '#f59e0b',
+    title: (vn) => `Commit v${vn}?`,
+    body: "Locking this version marks it as ready for activation. It can no longer be edited.",
+    confirmLabel: "Commit",
+    confirmColor: "#f59e0b",
   },
   activate: {
-    title: vn => `Activate v${vn}?`,
-    body: 'This will make the selected version the live version.',
-    confirmLabel: 'Activate',
-    confirmColor: '#22c55e',
+    title: (vn) => `Activate v${vn}?`,
+    body: "This will make the selected version the live version for this workflow. The currently active version (if any) will be archived.",
+    confirmLabel: "Activate",
+    confirmColor: "#22c55e",
   },
   deactivate: {
-    title: vn => `Deactivate v${vn}?`,
-    body: 'Move version back to committed status.',
-    confirmLabel: 'Deactivate',
-    confirmColor: '#ef4444',
+    title: (vn) => `Deactivate v${vn}?`,
+    body: "This will move the version back to Committed status. It will no longer be the live version and no new instances can be started until another version is activated.",
+    confirmLabel: "Deactivate",
+    confirmColor: "#ef4444",
   },
 };
 
@@ -66,11 +101,12 @@ export default function WorkflowVersionsPage() {
   const [workflow, setWorkflow] = useState<Workflow | null>(null);
   const [versions, setVersions] = useState<WorkflowVersion[]>([]);
   const [loading, setLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState("");
 
-  const [actionTarget, setActionTarget] =
-    useState<{ version: WorkflowVersion; action: LifecycleAction } | null>(null);
-
+  const [actionTarget, setActionTarget] = useState<{
+    version: WorkflowVersion;
+    action: LifecycleAction;
+  } | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
 
   const fetchData = useCallback(async () => {
@@ -80,28 +116,33 @@ export default function WorkflowVersionsPage() {
     setLoading(true);
 
     try {
-
-      const res = await call(() => getWorkflow(workflowId), { showError: false });
-
+      const res = await call(() => getWorkflow(workflowId), {
+        showError: false,
+      });
       if (res) {
 
         const wfBody = res as { workflow?: Workflow } | Workflow;
-        const wf = (wfBody as { workflow?: Workflow }).workflow ?? (wfBody as Workflow);
-
+        const wf =
+          (wfBody as { workflow?: Workflow }).workflow ?? (wfBody as Workflow);
         setWorkflow(wf || null);
 
-        const rawVersions: Array<Record<string, unknown>> =
-          Array.isArray((wf as any)?.versions) ? (wf as any).versions : [];
-
-        const normalized = rawVersions.map(v => ({
+        const rawVersions: Array<Record<string, unknown>> = Array.isArray(
+          (wf as unknown as Record<string, unknown>)?.versions
+        )
+          ? ((wf as unknown as Record<string, unknown>).versions as Array<
+              Record<string, unknown>
+            >)
+          : [];
+        const normalized = rawVersions.map((v) => ({
           ...v,
           versionNumber:
             (v.versionNumber as number | undefined) ??
             (v.version as number | undefined) ??
             0,
         })) as WorkflowVersion[];
-
-        setVersions([...normalized].sort((a, b) => b.versionNumber - a.versionNumber));
+        setVersions(
+          [...normalized].sort((a, b) => b.versionNumber - a.versionNumber)
+        );
       }
 
     } finally {
@@ -115,9 +156,9 @@ export default function WorkflowVersionsPage() {
   }, [fetchData]);
 
   const normalizeStatus = (v: WorkflowVersion) =>
-    (v.status?.toLowerCase?.() || 'draft');
+    v.status?.toLowerCase?.() || "draft";
 
-  const hasDraft = versions.some(v => normalizeStatus(v) === 'draft');
+  const hasDraft = versions.some((v) => normalizeStatus(v) === "draft");
 
   const handleAction = async () => {
 
@@ -128,60 +169,68 @@ export default function WorkflowVersionsPage() {
     setActionLoading(true);
 
     try {
-
-      if (action === 'validate') {
-        await call(() =>
-          validateVersion(workflowId, version.versionNumber)
+      if (action === "validate") {
+        const res = await call(
+          () => validateVersion(workflowId, version.versionNumber),
+          {
+            showError: true,
+            successMsg: `v${version.versionNumber} validated successfully.`,
+          }
         );
-      }
-
-      if (action === 'commit') {
-        await call(() =>
-          updateVersionStatus(workflowId, version.versionNumber, 'published')
+        if (res) {
+          setActionTarget(null);
+          fetchData();
+        }
+      } else if (action === "commit") {
+        await call(
+          () =>
+            updateVersionStatus(workflowId, version.versionNumber, "published"),
+          { successMsg: `v${version.versionNumber} committed.` }
         );
-      }
-
-      if (action === 'activate') {
-        await call(() =>
-          updateVersionStatus(workflowId, version.versionNumber, 'active')
+        setActionTarget(null);
+        fetchData();
+      } else if (action === "activate") {
+        await call(
+          () =>
+            updateVersionStatus(workflowId, version.versionNumber, "active"),
+          { successMsg: `v${version.versionNumber} is now active.` }
         );
-      }
-
-      if (action === 'deactivate') {
-        await call(() =>
-          updateVersionStatus(workflowId, version.versionNumber, 'published')
+        setActionTarget(null);
+        fetchData();
+      } else if (action === "deactivate") {
+        await call(
+          () =>
+            updateVersionStatus(workflowId, version.versionNumber, "published"),
+          {
+            successMsg: `v${version.versionNumber} deactivated and moved back to Committed.`,
+          }
         );
+        setActionTarget(null);
+        fetchData();
       }
-
-      setActionTarget(null);
-      fetchData();
-
     } finally {
       setActionLoading(false);
     }
   };
 
   const formatDate = (iso?: string | null) => {
-    if (!iso) return '-';
-
-    return new Date(iso).toLocaleDateString('en-GB', {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric',
-      timeZone: 'Asia/Kolkata'
+    if (!iso) return "-";
+    return new Date(iso).toLocaleDateString("en-GB", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+      timeZone: "Asia/Kolkata",
     });
   };
 
-  const filteredVersions = versions.filter(v => {
-
+  const filteredVersions = versions.filter((v) => {
     if (!searchQuery.trim()) return true;
-
     const q = searchQuery.toLowerCase();
     const st = normalizeStatus(v);
-
     return (
       `v${v.versionNumber}`.includes(q) ||
       st.includes(q) ||
+      (STATUS_LABELS[st] ?? st).toLowerCase().includes(q) ||
       formatDate(v.createdAt).toLowerCase().includes(q)
     );
   });
@@ -192,74 +241,119 @@ export default function WorkflowVersionsPage() {
     <Box>
 
       {/* Header */}
-
       <Box display="flex" alignItems="center" gap={2} mb={3}>
 
         <IconButton
-          onClick={() => navigate('/workflows')}
+          onClick={() => navigate("/workflows")}
           size="small"
+          sx={{ color: "text.secondary", mt: 0.25 }}
         >
           <ArrowBackIcon fontSize="small" />
         </IconButton>
 
-        <Box flex={1}>
-
-          <Box display="flex" alignItems="center" gap={1}>
-
-            <Typography fontWeight={700} fontSize={20}>
-              {workflow?.name || 'Version History'}
+        <Box flex={1} minWidth={0}>
+          <Box display="flex" alignItems="center" gap={1} mb={0.25}>
+            <Typography
+              sx={{
+                fontFamily: "'Syne', sans-serif",
+                fontWeight: 700,
+                fontSize: 20,
+                color: "text.primary",
+                lineHeight: 1.2,
+              }}
+            >
+              {workflow?.name || "Version History"}
             </Typography>
 
             {!loading && versions.length > 0 && (
               <Chip
-                label={`${versions.length} version${versions.length !== 1 ? 's' : ''}`}
+                label={`${versions.length} version${
+                  versions.length !== 1 ? "s" : ""
+                }`}
                 size="small"
+                sx={{
+                  fontSize: 10,
+                  height: 20,
+                  fontFamily: "'JetBrains Mono', monospace",
+                  backgroundColor: "action.selected",
+                  color: "text.secondary",
+                  "& .MuiChip-label": { px: 0.75 },
+                }}
               />
             )}
-
           </Box>
 
           {workflow?.description && (
-            <Typography fontSize={13} color="text.secondary">
+            <Typography
+              sx={{
+                fontSize: 13,
+                color: "text.secondary",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                display: "-webkit-box",
+                WebkitLineClamp: 2,
+                WebkitBoxOrient: "vertical",
+              }}
+            >
               {workflow.description}
             </Typography>
           )}
-
         </Box>
 
-        {/* Search */}
-
+        {/* Search bar — left of New Draft */}
         <TextField
           size="small"
-          placeholder="Search all columns..."
+          placeholder="Search versions…"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          sx={{ width: 260 }}
+          sx={{
+            width: 220,
+            flexShrink: 0,
+            "& .MuiOutlinedInput-root": {
+              borderRadius: "8px",
+              fontSize: 13,
+              "& fieldset": { borderColor: "divider" },
+            },
+          }}
           InputProps={{
             startAdornment: (
               <InputAdornment position="start">
-                <SearchIcon fontSize="small" />
+                <SearchIcon sx={{ fontSize: 16, color: "text.disabled" }} />
               </InputAdornment>
             ),
-            endAdornment: searchQuery && (
+            endAdornment: searchQuery ? (
               <InputAdornment position="end">
-                <IconButton size="small" onClick={() => setSearchQuery('')}>
-                  <ClearIcon fontSize="small" />
+                <IconButton
+                  size="small"
+                  onClick={() => setSearchQuery("")}
+                  sx={{ p: 0.25, color: "text.disabled" }}
+                >
+                  <ClearIcon sx={{ fontSize: 14 }} />
                 </IconButton>
               </InputAdornment>
-            )
+            ) : null,
           }}
         />
 
-        {/* New Draft */}
-
-        <Tooltip title={hasDraft ? 'Draft already exists' : ''}>
+        <Tooltip
+          title={
+            hasDraft
+              ? "A draft version already exists. Complete or discard it before creating a new one."
+              : ""
+          }
+        >
           <span>
             <Button
               variant="contained"
               startIcon={<AddIcon />}
               disabled={hasDraft}
               onClick={() => navigate(`/workflows/${workflowId}/builder`)}
+              sx={{
+                borderRadius: "8px",
+                fontWeight: 600,
+                height: 36,
+                flexShrink: 0,
+              }}
             >
               New Draft
             </Button>
@@ -268,10 +362,7 @@ export default function WorkflowVersionsPage() {
 
       </Box>
 
-      {/* Table */}
-
-      <Paper>
-
+      <Paper sx={{ overflow: "hidden" }}>
         <TableContainer>
 
           <Table size="small">
@@ -281,103 +372,245 @@ export default function WorkflowVersionsPage() {
                 <TableCell>Version</TableCell>
                 <TableCell>Status</TableCell>
                 <TableCell>Created</TableCell>
-                <TableCell align="right">Actions</TableCell>
+                <TableCell align="right" sx={{ width: 140 }}>
+                  Actions
+                </TableCell>
               </TableRow>
             </TableHead>
 
             <TableBody>
 
               {loading ? (
-
-                [1,2,3].map(i => (
+                [0, 1, 2].map((i) => (
                   <TableRow key={i}>
                     <TableCell colSpan={4}>
                       <Skeleton height={36} />
                     </TableCell>
                   </TableRow>
                 ))
-
+              ) : filteredVersions.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={4}>
+                    <Box py={6} textAlign="center">
+                      {versions.length === 0 ? (
+                        <>
+                          <Typography
+                            sx={{ fontSize: 13, color: "text.secondary" }}
+                          >
+                            No versions yet.
+                          </Typography>
+                          <Button
+                            variant="outlined"
+                            size="small"
+                            onClick={() =>
+                              navigate(`/workflows/${workflowId}/builder`)
+                            }
+                            sx={{
+                              mt: 2,
+                              borderRadius: "8px",
+                              borderColor: "divider",
+                              color: "text.secondary",
+                            }}
+                          >
+                            Create First Draft
+                          </Button>
+                        </>
+                      ) : (
+                        <>
+                          <Typography
+                            sx={{ fontSize: 13, color: "text.secondary" }}
+                          >
+                            No versions match your search.
+                          </Typography>
+                          <Button
+                            size="small"
+                            onClick={() => setSearchQuery("")}
+                            sx={{
+                              mt: 1.5,
+                              borderRadius: "8px",
+                              color: "text.secondary",
+                              fontSize: 12,
+                            }}
+                          >
+                            Clear search
+                          </Button>
+                        </>
+                      )}
+                    </Box>
+                  </TableCell>
+                </TableRow>
               ) : (
-
-                filteredVersions.map(v => {
-
+                filteredVersions.map((v) => {
                   const st = normalizeStatus(v);
-                  const isDraft = st === 'draft';
-                  const isValid = st === 'valid';
-                  const isCommitted = st === 'published';
+                  const isDraft = st === "draft";
+                  const isValid = st === "valid";
+                  const isCommitted = st === "published";
+                  const statusStyle = STATUS_COLORS[st] ?? { bg: "action.selected", color: "text.secondary" };
 
                   return (
 
                     <TableRow key={v.id} hover>
 
-                      <TableCell>v{v.versionNumber}</TableCell>
-
                       <TableCell>
-                        <StatusChip status={st}/>
+                        <Typography
+                          sx={{
+                            fontFamily: "'JetBrains Mono', monospace",
+                            fontSize: 13,
+                            fontWeight: 600,
+                            color: "text.primary",
+                          }}
+                        >
+                          v{v.versionNumber}
+                        </Typography>
                       </TableCell>
 
                       <TableCell>
-                        {formatDate(v.createdAt)}
+                        <Chip
+                          label={STATUS_LABELS[st] ?? st}
+                          size="small"
+                          sx={{
+                            fontSize: 11,
+                            height: 20,
+                            fontWeight: 600,
+                            fontFamily: "'JetBrains Mono', monospace",
+                            backgroundColor: statusStyle.bg,
+                            color: statusStyle.color,
+                            "& .MuiChip-label": { px: 0.75 },
+                          }}
+                        />
+                      </TableCell>
+
+                      <TableCell>
+                        <Typography
+                          sx={{
+                            fontFamily: "'JetBrains Mono', monospace",
+                            fontSize: 11,
+                            color: "text.disabled",
+                          }}
+                        >
+                          {formatDate(v.createdAt)}
+                        </Typography>
                       </TableCell>
 
                       <TableCell align="right">
-
-                        <IconButton
-                          size="small"
-                          onClick={() =>
-                            navigate(`/workflows/${workflowId}/builder/${v.versionNumber}`)
-                          }
+                        <Box
+                          display="flex"
+                          alignItems="center"
+                          justifyContent="flex-end"
+                          gap={0.25}
                         >
-                          {(isDraft || isValid)
-                            ? <EditIcon fontSize="small"/>
-                            : <VisibilityIcon fontSize="small"/>
-                          }
-                        </IconButton>
-
-                        {isDraft && (
-                          <IconButton
-                            size="small"
-                            onClick={() =>
-                              setActionTarget({version:v, action:'validate'})
+                          {/* Open in Builder */}
+                          <Tooltip
+                            title={
+                              isDraft || isValid
+                                ? "Edit in Builder"
+                                : "View in Builder"
                             }
                           >
-                            <CheckCircleOutlineIcon fontSize="small"/>
-                          </IconButton>
-                        )}
+                            <IconButton
+                              size="small"
+                              onClick={() =>
+                                navigate(
+                                  `/workflows/${workflowId}/builder/${v.versionNumber}`
+                                )
+                              }
+                              sx={{
+                                color: "text.disabled",
+                                "&:hover": { color: "primary.main" },
+                              }}
+                            >
+                              {isDraft || isValid ? (
+                                <EditIcon fontSize="small" />
+                              ) : (
+                                <VisibilityIcon fontSize="small" />
+                              )}
+                            </IconButton>
+                          </Tooltip>
 
-                        {(isDraft || isValid) && (
-                          <IconButton
-                            size="small"
-                            onClick={() =>
-                              setActionTarget({version:v, action:'commit'})
-                            }
-                          >
-                            <LockOutlinedIcon fontSize="small"/>
-                          </IconButton>
-                        )}
+                          {/* Validate (Draft only) */}
+                          {isDraft && (
+                            <Tooltip title="Validate this version">
+                              <IconButton
+                                size="small"
+                                onClick={() =>
+                                  setActionTarget({
+                                    version: v,
+                                    action: "validate",
+                                  })
+                                }
+                                sx={{
+                                  color: "text.disabled",
+                                  "&:hover": { color: "#06b6d4" },
+                                }}
+                              >
+                                <CheckCircleOutlineIcon fontSize="small" />
+                              </IconButton>
+                            </Tooltip>
+                          )}
 
-                        {isCommitted && (
-                          <IconButton
-                            size="small"
-                            onClick={() =>
-                              setActionTarget({version:v, action:'activate'})
-                            }
-                          >
-                            <BoltIcon fontSize="small"/>
-                          </IconButton>
-                        )}
+                          {/* Commit (Draft or Valid) */}
+                          {(isDraft || isValid) && (
+                            <Tooltip title="Commit (lock for activation)">
+                              <IconButton
+                                size="small"
+                                onClick={() =>
+                                  setActionTarget({
+                                    version: v,
+                                    action: "commit",
+                                  })
+                                }
+                                sx={{
+                                  color: "text.disabled",
+                                  "&:hover": { color: "#f59e0b" },
+                                }}
+                              >
+                                <LockOutlinedIcon fontSize="small" />
+                              </IconButton>
+                            </Tooltip>
+                          )}
 
-                        {st === 'active' && (
-                          <IconButton
-                            size="small"
-                            onClick={() =>
-                              setActionTarget({version:v, action:'deactivate'})
-                            }
-                          >
-                            <PowerSettingsNewIcon fontSize="small"/>
-                          </IconButton>
-                        )}
+                          {/* Activate (Committed only) */}
+                          {isCommitted && (
+                            <Tooltip title="Activate (make live)">
+                              <IconButton
+                                size="small"
+                                onClick={() =>
+                                  setActionTarget({
+                                    version: v,
+                                    action: "activate",
+                                  })
+                                }
+                                sx={{
+                                  color: "text.disabled",
+                                  "&:hover": { color: "#22c55e" },
+                                }}
+                              >
+                                <BoltIcon fontSize="small" />
+                              </IconButton>
+                            </Tooltip>
+                          )}
 
+                          {/* Deactivate (Active only) */}
+                          {st === "active" && (
+                            <Tooltip title="Deactivate (move back to Committed)">
+                              <IconButton
+                                size="small"
+                                onClick={() =>
+                                  setActionTarget({
+                                    version: v,
+                                    action: "deactivate",
+                                  })
+                                }
+                                sx={{
+                                  color: "text.disabled",
+                                  "&:hover": { color: "#ef4444" },
+                                }}
+                              >
+                                <PowerSettingsNewIcon fontSize="small" />
+                              </IconButton>
+                            </Tooltip>
+                          )}
+                        </Box>
                       </TableCell>
 
                     </TableRow>
@@ -392,28 +625,57 @@ export default function WorkflowVersionsPage() {
 
         </TableContainer>
 
+        {!loading && versions.length > 0 && (
+          <Box
+            px={2}
+            py={1.25}
+            borderTop="1px solid"
+            sx={{ borderColor: "divider" }}
+          >
+            <Typography sx={{ fontSize: 12, color: "text.disabled" }}>
+              {filteredVersions.length === versions.length
+                ? `${versions.length} version${
+                    versions.length !== 1 ? "s" : ""
+                  }`
+                : `${filteredVersions.length} of ${versions.length} version${
+                    versions.length !== 1 ? "s" : ""
+                  }`}
+            </Typography>
+          </Box>
+        )}
       </Paper>
 
-      {/* Action Dialog */}
-
-      <Dialog open={!!actionTarget}>
-
+      {/* Action Confirmation Dialog */}
+      <Dialog
+        open={!!actionTarget}
+        onClose={() => {
+          if (!actionLoading) setActionTarget(null);
+        }}
+        maxWidth="xs"
+        fullWidth
+      >
         {actionTarget && cfg && (
           <>
-            <DialogTitle>
+            <DialogTitle
+              sx={{
+                fontFamily: "'Syne', sans-serif",
+                fontWeight: 700,
+                fontSize: 16,
+              }}
+            >
               {cfg.title(actionTarget.version.versionNumber)}
             </DialogTitle>
-
-            <DialogContent>
-              <Typography>
+            <DialogContent sx={{ pt: "8px !important" }}>
+              <Typography sx={{ fontSize: 13, color: "text.secondary" }}>
                 {cfg.body}
               </Typography>
             </DialogContent>
-
-            <DialogActions>
-
+            <DialogActions sx={{ px: 3, pb: 2 }}>
               <Button
+                size="small"
                 onClick={() => setActionTarget(null)}
+                disabled={actionLoading}
+                sx={{ color: "text.secondary" }}
               >
                 Cancel
               </Button>
@@ -421,10 +683,22 @@ export default function WorkflowVersionsPage() {
               <Button
                 variant="contained"
                 onClick={handleAction}
+                sx={{
+                  borderRadius: "8px",
+                  fontWeight: 600,
+                  backgroundColor: cfg.confirmColor,
+                  color: "#fff",
+                  "&:hover": {
+                    backgroundColor: cfg.confirmColor,
+                    filter: "brightness(0.9)",
+                  },
+                }}
               >
-                {actionLoading
-                  ? <CircularProgress size={16}/>
-                  : cfg.confirmLabel}
+                {actionLoading ? (
+                  <CircularProgress size={14} sx={{ color: "#fff" }} />
+                ) : (
+                  cfg.confirmLabel
+                )}
               </Button>
 
             </DialogActions>

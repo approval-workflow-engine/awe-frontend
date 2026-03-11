@@ -3,6 +3,72 @@ import type { WorkflowDefinition, WorkflowNode, WorkflowEdge } from "../../../ty
 import type { CanvasNode, CanvasEdge, WorkflowInput } from "./types";
 import { generateId } from "./nodeHelpers";
 
+const VALID_HTTP_METHODS = ["GET", "POST", "PUT", "PATCH", "DELETE"] as const;
+
+/**
+ * Normalizes a node's configuration object to satisfy the backend Zod schema.
+ * Inserts required fields with safe defaults when they are absent or have the
+ * wrong type, and guarantees every array-typed field is always an array.
+ */
+function serializeConfiguration(apiType: string, config: Record<string, any>): Record<string, any> {
+    switch (apiType) {
+        case "start":
+            return {
+                ...config,
+                inputDataMap: Array.isArray(config.inputDataMap) ? config.inputDataMap : [],
+            };
+
+        case "end":
+            return {
+                ...config,
+                success: typeof config.success === "boolean" ? config.success : true,
+                resultMap: Array.isArray(config.resultMap) ? config.resultMap : [],
+            };
+
+        case "script": {
+            return {
+                ...config,
+                runtime: "python3" as const,
+                parameterMap: Array.isArray(config.parameterMap) ? config.parameterMap : [],
+                responseMap: Array.isArray(config.responseMap) ? config.responseMap : [],
+            };
+        }
+
+        case "service": {
+            const svc: Record<string, any> = {
+                ...config,
+                method: VALID_HTTP_METHODS.includes(config.method) ? config.method : "GET",
+                responseMap: Array.isArray(config.responseMap) ? config.responseMap : [],
+            };
+            // Only normalize headers/body when the field is already present in config;
+            // the schema marks them as optional so we must not inject them unnecessarily.
+            if ("headers" in config) svc.headers = Array.isArray(config.headers) ? config.headers : [];
+            if ("body" in config) svc.body = Array.isArray(config.body) ? config.body : [];
+            return svc;
+        }
+
+        case "user":
+            return {
+                ...config,
+                requestMap: Array.isArray(config.requestMap) ? config.requestMap : [],
+                responseMap: Array.isArray(config.responseMap) ? config.responseMap : [],
+            };
+
+        case "decision":
+            return {
+                ...config,
+                rules: Array.isArray(config.rules) ? config.rules : [],
+                defaultRule: {
+                    ...(config.defaultRule && typeof config.defaultRule === "object" ? config.defaultRule : {}),
+                    id: "default" as const,
+                },
+            };
+
+        default:
+            return config;
+    }
+}
+
 export function canvasToDefinition(
     nodes: CanvasNode[],
     edges: CanvasEdge[]
@@ -52,39 +118,30 @@ export function canvasToVersionPayload(
 
     return {
         description,
-        nodes: definition.nodes.map((n: any) => ({
-            id: n.nodeId || n.id,
-            type: n.type === "user_task" ? "user" : n.type === "service_task" ? "service" : n.type === "exclusive_gateway" ? "decision" : n.type === "script_task" ? "script" : n.type,
-            label: n.name || n.label || "",
-            configuration: n.config || n.configuration || {},
-            position: n.position || { x: n.x_coordinate || 0, y: n.y_coordinate || 0 },
-        })),
-        edges: edges.map(e => {
-            // For gateway edges, include ruleIndex as a reliable fallback identifier.
-            // ruleIndex = position of this rule in the gateway's rules array.
-            // This lets us reassign sourcePort correctly even if the backend doesn't
-            // return ruleId or conditionExpression after reload.
-            let ruleIndex: number | undefined;
-            if (!e.isDefault && e.sourcePort) {
-                const srcNode = nodes.find(n => n.id === e.source);
-                if (srcNode?.type === "exclusive_gateway") {
-                    const rules = (srcNode.config.rules as Array<{ id: string }>) ?? [];
-                    const idx = rules.findIndex(r => r.id === e.sourcePort);
-                    if (idx >= 0) ruleIndex = idx;
-                }
-            }
+        nodes: definition.nodes.map((n: any) => {
+            const apiType =
+                n.type === "user_task" ? "user" :
+                n.type === "service_task" ? "service" :
+                n.type === "exclusive_gateway" ? "decision" :
+                n.type === "script_task" ? "script" :
+                n.type;
+            const rawConfig = n.config || n.configuration || {};
             return {
-                id: e.id,
-                sourceNodeId: e.source,
-                targetNodeId: e.target,
-                // Use sourcePort (rule UUID) as ruleId so branch identity is preserved on reload
-                ruleId: e.isDefault ? "default" : (e.sourcePort || null),
-                // Store the FEEL expression separately so it can be shown on the edge label
-                conditionExpression: e.isDefault ? null : (e.condition || null),
-                // Positional index within the gateway's rules array — reliable backup on reload
-                ...(ruleIndex !== undefined && { ruleIndex }),
+                id: n.nodeId || n.id,
+                type: apiType,
+                label: n.name || n.label || "",
+                configuration: serializeConfiguration(apiType, rawConfig),
+                position: n.position || { x: n.x_coordinate || 0, y: n.y_coordinate || 0 },
             };
         }),
+        edges: edges.map(e => ({
+            id: e.id,
+            sourceNodeId: e.source,
+            targetNodeId: e.target,
+            // Use sourcePort (rule UUID) as ruleId so branch identity is preserved on reload.
+            // EdgeSchema only allows: id, label, sourceNodeId, targetNodeId, ruleId.
+            ruleId: e.isDefault ? "default" : (e.sourcePort || null),
+        })),
     };
 }
 
