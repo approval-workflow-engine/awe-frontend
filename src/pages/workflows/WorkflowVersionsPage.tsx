@@ -33,13 +33,15 @@ import PowerSettingsNewIcon from "@mui/icons-material/PowerSettingsNew";
 import AddIcon from "@mui/icons-material/Add";
 import SearchIcon from "@mui/icons-material/Search";
 import ClearIcon from "@mui/icons-material/Clear";
+import { useSnackbar } from "notistack";
 import {
   getWorkflow,
   validateVersion,
   updateVersionStatus,
 } from "../../api/workflowApi";
 import { useApiCall } from "../../hooks/useApiCall";
-import type { Workflow, WorkflowVersion } from "../../types";
+import DialogErrorAlert from "../../components/common/DialogErrorAlert";
+import type { Workflow, WorkflowVersion, ValidationResult } from "../../types";
 
 type LifecycleAction = "validate" | "commit" | "activate" | "deactivate";
 
@@ -97,11 +99,13 @@ export default function WorkflowVersionsPage() {
   const { workflowId } = useParams<{ workflowId: string }>();
   const navigate = useNavigate();
   const { call } = useApiCall();
+  const { enqueueSnackbar } = useSnackbar();
 
   const [workflow, setWorkflow] = useState<Workflow | null>(null);
   const [versions, setVersions] = useState<WorkflowVersion[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
+  const [validationErrors, setValidationErrors] = useState<string[]>([]);
 
   const [actionTarget, setActionTarget] = useState<{
     version: WorkflowVersion;
@@ -170,16 +174,25 @@ export default function WorkflowVersionsPage() {
 
     try {
       if (action === "validate") {
+        // Use showError:true so HTTP errors surface via snackbar automatically.
+        // We handle the business-logic result (valid/invalid) manually.
         const res = await call(
           () => validateVersion(workflowId, version.versionNumber),
-          {
-            showError: true,
-            successMsg: `v${version.versionNumber} validated successfully.`,
-          }
+          { showError: true }
         );
         if (res) {
-          setActionTarget(null);
-          fetchData();
+          const vres = res as ValidationResult;
+          if (vres.valid) {
+            enqueueSnackbar(`v${version.versionNumber} validated successfully.`, {
+              variant: "success",
+            });
+            setActionTarget(null);
+            setValidationErrors([]);
+            fetchData();
+          } else {
+            const errs = vres.errors?.map((e) => e.message) ?? [];
+            setValidationErrors(errs.length > 0 ? errs : ["Validation failed."]);
+          }
         }
       } else if (action === "commit") {
         await call(
@@ -649,7 +662,10 @@ export default function WorkflowVersionsPage() {
       <Dialog
         open={!!actionTarget}
         onClose={() => {
-          if (!actionLoading) setActionTarget(null);
+          if (!actionLoading) {
+            setActionTarget(null);
+            setValidationErrors([]);
+          }
         }}
         maxWidth="xs"
         fullWidth
@@ -669,11 +685,15 @@ export default function WorkflowVersionsPage() {
               <Typography sx={{ fontSize: 13, color: "text.secondary" }}>
                 {cfg.body}
               </Typography>
+              <DialogErrorAlert errors={validationErrors.length > 0 ? validationErrors : undefined} />
             </DialogContent>
             <DialogActions sx={{ px: 3, pb: 2 }}>
               <Button
                 size="small"
-                onClick={() => setActionTarget(null)}
+                onClick={() => {
+                  setActionTarget(null);
+                  setValidationErrors([]);
+                }}
                 disabled={actionLoading}
                 sx={{ color: "text.secondary" }}
               >

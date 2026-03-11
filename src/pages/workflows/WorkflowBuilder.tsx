@@ -299,7 +299,7 @@ export default function WorkflowBuilder() {
     } else {
       setValidationResult({
         valid: false,
-        errors: ["Validation request failed"],
+        errors: [{ code: -1, message: "Validation request failed" }],
       });
       setValidateAnchor(e.currentTarget);
     }
@@ -320,11 +320,12 @@ export default function WorkflowBuilder() {
     );
     if (res) {
       const body = res as {
+        version?: number;
         versionNumber?: number;
         id?: string;
-        version?: { versionNumber?: number; id?: string };
       };
-      const vn = body?.version?.versionNumber ?? body?.versionNumber ?? null;
+      // Backend returns { id, workflowId, version: number, status, createdAt }
+      const vn = (typeof body?.version === "number" ? body.version : undefined) ?? body?.versionNumber ?? null;
       setSavedVersionNumber(vn);
       if (vn) {
         setLoadedVersionNumber(vn);
@@ -611,7 +612,10 @@ export default function WorkflowBuilder() {
                           lineHeight: 1.5,
                         }}
                       >
-                        • {err}
+                        • {err.message}
+                        {err.nodeId && (
+                          <span style={{ opacity: 0.6 }}> (node: {err.nodeId})</span>
+                        )}
                       </Typography>
                     </ListItem>
                   ))}

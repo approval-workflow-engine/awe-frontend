@@ -180,9 +180,19 @@ export interface DraggingState {
   offsetY: number;
 }
 
+export interface ValidationError {
+  code: number;
+  message: string;
+  nodeId?: string;
+  edgeId?: string;
+}
+
 export interface ValidationResult {
   valid: boolean;
-  errors: string[];
+  errors: ValidationError[];
+  versionId?: string;
+  version?: number;
+  status?: string;
 }
 
 //  Instance 
