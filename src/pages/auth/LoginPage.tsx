@@ -9,6 +9,7 @@ import {
   IconButton,
   Link as MuiLink,
 } from "@mui/material";
+import { CircularProgress } from "@mui/material";
 import VisibilityIcon from "@mui/icons-material/Visibility";
 import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
 import { Link as RouterLink, useNavigate } from "react-router-dom";
@@ -28,18 +29,21 @@ export default function LoginPage() {
   const { loading, call } = useApiCall();
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setForm(prev => ({ ...prev, [e.target.name]: e.target.value }));
+    setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const data = await call<LoginResponse>(
-      () => loginSystem(form),
-      { errorMsg: "Invalid email or password" }
-    );
+    const data = await call<LoginResponse>(() => loginSystem(form), {
+      errorMsg: "Invalid email or password",
+    });
     if (data) {
       // After ApiResponse unwrapping in useApiCall, data is already the inner payload
-      const body = data as { system?: User; accessToken?: string; refreshToken?: string };
+      const body = data as {
+        system?: User;
+        accessToken?: string;
+        refreshToken?: string;
+      };
       const system = body.system;
       const accessToken = body.accessToken;
       const refreshToken = body.refreshToken;
@@ -58,7 +62,8 @@ export default function LoginPage() {
       minHeight="100vh"
       sx={{
         bgcolor: "background.default",
-        backgroundImage: "radial-gradient(ellipse at top, rgba(79,110,247,0.07), transparent 55%)",
+        backgroundImage:
+          "radial-gradient(ellipse at top, rgba(79,110,247,0.07), transparent 55%)",
         px: 2,
       }}
     >
@@ -76,21 +81,6 @@ export default function LoginPage() {
         {/* Branding */}
         <Box display="flex" flexDirection="column" alignItems="center" mb={3}>
           <LogoMark />
-          <Typography
-            sx={{
-              fontFamily: "'Syne', sans-serif",
-              fontWeight: 700,
-              fontSize: 20,
-              color: "text.primary",
-              mt: 1.5,
-              mb: 0.5,
-            }}
-          >
-            Welcome back
-          </Typography>
-          <Typography sx={{ fontSize: 13, color: "text.secondary" }}>
-            Sign in to your AWE account
-          </Typography>
         </Box>
 
         <form onSubmit={handleSubmit}>
@@ -119,12 +109,16 @@ export default function LoginPage() {
               endAdornment: (
                 <InputAdornment position="end">
                   <IconButton
-                    onClick={() => setShowPw(p => !p)}
+                    onClick={() => setShowPw((p) => !p)}
                     edge="end"
                     size="small"
                     sx={{ color: "text.disabled" }}
                   >
-                    {showPw ? <VisibilityOffIcon fontSize="small" /> : <VisibilityIcon fontSize="small" />}
+                    {showPw ? (
+                      <VisibilityOffIcon fontSize="small" />
+                    ) : (
+                      <VisibilityIcon fontSize="small" />
+                    )}
                   </IconButton>
                 </InputAdornment>
               ),
@@ -136,15 +130,33 @@ export default function LoginPage() {
             variant="contained"
             type="submit"
             disabled={loading || !form.email.trim() || !form.password.trim()}
-            sx={{ height: 40, fontWeight: 600, fontSize: 14, borderRadius: "8px" }}
+            sx={{
+              height: 40,
+              fontWeight: 600,
+              fontSize: 14,
+              borderRadius: "8px",
+            }}
           >
-            {loading ? "Signing in…" : "Sign In"}
+            {loading ? (
+              <CircularProgress size={20} sx={{ color: "white" }} />
+            ) : (
+              "Sign In"
+            )}
           </Button>
         </form>
 
-        <Typography textAlign="center" mt={2.5} sx={{ fontSize: 13, color: "text.secondary" }}>
+        <Typography
+          textAlign="center"
+          mt={2.5}
+          sx={{ fontSize: 13, color: "text.secondary" }}
+        >
           Don't have an account?{" "}
-          <MuiLink component={RouterLink} to="/register" underline="hover" color="primary">
+          <MuiLink
+            component={RouterLink}
+            to="/register"
+            underline="hover"
+            color="primary"
+          >
             Register
           </MuiLink>
         </Typography>

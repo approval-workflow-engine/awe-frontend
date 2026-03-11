@@ -9,6 +9,7 @@ import {
   IconButton,
   Link as MuiLink,
 } from "@mui/material";
+import { CircularProgress } from "@mui/material";
 import VisibilityIcon from "@mui/icons-material/Visibility";
 import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
 import { Link as RouterLink, useNavigate } from "react-router-dom";
@@ -34,7 +35,7 @@ export default function RegisterPage() {
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    setForm(prev => ({ ...prev, [name]: value }));
+    setForm((prev) => ({ ...prev, [name]: value }));
     if (name === "password" || name === "confirmPassword") setPwError("");
   };
 
@@ -51,13 +52,10 @@ export default function RegisterPage() {
       password: form.password,
       ...(form.description ? { description: form.description } : {}),
     };
-    const data = await call(
-      () => registerSystem(payload),
-      {
-        showError: true,
-        successMsg: "Registration successful. You can now sign in.",
-      }
-    );
+    const data = await call(() => registerSystem(payload), {
+      showError: true,
+      successMsg: "Registration successful. You can now sign in.",
+    });
     if (data) {
       navigate("/login", { replace: true });
     }
@@ -71,7 +69,8 @@ export default function RegisterPage() {
       minHeight="100vh"
       sx={{
         bgcolor: "background.default",
-        backgroundImage: "radial-gradient(ellipse at top, rgba(79,110,247,0.07), transparent 55%)",
+        backgroundImage:
+          "radial-gradient(ellipse at top, rgba(79,110,247,0.07), transparent 55%)",
         px: 2,
         py: 4,
       }}
@@ -168,12 +167,16 @@ export default function RegisterPage() {
               endAdornment: (
                 <InputAdornment position="end">
                   <IconButton
-                    onClick={() => setShowPw(p => !p)}
+                    onClick={() => setShowPw((p) => !p)}
                     edge="end"
                     size="small"
                     sx={{ color: "text.disabled" }}
                   >
-                    {showPw ? <VisibilityOffIcon fontSize="small" /> : <VisibilityIcon fontSize="small" />}
+                    {showPw ? (
+                      <VisibilityOffIcon fontSize="small" />
+                    ) : (
+                      <VisibilityIcon fontSize="small" />
+                    )}
                   </IconButton>
                 </InputAdornment>
               ),
@@ -200,15 +203,33 @@ export default function RegisterPage() {
             variant="contained"
             type="submit"
             disabled={loading}
-            sx={{ height: 40, fontWeight: 600, fontSize: 14, borderRadius: "8px" }}
+            sx={{
+              height: 40,
+              fontWeight: 600,
+              fontSize: 14,
+              borderRadius: "8px",
+            }}
           >
-            {loading ? "Registering…" : "Register System"}
+            {loading ? (
+              <CircularProgress size={20} sx={{ color: "white" }} />
+            ) : (
+              "Register System"
+            )}
           </Button>
         </form>
 
-        <Typography textAlign="center" mt={2.5} sx={{ fontSize: 13, color: "text.secondary" }}>
+        <Typography
+          textAlign="center"
+          mt={2.5}
+          sx={{ fontSize: 13, color: "text.secondary" }}
+        >
           Already registered?{" "}
-          <MuiLink component={RouterLink} to="/login" underline="hover" color="primary">
+          <MuiLink
+            component={RouterLink}
+            to="/login"
+            underline="hover"
+            color="primary"
+          >
             Sign In
           </MuiLink>
         </Typography>
