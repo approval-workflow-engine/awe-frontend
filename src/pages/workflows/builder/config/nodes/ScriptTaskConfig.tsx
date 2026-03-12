@@ -21,7 +21,7 @@ import ResponseMapSection, {
 } from "../shared/ResponseMapSection";
 import OnErrorSection from "../shared/OnErrorSection";
 import type { AvailableCtxVar } from "../context";
-import type { CanvasNode } from "../../type/builderTypes";
+import type { CanvasNode } from "../../type/types";
 
 interface ParamRow {
   name: string;
@@ -92,7 +92,6 @@ export default function ScriptTaskConfig({
 
   return (
     <Box display="flex" flexDirection="column" gap={1.5}>
-      {/* Runtime + mode */}
       <Box display="flex" alignItems="center" justifyContent="space-between">
         <Typography
           variant="caption"
@@ -152,7 +151,6 @@ export default function ScriptTaskConfig({
         </Box>
       </Box>
 
-      {/* Entry function */}
       <TextField
         size="small"
         label="Entry Function"
@@ -171,7 +169,6 @@ export default function ScriptTaskConfig({
 
       <Divider sx={{ borderColor: "divider" }} />
 
-      {/* Code editor mode */}
       {codeMode === "editor" && (
         <Button
           size="small"
@@ -191,7 +188,6 @@ export default function ScriptTaskConfig({
         </Button>
       )}
 
-      {/* File mode */}
       {codeMode === "file" && (
         <Box display="flex" flexDirection="column" gap={0.75}>
           <input
@@ -317,7 +313,6 @@ export default function ScriptTaskConfig({
         </Box>
       )}
 
-      {/* Parameter Map */}
       <CollapsibleSection title="Parameter Map" count={paramMap.length}>
         <Box display="flex" flexDirection="column" gap={0.75}>
           <Typography
@@ -392,7 +387,6 @@ export default function ScriptTaskConfig({
         </Box>
       </CollapsibleSection>
 
-      {/* Response Map */}
       <CollapsibleSection
         title="Response Map"
         count={(c.responseMap as ResponseMapRow[])?.length ?? 0}
@@ -405,7 +399,6 @@ export default function ScriptTaskConfig({
         />
       </CollapsibleSection>
 
-      {/* On Error */}
       <CollapsibleSection title="On Error">
         <OnErrorSection
           value={c.onError ?? "terminate"}
@@ -416,7 +409,6 @@ export default function ScriptTaskConfig({
 
       <Divider sx={{ borderColor: "divider" }} />
 
-      {/* Max Attempts */}
       <Box display="flex" alignItems="center" justifyContent="space-between">
         <Typography sx={{ fontSize: 11, color: "text.secondary" }}>
           Max Attempts

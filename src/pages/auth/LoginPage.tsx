@@ -78,7 +78,6 @@ export default function LoginPage() {
           borderRadius: "16px",
         }}
       >
-        {/* Branding */}
         <Box display="flex" flexDirection="column" alignItems="center" mb={3}>
           <LogoMark />
         </Box>

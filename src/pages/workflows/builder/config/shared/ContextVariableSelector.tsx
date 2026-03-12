@@ -6,7 +6,7 @@ import {
   ToggleButton,
 } from "@mui/material";
 import { EXPR_FONT } from "../constants";
-import type { ContextVariable } from "../../type/builderTypes";
+import type { ContextVariable } from "../../type/types";
 
 interface Props {
   value: ContextVariable;

@@ -1,10 +1,10 @@
-import { DataType } from "../type/builderTypes";
+import { DataType } from "../type/types";
 import type {
   CanvasNode,
   CanvasEdge,
   WorkflowInput,
   ContextVariable,
-} from "../type/builderTypes";
+} from "../type/types";
 
 export interface AvailableCtxVar {
   name: string;
@@ -53,12 +53,10 @@ export function getAvailableContext(
   );
   const vars: AvailableCtxVar[] = [];
 
-  // Workflow-level inputs provided at launch
   inputs.forEach((i) => {
     if (i.name) vars.push({ name: i.name, type: i.type, sourceNode: "Start" });
   });
 
-  // Context variables declared in the Start node's input data map
   const startNode = nodes.find((n) => n.type === "start");
   if (startNode) {
     const idm =
@@ -81,7 +79,6 @@ export function getAvailableContext(
     });
   }
 
-  // Context variables produced by upstream nodes via their response maps
   nodes
     .filter((n) => ancestorIds.has(n.id))
     .forEach((n) => {
@@ -94,7 +91,6 @@ export function getAvailableContext(
       rm.forEach((row) => {
         const cv = row.contextVariable;
         if (!cv?.name) return;
-        // next-scoped vars are only visible to the immediately following node
         if (cv.scope === "next" && !isDirect) return;
         vars.push({
           name: cv.name,
@@ -105,7 +101,6 @@ export function getAvailableContext(
       });
     });
 
-  // Deduplicate: first occurrence wins
   const seen = new Set<string>();
   return vars.filter((v) => {
     if (seen.has(v.name)) return false;

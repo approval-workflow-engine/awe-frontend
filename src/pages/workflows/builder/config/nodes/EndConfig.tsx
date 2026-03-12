@@ -14,7 +14,7 @@ import ContextVariableSelector from "../shared/ContextVariableSelector";
 import AddRowButton from "../shared/AddRowButton";
 import { SectionLabel } from "../shared/CollapsibleSection";
 import type { AvailableCtxVar } from "../context";
-import type { CanvasNode, ContextVariable } from "../../type/builderTypes";
+import type { CanvasNode, ContextVariable } from "../../type/types";
 
 interface ResultMapRow {
   contextVariable: ContextVariable;

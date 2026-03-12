@@ -43,7 +43,6 @@ import { useThemeMode } from "../../context/useThemeMode";
 import NodePalette from "./builder/components/NodePalette";
 import CanvasPanel from "./builder/components/CanvasPanel";
 import ConfigPanel from "./builder/components/ConfigPanel";
-import InputsDialog from "./builder/InputsDialog";
 import ContextVarsPanel from "./builder/components/ContextVarsPanel";
 import ScriptTaskEditorPanel from "./builder/components/ScriptTaskEditorPanel";
 import {
@@ -75,7 +74,6 @@ export default function WorkflowBuilder() {
   const { call } = useApiCall();
   const { mode, toggleTheme } = useThemeMode();
 
-  //  Data
   const [workflowName, setWorkflowName] = useState("");
   const [nodes, setNodes] = useState<CanvasNode[]>([buildStartNode()]);
   const [edges, setEdges] = useState<CanvasEdge[]>([]);
@@ -88,13 +86,11 @@ export default function WorkflowBuilder() {
   );
   const [versionStatus, setVersionStatus] = useState<string>("draft");
 
-  //  UI state
   const [selectedItem, setSelectedItem] = useState<SelectedItem>(null);
   const [connectingFrom, setConnectingFrom] = useState<{
     nodeId: string;
     portId: string;
   } | null>(null);
-  const [inputsOpen, setInputsOpen] = useState(false);
   const [validating, setValidating] = useState(false);
   const [validationResult, setValidationResult] =
     useState<ValidationResult | null>(null);
@@ -110,7 +106,6 @@ export default function WorkflowBuilder() {
   const [codeEditorOpen, setCodeEditorOpen] = useState(false);
   const [clearConfirmOpen, setClearConfirmOpen] = useState(false);
 
-  //  Unsaved-changes tracking
   const [isDirty, setIsDirty] = useState(false);
 
   const markDirtyEnabled = useRef(false);
@@ -131,12 +126,10 @@ export default function WorkflowBuilder() {
     return () => window.removeEventListener("beforeunload", handler);
   }, [isDirty]);
 
-  //  Derived — read-only when viewing a non-draft version
   const isReadOnly =
     !!loadedVersionNumber &&
     (versionStatus === "published" || versionStatus === "active");
 
-  //  Load data
   useEffect(() => {
     if (!workflowId) return;
     markDirtyEnabled.current = false;
@@ -184,7 +177,6 @@ export default function WorkflowBuilder() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [workflowId, versionNumber]);
 
-  //  Canvas actions
   const handleUpdateNode = useCallback(
     (id: string, updates: Partial<CanvasNode>) => {
       setNodes((prev) =>
@@ -279,7 +271,6 @@ export default function WorkflowBuilder() {
     }
   }, [selectedItem, nodes, codeEditorOpen]);
 
-  //  Toolbar actions
   const saveDraft = async (successMsg?: string): Promise<number | null> => {
     if (!workflowId) return null;
     const payload = canvasToVersionPayload(nodes, edges);
@@ -370,7 +361,6 @@ export default function WorkflowBuilder() {
     }
   };
 
-  //  Derived values
   const currentVersionNum = savedVersionNumber || loadedVersionNumber;
   const statusLabel = VERSION_STATUS_LABELS[versionStatus] ?? versionStatus;
   const versionLabel = currentVersionNum
@@ -398,7 +388,6 @@ export default function WorkflowBuilder() {
     nodes.find((n) => n.id === selectedItem?.id && n.type === "script_task") ??
     null;
 
-  // Status chip styling per lifecycle state
   const statusChipSx = {
     draft: { bg: "rgba(168,85,247,0.15)", color: "#a855f7" },
     valid: { bg: "rgba(6,182,212,0.15)", color: "#06b6d4" },
@@ -416,7 +405,6 @@ export default function WorkflowBuilder() {
         overflow: "hidden",
       }}
     >
-      {/*  Toolbar  */}
       <Box
         sx={{
           height: 48,
@@ -430,7 +418,6 @@ export default function WorkflowBuilder() {
           gap: 1.5,
         }}
       >
-        {/* Left side */}
         <IconButton
           size="small"
           onClick={() => navigate(`/workflows/${workflowId}/versions`)}
@@ -450,7 +437,6 @@ export default function WorkflowBuilder() {
           {workflowName || "Builder"}
         </Typography>
 
-        {/* Version label */}
         <Chip
           label={versionLabel}
           size="small"
@@ -464,7 +450,6 @@ export default function WorkflowBuilder() {
           }}
         />
 
-        {/* Status indicator — shown when a version is loaded */}
         {loadedVersionNumber && (
           <Chip
             label={isReadOnly ? `${statusLabel} · Read Only` : statusLabel}
@@ -493,7 +478,6 @@ export default function WorkflowBuilder() {
 
         <Box sx={{ flex: 1 }} />
 
-        {/* Delete selected (only in edit mode) */}
         {canDelete && (
           <Tooltip title={`Delete selected ${selectedItem?.type}`}>
             <IconButton
@@ -514,7 +498,6 @@ export default function WorkflowBuilder() {
               sx={{ my: "auto", height: 24, borderColor: "divider" }}
             />
 
-            {/* Clear Canvas */}
             <Button
               size="small"
               startIcon={<LayersClearIcon sx={{ fontSize: 14 }} />}
@@ -531,7 +514,6 @@ export default function WorkflowBuilder() {
               Clear
             </Button>
 
-            {/* Validate */}
             <Button
               size="small"
               onClick={handleValidate}
@@ -571,7 +553,6 @@ export default function WorkflowBuilder() {
                     : "Validate"}
             </Button>
 
-            {/* Validate errors popover */}
             <Popover
               open={
                 !!validateAnchor &&
@@ -631,11 +612,10 @@ export default function WorkflowBuilder() {
               </Box>
             </Popover>
 
-            {/* Save */}
             <Button
               size="small"
               variant="outlined"
-              disabled={saving}
+              disabled={saving || validating}
               onClick={handleSaveDraft}
               startIcon={
                 saving ? (
@@ -655,7 +635,6 @@ export default function WorkflowBuilder() {
               Save
             </Button>
 
-            {/* Commit (Draft → Committed) */}
             <Button
               size="small"
               variant="contained"
@@ -691,7 +670,6 @@ export default function WorkflowBuilder() {
           </>
         )}
 
-        {/* Activate button — only when version is committed (published status) */}
         {isReadOnly && versionStatus === "published" && (
           <>
             <Divider
@@ -730,7 +708,6 @@ export default function WorkflowBuilder() {
           </>
         )}
 
-        {/* Deactivate button — only when version is active */}
         {isReadOnly && versionStatus === "active" && (
           <>
             <Divider
@@ -768,7 +745,6 @@ export default function WorkflowBuilder() {
           </>
         )}
 
-        {/* Theme toggle */}
         <Divider
           orientation="vertical"
           flexItem
@@ -796,7 +772,6 @@ export default function WorkflowBuilder() {
         </Tooltip>
       </Box>
 
-      {/*  Three-panel layout  */}
       <Box
         sx={{
           flex: 1,
@@ -806,7 +781,6 @@ export default function WorkflowBuilder() {
         }}
       >
         <Box sx={{ flex: 1, display: "flex", overflow: "hidden" }}>
-          {/* Left sidebar */}
           <Box
             sx={{
               width: 200,
@@ -908,18 +882,6 @@ export default function WorkflowBuilder() {
         )}
       </Box>
 
-      {/*  Inputs Dialog  */}
-      <InputsDialog
-        open={inputsOpen}
-        onClose={() => setInputsOpen(false)}
-        inputs={inputs}
-        onChange={(newInputs) => {
-          setInputs(newInputs);
-          markDirty();
-        }}
-      />
-
-      {/*  Clear Canvas Dialog  */}
       <Dialog
         open={clearConfirmOpen}
         onClose={() => setClearConfirmOpen(false)}
@@ -966,7 +928,6 @@ export default function WorkflowBuilder() {
         </DialogActions>
       </Dialog>
 
-      {/*  Commit Confirm Dialog  */}
       <Dialog
         open={commitConfirmOpen}
         onClose={() => setCommitConfirmOpen(false)}
@@ -1018,7 +979,6 @@ export default function WorkflowBuilder() {
         </DialogActions>
       </Dialog>
 
-      {/*  Activate Confirm Dialog  */}
       <Dialog
         open={activateConfirmOpen}
         onClose={() => setActivateConfirmOpen(false)}
@@ -1071,7 +1031,6 @@ export default function WorkflowBuilder() {
         </DialogActions>
       </Dialog>
 
-      {/*  Deactivate Confirm Dialog  */}
       <Dialog
         open={deactivateConfirmOpen}
         onClose={() => setDeactivateConfirmOpen(false)}
@@ -1124,7 +1083,6 @@ export default function WorkflowBuilder() {
         </DialogActions>
       </Dialog>
 
-      {/*  Unsaved Changes Dialog  */}
       <Dialog
         open={blocker.state === "blocked"}
         onClose={() => blocker.reset?.()}

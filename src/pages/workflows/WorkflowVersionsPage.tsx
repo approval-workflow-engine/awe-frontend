@@ -224,7 +224,6 @@ export default function WorkflowVersionsPage() {
   return (
     <Box>
 
-      {/* Header */}
       <Box display="flex" alignItems="center" gap={2} mb={3}>
 
         <IconButton
@@ -284,7 +283,6 @@ export default function WorkflowVersionsPage() {
           )}
         </Box>
 
-        {/* Search bar — left of New Draft */}
         <TextField
           size="small"
           placeholder="Search versions…"
@@ -483,7 +481,6 @@ export default function WorkflowVersionsPage() {
                           justifyContent="flex-end"
                           gap={0.25}
                         >
-                          {/* Open in Builder */}
                           <Tooltip
                             title={
                               isDraft || isValid
@@ -511,7 +508,6 @@ export default function WorkflowVersionsPage() {
                             </IconButton>
                           </Tooltip>
 
-                          {/* Commit (Draft or Valid) */}
                           {(isDraft || isValid) && (
                             <Tooltip title="Commit (lock for activation)">
                               <IconButton
@@ -529,7 +525,6 @@ export default function WorkflowVersionsPage() {
                             </Tooltip>
                           )}
 
-                          {/* Activate (Committed only) */}
                           {isCommitted && (
                             <Tooltip title="Activate (make live)">
                               <IconButton
@@ -547,7 +542,6 @@ export default function WorkflowVersionsPage() {
                             </Tooltip>
                           )}
 
-                          {/* Deactivate (Active only) */}
                           {st === "active" && (
                             <Tooltip title="Deactivate (move back to Committed)">
                               <IconButton
@@ -600,7 +594,6 @@ export default function WorkflowVersionsPage() {
         )}
       </Paper>
 
-      {/* Action Confirmation Dialog */}
       <Dialog
         open={!!actionTarget}
         onClose={() => {

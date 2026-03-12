@@ -7,9 +7,6 @@ export const registerSystem = (data: RegisterPayload) =>
 export const loginSystem = (data: LoginPayload) =>
   axiosClient.post('/auth/login', data);
 
-export const refreshToken = (data: { refreshToken: string }) =>
-  axiosClient.post('/auth/refresh', data);
-
 export const logoutSystem = (data: { refreshToken: string }) =>
   axiosClient.post('/auth/logout', data);
 

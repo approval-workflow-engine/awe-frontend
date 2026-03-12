@@ -20,8 +20,8 @@ import type {
   CanvasNode,
   WorkflowInput,
   ContextVariable,
-} from "../../type/builderTypes";
-import { DataType } from "../../type/builderTypes";
+} from "../../type/types";
+import { DataType } from "../../type/types";
 
 interface InputDataMapRow {
   label?: string;

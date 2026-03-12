@@ -6,7 +6,6 @@ import { useError } from "../../context/ErrorContext";
 export default function ErrorBanner() {
   const { error, setError } = useError();
 
-  // auto-clear after 3 seconds
   React.useEffect(() => {
     if (!error) return;
     const timer = setTimeout(() => setError(null), 3000);

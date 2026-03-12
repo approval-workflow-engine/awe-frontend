@@ -66,8 +66,6 @@ function EdgePath({ edge, nodes, isSelected, onClick }: EdgePathProps) {
 
   const srcPorts = getOutputPorts(src);
 
-  // Default edges always originate from the last port (the default port).
-  // Non-default edges look up their port by sourcePort id; if not found, fall back to 0.
   let portIdx: number;
   if (edge.isDefault) {
     portIdx = Math.max(0, srcPorts.length - 1);
@@ -480,8 +478,6 @@ export default function CanvasPanel({
       const srcNode = nodes.find((n) => n.id === connectingFrom.nodeId);
       const portId = connectingFrom.portId;
 
-      // Determine if this edge is the default branch of a gateway.
-      // The default port is the last entry from getOutputPorts (its id matches defaultRule.id or 'default').
       let isDefault = false;
       if (srcNode?.type === "exclusive_gateway") {
         const defaultRule = srcNode.config.defaultRule as
