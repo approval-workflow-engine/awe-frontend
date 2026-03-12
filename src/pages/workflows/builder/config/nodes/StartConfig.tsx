@@ -16,7 +16,11 @@ import { CollapsibleSection } from "../shared/CollapsibleSection";
 import { EXPR_FONT } from "../constants";
 import { generateId } from "../../utils/nodeHelpers";
 import type { AvailableCtxVar } from "../context";
-import type { CanvasNode, WorkflowInput } from "../../type/types";
+import type {
+  CanvasNode,
+  WorkflowInput,
+  ContextVariable,
+} from "../../type/types";
 import { DataType } from "../../type/types";
 
 interface FetchableConfig {
