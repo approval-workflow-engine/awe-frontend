@@ -19,7 +19,6 @@ import type { AvailableCtxVar } from "../context";
 import type {
   CanvasNode,
   WorkflowInput,
-  ContextVariable,
 } from "../../type/types";
 import { DataType } from "../../type/types";
 
