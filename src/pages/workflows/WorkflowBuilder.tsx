@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useParams, useNavigate, useBlocker } from "react-router-dom";
 import {
   Box,
@@ -39,6 +39,7 @@ import {
   updateVersionStatus,
 } from "../../api/workflowApi";
 import { useApiCall } from "../../hooks/useApiCall";
+import { useSnackbar } from "notistack";
 import { useThemeMode } from "../../context/useThemeMode";
 import NodePalette from "./builder/components/NodePalette";
 import CanvasPanel from "./builder/components/CanvasPanel";
@@ -72,6 +73,7 @@ export default function WorkflowBuilder() {
   }>();
   const navigate = useNavigate();
   const { call } = useApiCall();
+  const { enqueueSnackbar } = useSnackbar();
   const { mode, toggleTheme } = useThemeMode();
 
   const [workflowName, setWorkflowName] = useState("");
@@ -91,11 +93,10 @@ export default function WorkflowBuilder() {
     nodeId: string;
     portId: string;
   } | null>(null);
-  const [validating, setValidating] = useState(false);
   const [validationResult, setValidationResult] =
     useState<ValidationResult | null>(null);
-  const [validateAnchor, setValidateAnchor] =
-    useState<HTMLButtonElement | null>(null);
+  const saveButtonRef = useRef<HTMLButtonElement>(null);
+  const [errorsPopoverOpen, setErrorsPopoverOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [committing, setCommitting] = useState(false);
   const [activating, setActivating] = useState(false);
@@ -110,7 +111,10 @@ export default function WorkflowBuilder() {
 
   const markDirtyEnabled = useRef(false);
   const markDirty = useCallback(() => {
-    if (markDirtyEnabled.current) setIsDirty(true);
+    if (markDirtyEnabled.current) {
+      setIsDirty(true);
+      setValidationResult(null);
+    }
   }, []);
 
   const blocker = useBlocker(isDirty);
@@ -294,31 +298,32 @@ export default function WorkflowBuilder() {
   };
 
   const handleSaveDraft = async () => {
-    setSaving(true);
-    await saveDraft("Saved.");
-    setSaving(false);
-  };
-
-  const handleValidate = async (e: React.MouseEvent<HTMLButtonElement>) => {
     if (!workflowId) return;
-    setValidating(true);
+    setSaving(true);
     setValidationResult(null);
+    setErrorsPopoverOpen(false);
     const vn = await saveDraft();
     if (vn === null) {
-      setValidating(false);
+      setSaving(false);
       return;
     }
     const res = await call(
       () => validateVersion(workflowId, vn),
       { showError: false },
     );
-    setValidationResult(
-      res
-        ? (res as ValidationResult)
-        : { valid: false, errors: [{ code: -1, message: "Validation request failed" }] },
+    const result = res
+      ? (res as ValidationResult)
+      : { valid: false, errors: [{ code: -1, message: "Validation request failed" }] };
+    setValidationResult(result);
+    setVersionStatus(result.valid ? "valid" : "draft");
+    enqueueSnackbar(
+      result.valid ? "Saved - No validation errors" : "Saved - Validation errors present",
+      { variant: result.valid ? "success" : "warning" },
     );
-    setValidateAnchor(e.currentTarget);
-    setValidating(false);
+    if (!result.valid) {
+      setErrorsPopoverOpen(true);
+    }
+    setSaving(false);
   };
 
   const handleCommit = async () => {
@@ -476,6 +481,21 @@ export default function WorkflowBuilder() {
           />
         )}
 
+        {isDirty && !isReadOnly && (
+          <Chip
+            label="Unsaved Changes"
+            size="small"
+            sx={{
+              fontFamily: "'JetBrains Mono', monospace",
+              fontSize: 10,
+              height: 20,
+              backgroundColor: "rgba(245,158,11,0.15)",
+              color: "#f59e0b",
+              borderRadius: "99px",
+            }}
+          />
+        )}
+
         <Box sx={{ flex: 1 }} />
 
         {canDelete && (
@@ -515,17 +535,21 @@ export default function WorkflowBuilder() {
             </Button>
 
             <Button
+              ref={saveButtonRef}
               size="small"
-              onClick={handleValidate}
-              disabled={validating || saving}
+              variant="outlined"
+              disabled={saving}
+              onClick={handleSaveDraft}
               startIcon={
-                validating ? (
+                saving ? (
                   <CircularProgress size={12} />
                 ) : validationResult?.valid ? (
                   <CheckCircleIcon sx={{ fontSize: 14, color: "#22c55e" }} />
                 ) : validationResult ? (
                   <ErrorIcon sx={{ fontSize: 14, color: "#ef4444" }} />
-                ) : undefined
+                ) : (
+                  <SaveIcon sx={{ fontSize: 14 }} />
+                )
               }
               sx={{
                 fontSize: 12,
@@ -542,25 +566,20 @@ export default function WorkflowBuilder() {
                     ? "#ef4444"
                     : "divider",
               }}
-              variant="outlined"
             >
-              {validating
-                ? "Validating…"
+              {saving
+                ? "Saving…"
                 : validationResult?.valid
-                  ? "Valid"
+                  ? "Saved - No errors"
                   : validationResult
-                    ? `${validationResult.errors.length} errors`
-                    : "Validate"}
+                    ? `Saved - ${validationResult.errors.length} error${validationResult.errors.length !== 1 ? "s" : ""}`
+                    : "Save"}
             </Button>
 
             <Popover
-              open={
-                !!validateAnchor &&
-                !validationResult?.valid &&
-                !!validationResult
-              }
-              anchorEl={validateAnchor}
-              onClose={() => setValidateAnchor(null)}
+              open={errorsPopoverOpen && !!validationResult && !validationResult.valid}
+              anchorEl={saveButtonRef.current}
+              onClose={() => setErrorsPopoverOpen(false)}
               anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
               transformOrigin={{ vertical: "top", horizontal: "right" }}
               slotProps={{
@@ -602,7 +621,7 @@ export default function WorkflowBuilder() {
                         >
                           • {err.message}
                           {nodeLabel && (
-                            <span style={{ opacity: 0.6 }}> — {nodeLabel}</span>
+                            <span style={{ opacity: 0.6 }}> - {nodeLabel}</span>
                           )}
                         </Typography>
                       </ListItem>
@@ -614,31 +633,8 @@ export default function WorkflowBuilder() {
 
             <Button
               size="small"
-              variant="outlined"
-              disabled={saving || validating}
-              onClick={handleSaveDraft}
-              startIcon={
-                saving ? (
-                  <CircularProgress size={12} />
-                ) : (
-                  <SaveIcon sx={{ fontSize: 14 }} />
-                )
-              }
-              sx={{
-                fontSize: 12,
-                height: 30,
-                borderRadius: "8px",
-                borderColor: "divider",
-                color: "text.secondary",
-              }}
-            >
-              Save
-            </Button>
-
-            <Button
-              size="small"
               variant="contained"
-              disabled={committing || !savedVersionNumber}
+              disabled={committing || !savedVersionNumber || versionStatus === "draft" || isDirty}
               onClick={() => setCommitConfirmOpen(true)}
               startIcon={
                 committing ? (
@@ -1031,6 +1027,7 @@ export default function WorkflowBuilder() {
         </DialogActions>
       </Dialog>
 
+      {/*  Deactivate Confirm Dialog  */}
       <Dialog
         open={deactivateConfirmOpen}
         onClose={() => setDeactivateConfirmOpen(false)}
@@ -1083,6 +1080,7 @@ export default function WorkflowBuilder() {
         </DialogActions>
       </Dialog>
 
+      {/*  Unsaved Changes Dialog  */}
       <Dialog
         open={blocker.state === "blocked"}
         onClose={() => blocker.reset?.()}
