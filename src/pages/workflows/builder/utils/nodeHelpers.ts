@@ -76,7 +76,7 @@ export function buildStartNode(): CanvasNode {
     id: "start_1",
     type: "start",
     label: "Start",
-    config: { inputDataMap: [] },
+    config: { inputDataMap: [], fetchables: [] },
     x: 80,
     y: 200,
   };
