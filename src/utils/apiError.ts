@@ -1,11 +1,3 @@
-/**
- * Extracts a human-readable error message from an Axios error or any thrown value.
- *
- * Backend success responses always return { success: true, data: ... }.
- * Backend error responses return:
- *   - { success: false, error: string }               for AppError subclasses
- *   - { success: false, error: string, details: [] }  for ZodError (validation)
- */
 export function extractApiError(err: unknown, fallback = "An error occurred"): string {
   const e = err as {
     response?: {

@@ -1,16 +1,10 @@
 import { Alert, Box } from "@mui/material";
 
 interface DialogErrorAlertProps {
-  /** Single error message string. */
   message?: string | null;
-  /** Optional list of individual error messages rendered as bullet points. */
   errors?: string[];
 }
 
-/**
- * Reusable inline error display for dialogs and forms.
- * Renders nothing when there is no message or errors to show.
- */
 export default function DialogErrorAlert({
   message,
   errors,

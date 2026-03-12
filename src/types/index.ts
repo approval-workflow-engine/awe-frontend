@@ -62,22 +62,12 @@ export interface RegisterResponse {
 }
 
 //  Workflow 
-export type WorkflowStatus = 'active' | 'inactive' | 'deprecated';
-
 export interface Workflow {
   id: string;
   name: string;
   description?: string;
-  status?: WorkflowStatus;
-  versionCount?: number;
+  latestVersion?: number | null;
   versions?: WorkflowVersion[];
-  /** Returned by GET /workflows list endpoint (singular, not an array) */
-  latestVersion?: {
-    id: string;
-    version: number;
-    status: string;
-    updatedAt?: string;
-  };
   createdAt: string;
   updatedAt?: string;
 }

@@ -5,17 +5,13 @@ import { generateId } from "./nodeHelpers";
 
 const VALID_HTTP_METHODS = ["GET", "POST", "PUT", "PATCH", "DELETE"] as const;
 
-/**
- * Normalizes a node's configuration object to satisfy the backend Zod schema.
- * Inserts required fields with safe defaults when they are absent or have the
- * wrong type, and guarantees every array-typed field is always an array.
- */
 function serializeConfiguration(apiType: string, config: Record<string, any>): Record<string, any> {
     switch (apiType) {
         case "start":
             return {
                 ...config,
                 inputDataMap: Array.isArray(config.inputDataMap) ? config.inputDataMap : [],
+                fetchables: Array.isArray(config.fetchables) ? config.fetchables : [],
             };
 
         case "end":
@@ -29,7 +25,6 @@ function serializeConfiguration(apiType: string, config: Record<string, any>): R
             return {
                 ...config,
                 runtime: "python3" as const,
-                // Required by schema — default to empty/fallback when user hasn't filled them in yet
                 sourceCode: typeof config.sourceCode === "string" ? config.sourceCode : "",
                 entryFunctionName: typeof config.entryFunctionName === "string" ? config.entryFunctionName : "main",
                 parameterMap: Array.isArray(config.parameterMap) ? config.parameterMap : [],
@@ -41,12 +36,9 @@ function serializeConfiguration(apiType: string, config: Record<string, any>): R
             const svc: Record<string, any> = {
                 ...config,
                 method: VALID_HTTP_METHODS.includes(config.method) ? config.method : "GET",
-                // Required by schema — default to empty string when user hasn't filled it in yet
                 urlExpression: typeof config.urlExpression === "string" ? config.urlExpression : "",
                 responseMap: Array.isArray(config.responseMap) ? config.responseMap : [],
             };
-            // Only normalize headers/body when the field is already present in config;
-            // the schema marks them as optional so we must not inject them unnecessarily.
             if ("headers" in config) svc.headers = Array.isArray(config.headers) ? config.headers : [];
             if ("body" in config) svc.body = Array.isArray(config.body) ? config.body : [];
             return svc;
@@ -143,8 +135,6 @@ export function canvasToVersionPayload(
             id: e.id,
             sourceNodeId: e.source,
             targetNodeId: e.target,
-            // Use sourcePort (rule UUID) as ruleId so branch identity is preserved on reload.
-            // EdgeSchema only allows: id, label, sourceNodeId, targetNodeId, ruleId.
             ruleId: e.isDefault ? "default" : (e.sourcePort || null),
         })),
     };
@@ -153,7 +143,6 @@ export function canvasToVersionPayload(
 export function definitionToCanvas(
     def: unknown
 ): { nodes: CanvasNode[]; edges: CanvasEdge[]; inputs: WorkflowInput[] } {
-    // Support both flat shape { nodes, edges } and nested shape { definition: { nodes, edges } }
     const defAny = def as any;
     const rawNodes: any[] = defAny.nodes || defAny.definition?.nodes || [];
     const rawEdges: any[] = defAny.edges || defAny.definition?.edges || [];
@@ -175,12 +164,9 @@ export function definitionToCanvas(
         id: e.edgeId || e.id || e.client_id || generateId("edge"),
         source: e.sourceNodeId || e.source_node_id || e.source || "",
         target: e.targetNodeId || e.destination_node_id || e.target || "",
-        // Use ruleId directly as sourcePort (rule UUID) to correctly identify the gateway port
         sourcePort: e.ruleId === "default" ? "default" : (e.ruleId || e.sourcePort || "out"),
-        // Prefer conditionExpression for display
         condition: e.conditionExpression || e.condition_expression || e.condition || "",
         isDefault: e.isDefault || e.ruleId === "default" || false,
-        // Preserve ruleIndex for Phase 2 matching
         _ruleIndex: typeof e.ruleIndex === "number" ? e.ruleIndex : undefined,
     }));
 
@@ -191,7 +177,6 @@ export function definitionToCanvas(
         if (node.type === "script") node.type = "script_task";
     });
 
-    // Restore gateway sourcePort using the best available match strategy
     cNodes.forEach((gatewayNode) => {
         if (gatewayNode.type !== "exclusive_gateway") return;
         const rules = (gatewayNode.config?.rules as Array<{ id: string; conditionExpression?: string; label?: string }>) ?? [];
@@ -199,7 +184,6 @@ export function definitionToCanvas(
 
         const gatewayEdges = cEdges.filter(e => e.source === gatewayNode.id && !e.isDefault);
 
-        // Phase 1: sourcePort already matches a rule id directly (ideal new format)
         const assignedRuleIds = new Set<string>();
         for (const edge of gatewayEdges) {
             const rule = rules.find(r => r.id === (edge as any).sourcePort);
@@ -211,7 +195,6 @@ export function definitionToCanvas(
             }
         }
 
-        // Phase 2: match unresolved edges by ruleIndex (saved index in rules array)
         for (const edge of gatewayEdges) {
             if (assignedRuleIds.has((edge as any).sourcePort)) continue; // already matched
             const ruleIndex: number | undefined = (edge as any)._ruleIndex;
@@ -227,7 +210,6 @@ export function definitionToCanvas(
             }
         }
 
-        // Phase 3: match by conditionExpression (legacy format)
         for (const edge of gatewayEdges) {
             if (assignedRuleIds.has((edge as any).sourcePort)) continue;
             if (!edge.condition) continue;
@@ -240,7 +222,6 @@ export function definitionToCanvas(
             }
         }
 
-        // Phase 4: positional fallback — assign remaining rules to remaining unresolved edges
         const remainingRules = rules.filter(r => !assignedRuleIds.has(r.id));
         let rIdx = 0;
         for (const edge of gatewayEdges) {
@@ -254,7 +235,6 @@ export function definitionToCanvas(
             }
         }
 
-        // Clean up temporary field
         for (const edge of gatewayEdges) {
             delete (edge as any)._ruleIndex;
         }
