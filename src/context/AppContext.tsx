@@ -38,7 +38,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         await axiosClient.post('/auth/logout', { refreshToken });
       }
     } catch {
-      // ignore errors on logout
+      //
     } finally {
       ['awe_access_token', 'awe_refresh_token', 'awe_user'].forEach(k =>
         localStorage.removeItem(k)

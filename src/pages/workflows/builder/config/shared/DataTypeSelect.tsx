@@ -1,6 +1,6 @@
 import { Box, Typography, FormControl, Select, MenuItem } from "@mui/material";
 import { EXPR_FONT, DATA_TYPE_COLORS } from "../constants";
-import { DataType } from "../../type/builderTypes";
+import { DataType } from "../../type/types";
 
 interface Props {
   value: string;

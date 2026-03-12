@@ -225,7 +225,6 @@ export default function ConfigPanel({
         overflow: "hidden",
       }}
     >
-      {/* Header */}
       <Box
         sx={{
           px: 1.25,
@@ -271,7 +270,6 @@ export default function ConfigPanel({
         </IconButton>
       </Box>
 
-      {/* Scrollable config content */}
       <Box
         sx={{
           flex: 1,

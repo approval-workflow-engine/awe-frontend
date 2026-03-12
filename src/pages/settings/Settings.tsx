@@ -16,7 +16,6 @@ import { useApiCall } from '../../hooks/useApiCall';
 import { useApp } from '../../context/useApp';
 import type { ApiKey } from '../../types';
 
-//  Sub-components
 
 function EnvChip({ type }: { type: string }) {
   const lower = type?.toLowerCase() || '';
@@ -76,7 +75,6 @@ function fmtDate(iso: string | null | undefined) {
   });
 }
 
-//  Main Settings Page
 
 export default function Settings() {
   const { call } = useApiCall();
@@ -98,7 +96,6 @@ export default function Settings() {
   const [newKey, setNewKey] = useState<string | null>(null);
   const [keyCopied, setKeyCopied] = useState(false);
 
-  //  Fetch all keys on mount
   const fetchApiKeys = useCallback(async () => {
     setKeysLoading(true);
     try {
@@ -117,7 +114,6 @@ export default function Settings() {
     fetchApiKeys();
   }, [fetchApiKeys]);
 
-  //  Actions
   const handleRevoke = (key: ApiKey) => {
     setRevokeTarget(key);
   };
@@ -152,7 +148,6 @@ export default function Settings() {
         setRegenOpen(false);
         setRegenLabel('');
         if (keyValue) setNewKey(keyValue);
-        // Refresh the full key list to reflect new key + revoked old ones
         fetchApiKeys();
         if (user) updateUser({ ...user, apiKeys: undefined });
       }
@@ -177,10 +172,8 @@ export default function Settings() {
     });
   };
 
-  //  Render
   return (
     <Box>
-      {/* Header */}
       <Box mb={3}>
         <Typography sx={{ fontFamily: "'Syne', sans-serif", fontWeight: 700, fontSize: 22, color: 'text.primary' }}>
           Settings
@@ -190,7 +183,6 @@ export default function Settings() {
         </Typography>
       </Box>
 
-      {/*  Card 1: System Information  */}
       <Paper sx={{ mb: 2.5, overflow: 'hidden' }}>
         <Box sx={{ px: 2.5, py: 2, borderBottom: '1px solid', borderColor: 'divider' }}>
           <Typography sx={{ fontFamily: "'Syne', sans-serif", fontWeight: 700, fontSize: 15, color: 'text.primary' }}>
@@ -280,7 +272,6 @@ export default function Settings() {
         </Box>
       </Paper>
 
-      {/*  Card 2: API Key Management  */}
       <Paper sx={{ overflow: 'hidden' }}>
         <Box sx={{
           px: 2.5, py: 2,
@@ -312,7 +303,6 @@ export default function Settings() {
         </Box>
 
         <Box sx={{ px: 2.5, py: 2 }}>
-          {/* Blue info notice */}
           {!infoDismissed && (
           <Box sx={{
             p: 1.5, borderRadius: '8px', mb: 2,
@@ -335,7 +325,6 @@ export default function Settings() {
           </Box>
           )}
 
-          {/* Key list */}
           {keysLoading ? (
             <Box sx={{ display: 'flex', flexDirection: 'column' }}>
               {[0, 1].map(i => (
@@ -372,7 +361,6 @@ export default function Settings() {
                   '&:hover .revoke-btn': { opacity: 1 },
                 }}
               >
-                {/* Key icon */}
                 <Box sx={{
                   width: 32, height: 32, borderRadius: '8px', flexShrink: 0,
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -381,7 +369,6 @@ export default function Settings() {
                   <VpnKeyOutlinedIcon sx={{ fontSize: 15, color: key.isRevoked ? '#ef4444' : '#4f6ef7' }} />
                 </Box>
 
-                {/* Label + dates */}
                 <Box sx={{ flex: 1, minWidth: 0 }}>
                   <Typography sx={{
                     fontSize: 13, fontWeight: 600, lineHeight: 1.3,
@@ -404,7 +391,6 @@ export default function Settings() {
                   </Box>
                 </Box>
 
-                {/* Status + revoke */}
                 <Box display="flex" alignItems="center" gap={1} sx={{ flexShrink: 0 }}>
                   <KeyStatusChip isRevoked={key.isRevoked} />
                   {!key.isRevoked && (
@@ -437,7 +423,6 @@ export default function Settings() {
 
             return (
               <Box>
-                {/* Active keys */}
                 <Box sx={{ display: 'flex', flexDirection: 'column' }}>
                   {activeKeys.length > 0
                     ? activeKeys.map((key, idx) => renderRow(key, idx, activeKeys.length))
@@ -449,7 +434,6 @@ export default function Settings() {
                   }
                 </Box>
 
-                {/* Revoked section toggle */}
                 {revokedKeys.length > 0 && (
                   <>
                     <Box
@@ -494,7 +478,6 @@ export default function Settings() {
         </Box>
       </Paper>
 
-      {/*  Revoke Confirmation Dialog  */}
       <Dialog
         open={!!revokeTarget}
         onClose={() => setRevokeTarget(null)}
@@ -534,7 +517,6 @@ export default function Settings() {
         </DialogActions>
       </Dialog>
 
-      {/*  Generate Dialog  */}
       <Dialog
         open={regenOpen}
         onClose={() => { if (!regenLoading) setRegenOpen(false); }}
@@ -581,7 +563,6 @@ export default function Settings() {
         </DialogActions>
       </Dialog>
 
-      {/*  One-time Key Display Modal  */}
       <Dialog
         open={!!newKey}
         disableEscapeKeyDown
@@ -595,7 +576,6 @@ export default function Settings() {
         }}
       >
         <DialogContent sx={{ p: 3 }}>
-          {/* Header */}
           <Box display="flex" alignItems="center" gap={1.5} mb={2}>
             <Box sx={{
               width: 36, height: 36, borderRadius: '10px',
@@ -614,7 +594,6 @@ export default function Settings() {
             </Box>
           </Box>
 
-          {/* Warning */}
           <Box sx={{
             p: 1.5, borderRadius: '8px', mb: 2,
             backgroundColor: 'rgba(245,158,11,0.08)',
@@ -628,7 +607,6 @@ export default function Settings() {
             </Typography>
           </Box>
 
-          {/* Key value */}
           <Box sx={{
             p: 2, borderRadius: '8px', mb: 2,
             backgroundColor: 'action.hover',
@@ -657,7 +635,6 @@ export default function Settings() {
             </Tooltip>
           </Box>
 
-          {/* Non-bypassable close button */}
           <Button
             fullWidth
             variant="contained"

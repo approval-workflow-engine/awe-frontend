@@ -14,14 +14,10 @@ export default function NumberInput({ value, onChange, min = 1, allowEmpty = tru
   const theme = useTheme();
   const isDark = theme.palette.mode === 'dark';
 
-  /* Local string state lets the user type freely (e.g. clear and re-type)
-     without the controlled input snapping back on every keystroke. */
   const [localValue, setLocalValue] = useState<string>(
     value !== undefined ? String(value) : '',
   );
 
-  /* Sync when the external value changes (e.g. node switch), but don't
-     override what the user is actively typing. */
   useEffect(() => {
     setLocalValue(value !== undefined ? String(value) : '');
   }, [value]);
@@ -32,7 +28,6 @@ export default function NumberInput({ value, onChange, min = 1, allowEmpty = tru
 
     if (raw === '') {
       if (allowEmpty) onChange(undefined);
-      // When !allowEmpty, defer enforcement to blur - don't reset mid-typing
       return;
     }
     const n = parseInt(raw, 10);

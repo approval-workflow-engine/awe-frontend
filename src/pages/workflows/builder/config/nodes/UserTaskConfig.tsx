@@ -21,8 +21,9 @@ import { CollapsibleSection } from "../shared/CollapsibleSection";
 import { getDefaultUiType } from "../bodyHelpers";
 import { UI_TYPES } from "../constants";
 import type { AvailableCtxVar } from "../context";
-import type { CanvasNode, ContextVariable } from "../../type/builderTypes";
-import { DataType, generateId } from "../../type/builderTypes";
+import type { CanvasNode, ContextVariable } from "../../type/types";
+import { DataType } from "../../type/types";
+import { generateId } from "../../utils/nodeHelpers";
 
 interface ResponseMapRowUser {
   fieldId: string;

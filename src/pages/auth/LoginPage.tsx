@@ -38,7 +38,6 @@ export default function LoginPage() {
       { errorMsg: "Invalid email or password" }
     );
     if (data) {
-      // After ApiResponse unwrapping in useApiCall, data is already the inner payload
       const body = data as { system?: User; accessToken?: string; refreshToken?: string };
       const system = body.system;
       const accessToken = body.accessToken;
@@ -73,7 +72,6 @@ export default function LoginPage() {
           borderRadius: "16px",
         }}
       >
-        {/* Branding */}
         <Box display="flex" flexDirection="column" alignItems="center" mb={3}>
           <LogoMark />
           <Typography

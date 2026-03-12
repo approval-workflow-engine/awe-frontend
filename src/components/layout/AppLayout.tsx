@@ -90,7 +90,6 @@ export default function AppLayout() {
           },
         }}
       >
-        {/* Logo area */}
         <Box
           sx={{
             display: 'flex',
@@ -132,7 +131,6 @@ export default function AppLayout() {
 
         <Divider />
 
-        {/* Navigation */}
         <Box sx={{ flex: 1, overflowY: 'auto', py: 1 }}>
           {NAV_SECTIONS.map((section, si) => (
             <Box key={si}>
@@ -204,7 +202,6 @@ export default function AppLayout() {
 
         <Divider />
 
-        {/* Theme toggle */}
         <Box
           sx={{
             display: 'flex',
@@ -222,7 +219,6 @@ export default function AppLayout() {
 
         <Divider />
 
-        {/* User row */}
         <Box
           onClick={() => setLogoutConfirmOpen(true)}
           sx={{
@@ -263,7 +259,6 @@ export default function AppLayout() {
         </Box>
       </Drawer>
 
-      {/* Logout Confirmation */}
       <Dialog
         open={logoutConfirmOpen}
         onClose={() => setLogoutConfirmOpen(false)}
@@ -300,7 +295,6 @@ export default function AppLayout() {
         </Box>
       </Dialog>
 
-      {/* Main content */}
       <Box
         component="main"
         sx={{

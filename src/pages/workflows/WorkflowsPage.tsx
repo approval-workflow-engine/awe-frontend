@@ -410,7 +410,7 @@ export default function WorkflowsPage() {
                         justifyContent="flex-end"
                         gap={0.25}
                       >
-                        <Tooltip title="Open Letest Version">
+                        <Tooltip title="Open Latest Version">
                           <IconButton
                             size="small"
                             onClick={() =>

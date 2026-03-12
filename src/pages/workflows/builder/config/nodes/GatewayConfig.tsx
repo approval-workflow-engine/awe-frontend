@@ -4,8 +4,8 @@ import ExpressionInput from "../shared/ExpressionInput";
 import AddRowButton from "../shared/AddRowButton";
 import { SectionLabel } from "../shared/CollapsibleSection";
 import type { AvailableCtxVar } from "../context";
-import type { CanvasNode, CanvasEdge } from "../../type/builderTypes";
-import { generateId } from "../../type/builderTypes";
+import type { CanvasNode, CanvasEdge } from "../../type/types";
+import { generateId } from "../../utils/nodeHelpers";
 
 interface GatewayRule {
   id: string;
@@ -44,7 +44,6 @@ export default function GatewayConfig({
   const set = (key: string, val: unknown) =>
     onUpdateConfig({ ...c, [key]: val });
 
-  /* Find the outgoing edge that corresponds to a rule port. */
   const edgeForRule = (ruleId: string): CanvasEdge | undefined =>
     edges.find((e) => e.source === node.id && e.sourcePort === ruleId);
 
@@ -52,7 +51,6 @@ export default function GatewayConfig({
     const updated = rules.map((r, i) => (i === idx ? { ...r, ...patch } : r));
     set("rules", updated);
 
-    /* Sync condition to the outgoing edge for this rule. */
     if (patch.conditionExpression !== undefined) {
       const edge = edgeForRule(rules[idx].id);
       if (edge) onUpdateEdge(edge.id, { condition: patch.conditionExpression });
@@ -66,7 +64,6 @@ export default function GatewayConfig({
       rules.filter((_, i) => i !== idx),
     );
 
-    /* Remove the corresponding edge so the canvas stays consistent. */
     const edge = edgeForRule(rule.id);
     if (edge) onDeleteEdge(edge.id);
   };
@@ -78,7 +75,6 @@ export default function GatewayConfig({
 
   return (
     <Box display="flex" flexDirection="column" gap={1.5}>
-      {/* Condition rules */}
       <Box>
         <SectionLabel>Conditions</SectionLabel>
         <Box display="flex" flexDirection="column" gap={0.75}>
@@ -137,7 +133,6 @@ export default function GatewayConfig({
         </Box>
       </Box>
 
-      {/* Default branch */}
       <Box
         sx={{
           border: "1px dashed",

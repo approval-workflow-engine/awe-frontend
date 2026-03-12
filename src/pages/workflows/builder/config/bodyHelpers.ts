@@ -1,4 +1,4 @@
-import { DataType } from "../type/builderTypes";
+import { DataType } from "../type/types";
 
 export const DATA_TYPE_TO_UI_TYPE: Record<string, string> = {
   [DataType.STRING]: "text",
@@ -16,10 +16,6 @@ export function getDefaultUiType(type: string): string {
   return DATA_TYPE_TO_UI_TYPE[type] ?? "text";
 }
 
-/*
- * Recursively flattens a JSON object into an array of { jsonPath, valueExpression } rows.
- * Context variable references like "{context.foo}" are preserved as-is in valueExpression.
- */
 export function flattenJsonToBody(
   obj: unknown,
   prefix = "",
@@ -47,7 +43,6 @@ export function flattenJsonToBody(
     : [];
 }
 
-/* Reconstructs a JSON string from flattened body rows. */
 export function bodyToJson(
   body: Array<{ jsonPath: string; valueExpression: string }>,
 ): string {

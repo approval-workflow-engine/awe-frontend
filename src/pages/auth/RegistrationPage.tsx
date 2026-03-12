@@ -87,7 +87,6 @@ export default function RegisterPage() {
           borderRadius: "16px",
         }}
       >
-        {/* Branding */}
         <Box display="flex" flexDirection="column" alignItems="center" mb={3}>
           <LogoMark />
           <Typography

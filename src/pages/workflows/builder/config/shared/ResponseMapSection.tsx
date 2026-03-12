@@ -8,8 +8,8 @@ import DataTypeSelect from "./DataTypeSelect";
 import JsonPathInput from "./JsonPathInput";
 import AddRowButton from "./AddRowButton";
 import type { AvailableCtxVar } from "../context";
-import type { ContextVariable } from "../../type/builderTypes";
-import { DataType } from "../../type/builderTypes";
+import type { ContextVariable } from "../../type/types";
+import { DataType } from "../../type/types";
 
 export interface ResponseMapRow {
   jsonPath: string;

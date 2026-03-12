@@ -14,10 +14,9 @@ interface ExpressionInputProps {
   hint?: string;
 }
 
-// Width of the FEEL badge + its horizontal margins inside the box
-const FEEL_BADGE_W  = 30; // badge pill width (px)
-const FEEL_BADGE_MR = 5;  // margin from right edge
-const TEXTAREA_PR   = FEEL_BADGE_W + FEEL_BADGE_MR + 4; // textarea right padding
+const FEEL_BADGE_W  = 30;
+const FEEL_BADGE_MR = 5;
+const TEXTAREA_PR   = FEEL_BADGE_W + FEEL_BADGE_MR + 4;
 
 export default function ExpressionInput({
   value,
@@ -76,7 +75,6 @@ export default function ExpressionInput({
 
   return (
     <Box>
-      {/* Label — only rendered when a label is provided */}
       {label && (
         <Typography sx={{ fontSize: 10, color: 'text.secondary', fontWeight: 500, mb: 0.25 }}>
           {label}
@@ -84,7 +82,6 @@ export default function ExpressionInput({
       )}
 
       <Box sx={{ position: 'relative' }}>
-        {/* Input container */}
         <Box sx={{
           position: 'relative',
           border: '1px solid',
@@ -127,7 +124,6 @@ export default function ExpressionInput({
             }}
           />
 
-          {/* FEEL badge — positioned inside the box at the right edge */}
           <Tooltip title="FEEL (Friendly Enough Expression Language)" placement="top">
             <Box sx={{
               position: 'absolute',
@@ -153,14 +149,13 @@ export default function ExpressionInput({
               cursor: 'default',
               userSelect: 'none',
               transition: 'all 0.15s',
-              pointerEvents: 'none', // don't intercept clicks meant for textarea
+              pointerEvents: 'none',
             }}>
               FEEL
             </Box>
           </Tooltip>
         </Box>
 
-        {/* Autocomplete dropdown */}
         {acOpen && filtered.length > 0 && (
           <Paper elevation={4} sx={{
             position: 'absolute', left: 0, right: 0, top: '100%', zIndex: 100,

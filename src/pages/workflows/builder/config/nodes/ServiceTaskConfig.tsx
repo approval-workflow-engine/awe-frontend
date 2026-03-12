@@ -19,7 +19,7 @@ import OnErrorSection from "../shared/OnErrorSection";
 import { flattenJsonToBody, bodyToJson } from "../bodyHelpers";
 import { HTTP_METHODS, METHOD_COLORS } from "../constants";
 import type { AvailableCtxVar } from "../context";
-import type { CanvasNode } from "../../type/builderTypes";
+import type { CanvasNode } from "../../type/types";
 
 interface HeaderRow {
   key: string;

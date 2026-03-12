@@ -98,7 +98,6 @@ export default function Dashboard() {
         if (res.status === 'rejected') return 0;
         const body = (res.value as { data: Record<string, unknown> }).data as Record<string, unknown>;
         const nested = body?.data as Record<string, unknown> | undefined;
-        // Check every common response shape for a total/count field
         const candidates = [
           nested?.pagination,
           body?.pagination,
@@ -120,10 +119,8 @@ export default function Dashboard() {
         pending:   getTotal(pendingRes),
       });
 
-      // Recent instances
       if (recentInstRes.status === 'fulfilled') {
         const body = (recentInstRes.value as { data: Record<string, unknown> }).data as Record<string, unknown>;
-        // body = ApiResponse envelope: { success, data: { instances: [...], pagination } }
         const inner = body?.data as Record<string, unknown> | undefined;
         const arr = (inner?.instances ?? (Array.isArray(inner) ? inner : [])) as Instance[];
         setInstances(Array.isArray(arr) ? arr : []);
@@ -131,10 +128,8 @@ export default function Dashboard() {
         setInstances([]);
       }
 
-      // Recent tasks
       if (recentTaskRes.status === 'fulfilled') {
         const body = (recentTaskRes.value as { data: Record<string, unknown> }).data as Record<string, unknown>;
-        // body = ApiResponse envelope: { success, data: { tasks: [...], pagination } }
         const inner = body?.data as Record<string, unknown> | undefined;
         const arr = (inner?.tasks ?? (Array.isArray(inner) ? inner : [])) as Task[];
         setTasks(Array.isArray(arr) ? arr : []);
@@ -142,7 +137,6 @@ export default function Dashboard() {
         setTasks([]);
       }
     } catch {
-      // Silently degrade - individual stats already handled via allSettled
     }
   }, []);
 
@@ -159,7 +153,6 @@ export default function Dashboard() {
         </Typography>
       </Box>
 
-      {/* Stat cards */}
       <Grid container spacing={2} mb={4}>
         {STAT_CARDS.map(card => (
           <Grid size={{ xs: 12, sm: 6, lg: 3 }} key={card.key}>
@@ -169,7 +162,6 @@ export default function Dashboard() {
       </Grid>
 
       <Grid container spacing={3}>
-        {/* Recent Instances */}
         <Grid size={{ xs: 12, lg: 6 }}>
           <Paper sx={{ overflow: 'hidden' }}>
             <Box sx={{ px: 2.5, py: 2, display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid', borderColor: 'divider' }}>
@@ -225,7 +217,6 @@ export default function Dashboard() {
           </Paper>
         </Grid>
 
-        {/* Pending Tasks */}
         <Grid size={{ xs: 12, lg: 6 }}>
           <Paper sx={{ overflow: 'hidden' }}>
             <Box sx={{ px: 2.5, py: 2, display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid', borderColor: 'divider' }}>
