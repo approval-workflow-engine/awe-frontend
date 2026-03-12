@@ -96,11 +96,13 @@ export function canvasToDefinition(
     const startNode = nodes.find((n) => n.type === "start");
     let inputs: WorkflowInput[] = [];
     if (startNode?.config?.inputDataMap) {
-        inputs = (startNode.config.inputDataMap as any[]).map((i) => ({
-            name: i.contextVariable?.name || "",
-            type: i.type || "string",
-            required: i.required || false,
-        }));
+        inputs = (startNode.config.inputDataMap as any[])
+            .filter((i) => !i.fetchableId)
+            .map((i) => ({
+                name: i.contextVariableName || i.contextVariable?.name || "",
+                type: i.dataType || i.type || "string",
+                required: i.required || false,
+            }));
     }
 
     return { nodes: resultNodes, edges: resultEdges, inputs };
@@ -243,11 +245,13 @@ export function definitionToCanvas(
     const startNode = cNodes.find((n) => n.type === "start");
     let inputs: WorkflowInput[] = [];
     if (startNode?.config?.inputDataMap) {
-        inputs = (startNode.config.inputDataMap as any[]).map((i) => ({
-            name: i.contextVariable?.name || "",
-            type: i.type || "string",
-            required: i.required || false,
-        }));
+        inputs = (startNode.config.inputDataMap as any[])
+            .filter((i) => !i.fetchableId)
+            .map((i) => ({
+                name: i.contextVariableName || i.contextVariable?.name || "",
+                type: i.dataType || i.type || "string",
+                required: i.required || false,
+            }));
     }
 
     return { nodes: cNodes, edges: cEdges, inputs };
