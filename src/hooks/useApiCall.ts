@@ -41,7 +41,6 @@ export function useApiCall(): UseApiCallReturn {
       setError(null);
       try {
         const response = await apiFn();
-        // Unwrap ApiResponse envelope { success: boolean, data: T } if present
         const raw = response.data as { success?: boolean; data?: unknown };
 
         const payload =
@@ -52,7 +51,6 @@ export function useApiCall(): UseApiCallReturn {
             ? (raw.data as T)
             : response.data;
         if (successMsg) enqueueSnackbar(successMsg, { variant: "success" });
-        // clear previous banner error on a successful interaction
         setError(null);
         if (onSuccess) onSuccess(payload);
         return payload as T;

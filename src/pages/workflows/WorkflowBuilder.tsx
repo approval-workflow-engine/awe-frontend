@@ -35,6 +35,7 @@ import {
   getWorkflowVersion,
   validateVersion,
   createWorkflowVersion,
+  updateWorkflowVersion,
   updateVersionStatus,
 } from "../../api/workflowApi";
 import { useApiCall } from "../../hooks/useApiCall";
@@ -279,62 +280,54 @@ export default function WorkflowBuilder() {
   }, [selectedItem, nodes, codeEditorOpen]);
 
   //  Toolbar actions
+  const saveDraft = async (successMsg?: string): Promise<number | null> => {
+    if (!workflowId) return null;
+    const payload = canvasToVersionPayload(nodes, edges);
+    const res = await call(
+      () =>
+        savedVersionNumber !== null
+          ? updateWorkflowVersion(workflowId, savedVersionNumber, payload as Record<string, unknown>)
+          : createWorkflowVersion(workflowId, payload as Record<string, unknown>),
+      { successMsg, showError: true },
+    );
+    if (!res) return null;
+    const body = res as { version?: number; versionNumber?: number; id?: string };
+    const vn = (typeof body?.version === "number" ? body.version : undefined) ?? body?.versionNumber ?? null;
+    setSavedVersionNumber(vn);
+    if (vn) {
+      setLoadedVersionNumber(vn);
+      setVersionStatus("draft");
+    }
+    setIsDirty(false);
+    return vn;
+  };
+
+  const handleSaveDraft = async () => {
+    setSaving(true);
+    await saveDraft("Saved.");
+    setSaving(false);
+  };
+
   const handleValidate = async (e: React.MouseEvent<HTMLButtonElement>) => {
     if (!workflowId) return;
     setValidating(true);
     setValidationResult(null);
-    const res = await call(
-      () =>
-        validateVersion(
-          workflowId,
-          Number(versionNumber || savedVersionNumber),
-        ),
-      {
-        showError: false,
-      },
-    );
-    console.log(JSON.stringify(res))
-    if (res) {
-      setValidationResult((res as ValidationResult) || null);
-      setValidateAnchor(e.currentTarget);
-    } else {
-      setValidationResult({
-        valid: false,
-        errors: [{ code: -1, message: "Validation request failed" }],
-      });
-      setValidateAnchor(e.currentTarget);
+    const vn = await saveDraft();
+    if (vn === null) {
+      setValidating(false);
+      return;
     }
+    const res = await call(
+      () => validateVersion(workflowId, vn),
+      { showError: false },
+    );
+    setValidationResult(
+      res
+        ? (res as ValidationResult)
+        : { valid: false, errors: [{ code: -1, message: "Validation request failed" }] },
+    );
+    setValidateAnchor(e.currentTarget);
     setValidating(false);
-  };
-
-  const handleSaveDraft = async () => {
-    if (!workflowId) return;
-    setSaving(true);
-    const payload = canvasToVersionPayload(nodes, edges);
-    const res = await call(
-      () =>
-        createWorkflowVersion(workflowId, payload as Record<string, unknown>),
-      {
-        successMsg: "Saved.",
-        showError: true,
-      },
-    );
-    if (res) {
-      const body = res as {
-        version?: number;
-        versionNumber?: number;
-        id?: string;
-      };
-      // Backend returns { id, workflowId, version: number, status, createdAt }
-      const vn = (typeof body?.version === "number" ? body.version : undefined) ?? body?.versionNumber ?? null;
-      setSavedVersionNumber(vn);
-      if (vn) {
-        setLoadedVersionNumber(vn);
-        setVersionStatus("draft");
-      }
-      setIsDirty(false);
-    }
-    setSaving(false);
   };
 
   const handleCommit = async () => {
@@ -542,7 +535,7 @@ export default function WorkflowBuilder() {
             <Button
               size="small"
               onClick={handleValidate}
-              disabled={validating || (!versionNumber && !savedVersionNumber)}
+              disabled={validating || saving}
               startIcon={
                 validating ? (
                   <CircularProgress size={12} />
