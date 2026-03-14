@@ -1,9 +1,44 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import type { WorkflowDefinition, WorkflowNode, WorkflowEdge } from "../../../../types";
 import type { CanvasNode, CanvasEdge, WorkflowInput } from "../type/types";
 import { generateId } from "./nodeHelpers";
 
 const VALID_HTTP_METHODS = ["GET", "POST", "PUT", "PATCH", "DELETE"] as const;
+
+function templateUrlToFeel(url: string): string {
+    if (!url) return '""';
+    if (!url.includes('{')) return `"${url}"`;
+    const parts: string[] = [];
+    let lastIndex = 0;
+    const regex = /\{([^}]+)\}/g;
+    let match: RegExpExecArray | null;
+    while ((match = regex.exec(url)) !== null) {
+        const staticPart = url.slice(lastIndex, match.index);
+        if (staticPart) parts.push(`"${staticPart}"`);
+        parts.push(`string(${match[1]})`);
+        lastIndex = regex.lastIndex;
+    }
+    const trailing = url.slice(lastIndex);
+    if (trailing) parts.push(`"${trailing}"`);
+    return parts.join(' + ');
+}
+
+function feelUrlToTemplate(feel: string): string {
+    if (!feel) return '';
+    if (!feel.startsWith('"') && !feel.startsWith('string(')) return feel;
+    const parts = feel.split(' + ');
+    let result = '';
+    for (const part of parts) {
+        const trimmed = part.trim();
+        if (trimmed.startsWith('"') && trimmed.endsWith('"')) {
+            result += trimmed.slice(1, -1);
+        } else if (trimmed.startsWith('string(') && trimmed.endsWith(')')) {
+            result += `{${trimmed.slice(7, -1)}}`;
+        } else {
+            return feel;
+        }
+    }
+    return result;
+}
 
 function serializeConfiguration(apiType: string, config: Record<string, any>): Record<string, any> {
     switch (apiType) {
@@ -36,7 +71,7 @@ function serializeConfiguration(apiType: string, config: Record<string, any>): R
             const svc: Record<string, any> = {
                 ...config,
                 method: VALID_HTTP_METHODS.includes(config.method) ? config.method : "GET",
-                urlExpression: typeof config.urlExpression === "string" ? config.urlExpression : "",
+                urlExpression: templateUrlToFeel(typeof config.urlExpression === "string" ? config.urlExpression : ""),
                 responseMap: Array.isArray(config.responseMap) ? config.responseMap : [],
             };
             if ("headers" in config) svc.headers = Array.isArray(config.headers) ? config.headers : [];
@@ -179,6 +214,13 @@ export function definitionToCanvas(
         if (node.type === "script") node.type = "script_task";
     });
 
+    cNodes.forEach((node) => {
+        if (node.type !== "service_task") return;
+        if (typeof node.config.urlExpression === "string") {
+            node.config.urlExpression = feelUrlToTemplate(node.config.urlExpression);
+        }
+    });
+
     cNodes.forEach((gatewayNode) => {
         if (gatewayNode.type !== "exclusive_gateway") return;
         const rules = (gatewayNode.config?.rules as Array<{ id: string; conditionExpression?: string; label?: string }>) ?? [];
@@ -198,7 +240,7 @@ export function definitionToCanvas(
         }
 
         for (const edge of gatewayEdges) {
-            if (assignedRuleIds.has((edge as any).sourcePort)) continue; // already matched
+            if (assignedRuleIds.has((edge as any).sourcePort)) continue;
             const ruleIndex: number | undefined = (edge as any)._ruleIndex;
             if (typeof ruleIndex === "number" && ruleIndex >= 0 && ruleIndex < rules.length) {
                 const rule = rules[ruleIndex];

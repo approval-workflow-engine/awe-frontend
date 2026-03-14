@@ -56,7 +56,6 @@ export default function ConfigPanel({
 }: Props) {
   if (!selectedItem) return null;
 
-  /* Edge panel */
   if (selectedItem.type === "edge") {
     const edge = edges.find((e) => e.id === selectedItem.id);
     if (!edge) return null;
@@ -136,7 +135,6 @@ export default function ConfigPanel({
     );
   }
 
-  /* Node panel */
   const node = nodes.find((n) => n.id === selectedItem.id);
   if (!node) return null;
 

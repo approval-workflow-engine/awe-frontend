@@ -7,12 +7,6 @@ export const registerSystem = (data: RegisterPayload) =>
 export const loginSystem = (data: LoginPayload) =>
   axiosClient.post('/auth/login', data);
 
-export const logoutSystem = (data: { refreshToken: string }) =>
-  axiosClient.post('/auth/logout', data);
-
-export const getSystemMe = () =>
-  axiosClient.get('/systems/me');
-
 export const getApiKeys = () =>
   axiosClient.get('/systems/api-keys');
 

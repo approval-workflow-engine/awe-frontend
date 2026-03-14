@@ -1,4 +1,3 @@
-//  API Response Wrapper 
 export interface ApiResponse<T = unknown> {
   success: boolean;
   data: T;
@@ -17,7 +16,6 @@ export interface Pagination {
   pages: number;
 }
 
-//  User / System 
 export interface User {
   id: string;
   name: string;
@@ -37,7 +35,6 @@ export interface ApiKey {
   revokedAt: string | null;
 }
 
-//  Auth 
 export interface LoginPayload {
   email: string;
   password: string;
@@ -61,7 +58,6 @@ export interface RegisterResponse {
   apiKey?: string;
 }
 
-//  Workflow 
 export interface Workflow {
   id: string;
   name: string;
@@ -140,36 +136,6 @@ export interface NodeConfig {
   [key: string]: unknown;
 }
 
-//  Canvas Node (builder state) 
-export interface CanvasNode {
-  id: string;
-  type: string;
-  label: string;
-  config: NodeConfig;
-  x: number;
-  y: number;
-  position: { x: number; y: number };
-}
-
-export interface CanvasEdge {
-  id: string;
-  source: string;
-  target: string;
-  condition: string;
-  isDefault: boolean;
-}
-
-export interface SelectedItem {
-  id: string;
-  type: 'node' | 'edge';
-}
-
-export interface DraggingState {
-  id: string;
-  offsetX: number;
-  offsetY: number;
-}
-
 export interface ValidationError {
   code: number;
   message: string;
@@ -185,7 +151,6 @@ export interface ValidationResult {
   status?: string;
 }
 
-//  Instance 
 export type InstanceStatus = 'IN_PROGRESS' | 'PAUSED' | 'COMPLETED' | 'FAILED' | 'TERMINATED';
 
 export interface Instance {
@@ -245,7 +210,6 @@ export interface CompleteTaskPayload {
   responseData?: Record<string, string>;
 }
 
-//  Audit 
 export interface AuditLog {
   id?: string;
   action: string;
@@ -266,23 +230,6 @@ export interface AuditChanges {
   after?: unknown;
 }
 
-//  Status Helpers 
-export interface StatusStyle {
-  color: string;
-  bg: string;
-  pulse?: boolean;
-}
-
-//  Node Config Utility 
-export interface NodeTypeConfig {
-  type: string;
-  label: string;
-  color: string;
-  icon: string;
-  configFields: string[];
-}
-
-//  DataTable 
 export interface TableColumn<T = Record<string, unknown>> {
   key: string;
   label: string;
@@ -290,7 +237,6 @@ export interface TableColumn<T = Record<string, unknown>> {
   render?: (value: unknown, row: T) => React.ReactNode;
 }
 
-//  Query Params 
 export interface PaginationParams {
   page?: number;
   limit?: number;
@@ -299,5 +245,5 @@ export interface PaginationParams {
   entityType?: string;
 }
 
-//  Theme 
 export type ThemeMode = 'dark' | 'light';
+

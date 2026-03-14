@@ -38,7 +38,6 @@ export default function LoginPage() {
       errorMsg: "Invalid email or password",
     });
     if (data) {
-      // After ApiResponse unwrapping in useApiCall, data is already the inner payload
       const body = data as {
         system?: User;
         accessToken?: string;

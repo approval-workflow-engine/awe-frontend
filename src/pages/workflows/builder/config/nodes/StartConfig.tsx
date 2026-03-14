@@ -1,4 +1,4 @@
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 import {
   Box,
   Typography,
@@ -6,6 +6,11 @@ import {
   TextField,
   Switch,
   Divider,
+  ToggleButton,
+  ToggleButtonGroup,
+  Select,
+  MenuItem,
+  FormControl,
 } from "@mui/material";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
@@ -27,7 +32,7 @@ interface FetchableConfig {
   label?: string;
   method: "GET";
   urlExpression: string;
-  headers?: Array<{ key: string; value: string }>;
+  headers: Array<{ key: string; value: string }>;
 }
 
 interface InputDataMapRow {
@@ -49,7 +54,14 @@ interface Props {
 
 const VALID_IDENT = /^[a-zA-Z_][a-zA-Z0-9_.]*$/;
 
-const ROW_FIELD_SX = {
+const VALID_TYPES: WorkflowInput["type"][] = [
+  "string",
+  "number",
+  "boolean",
+  "object",
+];
+
+export const ROW_FIELD_SX = {
   "& .MuiOutlinedInput-root": {
     borderRadius: "6px",
     fontSize: 11,
@@ -57,7 +69,7 @@ const ROW_FIELD_SX = {
   },
 } as const;
 
-const ROW_INPUT_PROPS = { style: { padding: "4px 8px", fontSize: 11 } };
+export const ROW_INPUT_PROPS = { style: { padding: "4px 8px", fontSize: 11 } };
 
 export default function StartConfig({
   node,
@@ -70,6 +82,10 @@ export default function StartConfig({
   const fetchables: FetchableConfig[] =
     (node.config.fetchables as FetchableConfig[]) ?? [];
 
+  const [addInputType, setAddInputType] = useState<"direct" | "fetched">(
+    "direct",
+  );
+
   const sync = useCallback(
     (newRows: InputDataMapRow[], newFetchables: FetchableConfig[]) => {
       onUpdateConfig({
@@ -77,18 +93,12 @@ export default function StartConfig({
         inputDataMap: newRows,
         fetchables: newFetchables,
       });
-      const validTypes: WorkflowInput["type"][] = [
-        "string",
-        "number",
-        "boolean",
-        "object",
-      ];
       onChangeInputs(
         newRows
-          .filter((r) => !r.fetchableId)
+          .filter((r) => r.contextVariableName.trim() !== "")
           .map((r) => ({
             name: r.contextVariableName,
-            type: validTypes.includes(r.dataType as WorkflowInput["type"])
+            type: VALID_TYPES.includes(r.dataType as WorkflowInput["type"])
               ? (r.dataType as WorkflowInput["type"])
               : "string",
             required: r.required ?? false,
@@ -98,15 +108,15 @@ export default function StartConfig({
     [node.config, onUpdateConfig, onChangeInputs],
   );
 
-  const updateRow = (fullIdx: number, patch: Partial<InputDataMapRow>) =>
+  const updateRow = (idx: number, patch: Partial<InputDataMapRow>) =>
     sync(
-      rows.map((r, i) => (i === fullIdx ? { ...r, ...patch } : r)),
+      rows.map((r, i) => (i === idx ? { ...r, ...patch } : r)),
       fetchables,
     );
 
-  const removeRow = (fullIdx: number) =>
+  const removeRow = (idx: number) =>
     sync(
-      rows.filter((_, i) => i !== fullIdx),
+      rows.filter((_, i) => i !== idx),
       fetchables,
     );
 
@@ -124,195 +134,97 @@ export default function StartConfig({
     );
   };
 
-  const directRowCount = rows.filter((r) => !r.fetchableId).length;
-  const orphanedRows = rows
-    .map((r, i) => ({ row: r, fullIdx: i }))
-    .filter(
-      ({ row }) =>
-        row.fetchableId && !fetchables.some((f) => f.id === row.fetchableId),
+  const addDirectInput = () =>
+    sync(
+      [
+        ...rows,
+        {
+          jsonPath: "",
+          dataType: DataType.STRING,
+          contextVariableName: "",
+          persist: false,
+          required: false,
+        },
+      ],
+      fetchables,
     );
+
+  const addFetchedInput = () => {
+    if (fetchables.length === 0) return;
+    sync(
+      [
+        ...rows,
+        {
+          jsonPath: "",
+          dataType: DataType.STRING,
+          contextVariableName: "",
+          fetchableId: fetchables[0]?.id ?? "",
+          persist: false,
+        },
+      ],
+      fetchables,
+    );
+  };
+
+  const addFetchSource = () =>
+    sync(rows, [
+      ...fetchables,
+      {
+        id: generateId("fetch"),
+        method: "GET",
+        urlExpression: "",
+        headers: [],
+      },
+    ]);
+
+  const directRows = rows
+    .map((r, i) => ({ row: r, idx: i }))
+    .filter(({ row }) => !row.fetchableId);
+
+  const fetchedRows = rows
+    .map((r, i) => ({ row: r, idx: i }))
+    .filter(({ row }) => !!row.fetchableId);
+
+  const orphanCount = fetchedRows.filter(
+    ({ row }) =>
+      row.fetchableId && !fetchables.some((f) => f.id === row.fetchableId),
+  ).length;
+
+  const canAddFetched = fetchables.length > 0;
 
   return (
     <Box display="flex" flexDirection="column" gap={1.5}>
       <CollapsibleSection
-        title="Direct Inputs"
+        title="Fetch Source"
         defaultOpen
-        count={directRowCount}
+        count={fetchables.length}
       >
         <Box display="flex" flexDirection="column" gap={0.75}>
-          {directRowCount === 0 && (
+          {fetchables.length === 0 && (
             <Typography
               sx={{ fontSize: 11, color: "text.disabled", fontStyle: "italic" }}
             >
-              No direct inputs configured
+              No fetch sources configured
             </Typography>
           )}
-          {rows.map((row, fullIdx) => {
-            if (row.fetchableId) return null;
-            const invalid =
-              row.contextVariableName.length > 0 &&
-              !VALID_IDENT.test(row.contextVariableName);
-            return (
-              <Box
-                key={fullIdx}
-                sx={{
-                  border: "1px solid",
-                  borderColor: "divider",
-                  borderRadius: "8px",
-                  overflow: "hidden",
-                }}
-              >
-                <Box
-                  sx={{
-                    px: 0.75,
-                    py: 0.75,
-                    backgroundColor: "action.hover",
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: 0.75,
-                  }}
-                >
-                  <Box display="flex" gap={0.5} alignItems="center">
-                    <TextField
-                      size="small"
-                      placeholder="var_name"
-                      value={row.contextVariableName}
-                      error={invalid}
-                      onChange={(e) =>
-                        updateRow(fullIdx, {
-                          contextVariableName: e.target.value,
-                          jsonPath: e.target.value,
-                        })
-                      }
-                      sx={{
-                        flex: 1,
-                        "& .MuiOutlinedInput-root": {
-                          borderRadius: "6px",
-                          fontSize: 11,
-                          fontFamily: EXPR_FONT,
-                          "& fieldset": {
-                            borderColor: invalid ? "error.main" : "divider",
-                          },
-                        },
-                      }}
-                      inputProps={ROW_INPUT_PROPS}
-                    />
-                    <IconButton
-                      size="small"
-                      onClick={() => removeRow(fullIdx)}
-                      sx={{
-                        p: 0.25,
-                        color: "text.disabled",
-                        "&:hover": { color: "#ef4444" },
-                      }}
-                    >
-                      <DeleteOutlineIcon sx={{ fontSize: 13 }} />
-                    </IconButton>
-                  </Box>
-                  <DataTypeSelect
-                    value={row.dataType || DataType.STRING}
-                    onChange={(v) => updateRow(fullIdx, { dataType: v })}
-                  />
-                  {row.contextVariableName && (
-                    <Typography
-                      sx={{
-                        fontSize: 9,
-                        color: "text.disabled",
-                        fontFamily: EXPR_FONT,
-                        pl: 0.25,
-                      }}
-                    >
-                      {"jsonPath: "}
-                      <Box component="span" sx={{ color: "primary.main" }}>
-                        {row.contextVariableName}
-                      </Box>
-                    </Typography>
-                  )}
-                  <Box
-                    display="flex"
-                    alignItems="center"
-                    justifyContent="space-between"
-                  >
-                    <Typography sx={{ fontSize: 11, color: "text.secondary" }}>
-                      Required
-                    </Typography>
-                    <Switch
-                      size="small"
-                      checked={row.required ?? false}
-                      onChange={(e) =>
-                        updateRow(fullIdx, { required: e.target.checked })
-                      }
-                    />
-                  </Box>
-                  <Box
-                    display="flex"
-                    alignItems="center"
-                    justifyContent="space-between"
-                  >
-                    <Typography sx={{ fontSize: 11, color: "text.secondary" }}>
-                      Persist
-                    </Typography>
-                    <Switch
-                      size="small"
-                      checked={row.persist ?? false}
-                      onChange={(e) =>
-                        updateRow(fullIdx, { persist: e.target.checked })
-                      }
-                    />
-                  </Box>
-                  {!row.required && (
-                    <TextField
-                      size="small"
-                      label="Default value"
-                      value={(row.default as string) ?? ""}
-                      onChange={(e) =>
-                        updateRow(fullIdx, { default: e.target.value })
-                      }
-                      sx={{
-                        "& .MuiOutlinedInput-root": {
-                          borderRadius: "6px",
-                          fontSize: 11,
-                          "& fieldset": { borderColor: "divider" },
-                        },
-                        "& .MuiInputLabel-root": { fontSize: 11 },
-                      }}
-                      inputProps={ROW_INPUT_PROPS}
-                    />
-                  )}
-                </Box>
-              </Box>
-            );
-          })}
-          <AddRowButton
-            label="Add Input"
-            onClick={() =>
-              sync(
-                [
-                  ...rows,
-                  {
-                    jsonPath: "",
-                    dataType: DataType.STRING,
-                    contextVariableName: "",
-                    persist: false,
-                    required: false,
-                  },
-                ],
-                fetchables,
-              )
-            }
-          />
+          {fetchables.map((f, fIdx) => (
+            <FetchSourceCard
+              key={f.id}
+              fetchable={f}
+              onUpdate={(patch) => updateFetchable(fIdx, patch)}
+              onRemove={() => removeFetchable(fIdx)}
+              availableContext={availableContext}
+            />
+          ))}
+          <AddRowButton label="Add Fetch Source" onClick={addFetchSource} />
         </Box>
       </CollapsibleSection>
 
       <Divider sx={{ borderColor: "divider" }} />
 
-      <CollapsibleSection
-        title="Fetched Inputs"
-        defaultOpen
-        count={fetchables.length}
-      >
-        <Box display="flex" flexDirection="column" gap={1}>
-          {orphanedRows.length > 0 && (
+      <CollapsibleSection title="Inputs" defaultOpen count={rows.length}>
+        <Box display="flex" flexDirection="column" gap={0.75}>
+          {orphanCount > 0 && (
             <Box
               sx={{
                 display: "flex",
@@ -325,356 +237,574 @@ export default function StartConfig({
               }}
             >
               <WarningAmberIcon
-                sx={{ fontSize: 13, color: "#ef4444", mt: 0.1, flexShrink: 0 }}
+                sx={{
+                  fontSize: 13,
+                  color: "#ef4444",
+                  mt: 0.1,
+                  flexShrink: 0,
+                }}
               />
-              <Typography sx={{ fontSize: 10, color: "#ef4444", lineHeight: 1.4 }}>
-                {orphanedRows.length} field mapping
-                {orphanedRows.length > 1 ? "s reference" : " references"} a
-                deleted fetchable. Remove or reassign
-                {orphanedRows.length > 1 ? " them" : " it"}.
+              <Typography
+                sx={{ fontSize: 10, color: "#ef4444", lineHeight: 1.4 }}
+              >
+                {orphanCount} fetched input
+                {orphanCount > 1 ? "s reference" : " references"} a deleted
+                fetch source. Remove or reassign.
               </Typography>
             </Box>
           )}
-          {fetchables.length === 0 && (
+
+          {rows.length === 0 && (
             <Typography
               sx={{ fontSize: 11, color: "text.disabled", fontStyle: "italic" }}
             >
-              No fetched inputs configured
+              No inputs configured
             </Typography>
           )}
-          {fetchables.map((fetchable, fIdx) => {
-            const fetchableRows = rows
-              .map((r, i) => ({ row: r, fullIdx: i }))
-              .filter(({ row }) => row.fetchableId === fetchable.id);
-            const headers = fetchable.headers ?? [];
-            return (
-              <Box
-                key={fetchable.id}
-                sx={{
-                  border: "1px solid",
-                  borderColor: "divider",
-                  borderRadius: "8px",
-                  overflow: "hidden",
-                }}
-              >
-                <Box
-                  sx={{
-                    px: 0.75,
-                    py: 0.75,
-                    backgroundColor: "action.hover",
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: 0.75,
-                  }}
-                >
-                  <Box display="flex" gap={0.5} alignItems="center">
-                    <Box
-                      sx={{
-                        fontSize: 9,
-                        fontWeight: 700,
-                        fontFamily: EXPR_FONT,
-                        px: 0.75,
-                        py: 0.25,
-                        borderRadius: "4px",
-                        backgroundColor: "rgba(6,182,212,0.12)",
-                        color: "#06b6d4",
-                        border: "1px solid rgba(6,182,212,0.3)",
-                        flexShrink: 0,
-                        letterSpacing: "0.04em",
-                      }}
-                    >
-                      GET
-                    </Box>
-                    <TextField
-                      size="small"
-                      placeholder="Label (optional)"
-                      value={fetchable.label ?? ""}
-                      onChange={(e) =>
-                        updateFetchable(fIdx, { label: e.target.value })
-                      }
-                      sx={{ flex: 1, ...ROW_FIELD_SX }}
-                      inputProps={ROW_INPUT_PROPS}
-                    />
-                    <IconButton
-                      size="small"
-                      onClick={() => removeFetchable(fIdx)}
-                      sx={{
-                        p: 0.25,
-                        color: "text.disabled",
-                        "&:hover": { color: "#ef4444" },
-                      }}
-                    >
-                      <DeleteOutlineIcon sx={{ fontSize: 13 }} />
-                    </IconButton>
-                  </Box>
-                  <ExpressionInput
-                    label="URL"
-                    value={fetchable.urlExpression}
-                    onChange={(v) =>
-                      updateFetchable(fIdx, { urlExpression: v })
-                    }
-                    placeholder="https://api.example.com/data"
-                    availableContext={availableContext}
-                  />
-                </Box>
 
-                <Box
-                  sx={{
-                    px: 0.75,
-                    py: 0.75,
-                    borderTop: "1px solid",
-                    borderColor: "divider",
-                  }}
-                >
-                  <CollapsibleSection title="Headers" count={headers.length}>
-                    <Box
-                      display="flex"
-                      flexDirection="column"
-                      gap={0.5}
-                      mt={0.25}
-                    >
-                      {headers.map((h, hIdx) => (
-                        <Box
-                          key={hIdx}
-                          display="flex"
-                          gap={0.5}
-                          alignItems="center"
-                          sx={{
-                            "& .del-h": {
-                              opacity: 0,
-                              transition: "opacity 0.15s",
-                            },
-                            "&:hover .del-h": { opacity: 1 },
-                          }}
-                        >
-                          <TextField
-                            size="small"
-                            placeholder="Header name"
-                            value={h.key}
-                            onChange={(e) => {
-                              const newH = headers.map((hh, i) =>
-                                i === hIdx
-                                  ? { ...hh, key: e.target.value }
-                                  : hh,
-                              );
-                              updateFetchable(fIdx, { headers: newH });
-                            }}
-                            sx={{ flex: 1, ...ROW_FIELD_SX }}
-                            inputProps={ROW_INPUT_PROPS}
-                          />
-                          <TextField
-                            size="small"
-                            placeholder="Value"
-                            value={h.value}
-                            onChange={(e) => {
-                              const newH = headers.map((hh, i) =>
-                                i === hIdx
-                                  ? { ...hh, value: e.target.value }
-                                  : hh,
-                              );
-                              updateFetchable(fIdx, { headers: newH });
-                            }}
-                            sx={{ flex: 1, ...ROW_FIELD_SX }}
-                            inputProps={ROW_INPUT_PROPS}
-                          />
-                          <IconButton
-                            className="del-h"
-                            size="small"
-                            onClick={() =>
-                              updateFetchable(fIdx, {
-                                headers: headers.filter((_, i) => i !== hIdx),
-                              })
-                            }
-                            sx={{
-                              p: 0.25,
-                              color: "text.disabled",
-                              "&:hover": { color: "#ef4444" },
-                            }}
-                          >
-                            <DeleteOutlineIcon sx={{ fontSize: 13 }} />
-                          </IconButton>
-                        </Box>
-                      ))}
-                      <AddRowButton
-                        label="Add Header"
-                        onClick={() =>
-                          updateFetchable(fIdx, {
-                            headers: [...headers, { key: "", value: "" }],
-                          })
-                        }
-                      />
-                    </Box>
-                  </CollapsibleSection>
-                </Box>
+          {directRows.map(({ row, idx }) => (
+            <DirectInputCard
+              key={idx}
+              row={row}
+              onUpdate={(patch) => updateRow(idx, patch)}
+              onRemove={() => removeRow(idx)}
+            />
+          ))}
 
-                <Box
-                  sx={{
-                    px: 0.75,
-                    py: 0.75,
-                    borderTop: "1px solid",
-                    borderColor: "divider",
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: 0.75,
-                  }}
-                >
-                  <Typography
-                    sx={{
-                      fontSize: 10,
-                      fontWeight: 700,
-                      textTransform: "uppercase",
-                      letterSpacing: "0.07em",
-                      color: "text.secondary",
-                    }}
-                  >
-                    Field Mappings
-                  </Typography>
-                  {fetchableRows.length === 0 && (
-                    <Typography
-                      sx={{
-                        fontSize: 11,
-                        color: "text.disabled",
-                        fontStyle: "italic",
-                      }}
-                    >
-                      No fields mapped
-                    </Typography>
-                  )}
-                  {fetchableRows.map(({ row, fullIdx }) => {
-                    const invalidVar =
-                      row.contextVariableName.length > 0 &&
-                      !VALID_IDENT.test(row.contextVariableName);
-                    return (
-                      <Box
-                        key={fullIdx}
-                        sx={{
-                          border: "1px solid",
-                          borderColor: "divider",
-                          borderRadius: "6px",
-                          p: 0.75,
-                          display: "flex",
-                          flexDirection: "column",
-                          gap: 0.5,
-                        }}
-                      >
-                        <Box display="flex" gap={0.5} alignItems="center">
-                          <TextField
-                            size="small"
-                            placeholder="$.path"
-                            value={row.jsonPath}
-                            onChange={(e) =>
-                              updateRow(fullIdx, { jsonPath: e.target.value })
-                            }
-                            sx={{
-                              flex: 1,
-                              "& .MuiOutlinedInput-root": {
-                                borderRadius: "6px",
-                                fontSize: 11,
-                                fontFamily: EXPR_FONT,
-                                "& fieldset": { borderColor: "divider" },
-                              },
-                            }}
-                            inputProps={ROW_INPUT_PROPS}
-                          />
-                          <IconButton
-                            size="small"
-                            onClick={() => removeRow(fullIdx)}
-                            sx={{
-                              p: 0.25,
-                              color: "text.disabled",
-                              "&:hover": { color: "#ef4444" },
-                            }}
-                          >
-                            <DeleteOutlineIcon sx={{ fontSize: 13 }} />
-                          </IconButton>
-                        </Box>
-                        <DataTypeSelect
-                          value={row.dataType || DataType.STRING}
-                          onChange={(v) => updateRow(fullIdx, { dataType: v })}
-                        />
-                        <TextField
-                          size="small"
-                          placeholder="var_name"
-                          value={row.contextVariableName}
-                          error={invalidVar}
-                          onChange={(e) =>
-                            updateRow(fullIdx, {
-                              contextVariableName: e.target.value,
-                            })
-                          }
-                          sx={{
-                            "& .MuiOutlinedInput-root": {
-                              borderRadius: "6px",
-                              fontSize: 11,
-                              fontFamily: EXPR_FONT,
-                              "& fieldset": {
-                                borderColor: invalidVar
-                                  ? "error.main"
-                                  : "divider",
-                              },
-                            },
-                          }}
-                          inputProps={ROW_INPUT_PROPS}
-                        />
-                        <Box
-                          display="flex"
-                          alignItems="center"
-                          justifyContent="space-between"
-                        >
-                          <Typography
-                            sx={{ fontSize: 11, color: "text.secondary" }}
-                          >
-                            Persist
-                          </Typography>
-                          <Switch
-                            size="small"
-                            checked={row.persist ?? false}
-                            onChange={(e) =>
-                              updateRow(fullIdx, { persist: e.target.checked })
-                            }
-                          />
-                        </Box>
-                      </Box>
-                    );
-                  })}
-                  <AddRowButton
-                    label="Add Field"
-                    onClick={() =>
-                      sync(
-                        [
-                          ...rows,
-                          {
-                            jsonPath: "",
-                            dataType: DataType.STRING,
-                            contextVariableName: "",
-                            fetchableId: fetchable.id,
-                            persist: false,
-                          },
-                        ],
-                        fetchables,
-                      )
-                    }
-                  />
-                </Box>
-              </Box>
-            );
-          })}
-          <AddRowButton
-            label="Add Fetchable"
-            onClick={() =>
-              sync(rows, [
-                ...fetchables,
-                {
-                  id: generateId("fetch"),
-                  method: "GET",
-                  urlExpression: "",
-                  headers: [],
+          {fetchedRows.map(({ row, idx }) => (
+            <FetchedInputCard
+              key={idx}
+              row={row}
+              fetchables={fetchables}
+              onUpdate={(patch) => updateRow(idx, patch)}
+              onRemove={() => removeRow(idx)}
+            />
+          ))}
+
+          <Box display="flex" flexDirection="column" gap={0.5} mt={0.25}>
+            <ToggleButtonGroup
+              value={addInputType}
+              exclusive
+              onChange={(_, v) => v && setAddInputType(v)}
+              size="small"
+              sx={{
+                "& .MuiToggleButton-root": {
+                  fontSize: 10,
+                  py: 0.25,
+                  px: 1,
+                  textTransform: "none",
+                  lineHeight: 1.6,
                 },
-              ])
+              }}
+            >
+              <ToggleButton value="direct">Direct Input</ToggleButton>
+              <ToggleButton value="fetched" disabled={!canAddFetched}>
+                Fetched Input
+              </ToggleButton>
+            </ToggleButtonGroup>
+            {addInputType === "fetched" && !canAddFetched && (
+              <Typography
+                sx={{ fontSize: 10, color: "text.disabled", fontStyle: "italic" }}
+              >
+                Add a Fetch Source above before adding fetched inputs.
+              </Typography>
+            )}
+            <AddRowButton
+              label="Add Input"
+              onClick={
+                addInputType === "direct" ? addDirectInput : addFetchedInput
+              }
+            />
+          </Box>
+        </Box>
+      </CollapsibleSection>
+    </Box>
+  );
+}
+
+interface FetchSourceCardProps {
+  fetchable: FetchableConfig;
+  onUpdate: (patch: Partial<FetchableConfig>) => void;
+  onRemove: () => void;
+  availableContext: AvailableCtxVar[];
+}
+
+function FetchSourceCard({
+  fetchable,
+  onUpdate,
+  onRemove,
+  availableContext,
+}: FetchSourceCardProps) {
+  const headers = fetchable.headers ?? [];
+
+  return (
+    <Box
+      sx={{
+        border: "1px solid",
+        borderColor: "divider",
+        borderRadius: "6px",
+        p: 0.5,
+        display: "flex",
+        flexDirection: "column",
+        gap: 0.5,
+        backgroundColor: "action.hover",
+      }}
+    >
+      <Box display="flex" gap={0.5} alignItems="center">
+        <Box
+          sx={{
+            fontSize: 9,
+            fontWeight: 700,
+            fontFamily: EXPR_FONT,
+            px: 0.6,
+            py: 0.2,
+            borderRadius: "3px",
+            backgroundColor: "rgba(6,182,212,0.12)",
+            color: "#06b6d4",
+            border: "1px solid rgba(6,182,212,0.3)",
+            flexShrink: 0,
+            letterSpacing: "0.04em",
+          }}
+        >
+          GET
+        </Box>
+        <TextField
+          size="small"
+          placeholder="label (e.g. result)"
+          value={fetchable.label ?? ""}
+          onChange={(e) => onUpdate({ label: e.target.value })}
+          sx={{ flex: 1, ...ROW_FIELD_SX }}
+          inputProps={ROW_INPUT_PROPS}
+        />
+        <IconButton
+          size="small"
+          onClick={onRemove}
+          sx={{ p: 0.25, color: "text.disabled", "&:hover": { color: "#ef4444" } }}
+        >
+          <DeleteOutlineIcon sx={{ fontSize: 13 }} />
+        </IconButton>
+      </Box>
+
+      <ExpressionInput
+        label="URL"
+        value={fetchable.urlExpression}
+        onChange={(v) => onUpdate({ urlExpression: v })}
+        placeholder="https://api.example.com/endpoint"
+        availableContext={availableContext}
+      />
+
+      <CollapsibleSection title="Headers" count={headers.length}>
+        <Box display="flex" flexDirection="column" gap={0.5} mt={0.25}>
+          {headers.map((h, hIdx) => (
+            <Box
+              key={hIdx}
+              display="flex"
+              gap={0.5}
+              alignItems="center"
+              sx={{
+                "& .del-h": { opacity: 0, transition: "opacity 0.15s" },
+                "&:hover .del-h": { opacity: 1 },
+              }}
+            >
+              <TextField
+                size="small"
+                placeholder="Header name"
+                value={h.key}
+                onChange={(e) =>
+                  onUpdate({
+                    headers: headers.map((hh, i) =>
+                      i === hIdx ? { ...hh, key: e.target.value } : hh,
+                    ),
+                  })
+                }
+                sx={{ flex: 1, ...ROW_FIELD_SX }}
+                inputProps={ROW_INPUT_PROPS}
+              />
+              <TextField
+                size="small"
+                placeholder="Value"
+                value={h.value}
+                onChange={(e) =>
+                  onUpdate({
+                    headers: headers.map((hh, i) =>
+                      i === hIdx ? { ...hh, value: e.target.value } : hh,
+                    ),
+                  })
+                }
+                sx={{ flex: 1, ...ROW_FIELD_SX }}
+                inputProps={ROW_INPUT_PROPS}
+              />
+              <IconButton
+                className="del-h"
+                size="small"
+                onClick={() =>
+                  onUpdate({ headers: headers.filter((_, i) => i !== hIdx) })
+                }
+                sx={{ p: 0.25, color: "text.disabled", "&:hover": { color: "#ef4444" } }}
+              >
+                <DeleteOutlineIcon sx={{ fontSize: 13 }} />
+              </IconButton>
+            </Box>
+          ))}
+          <AddRowButton
+            label="Add Header"
+            onClick={() =>
+              onUpdate({ headers: [...headers, { key: "", value: "" }] })
             }
           />
         </Box>
       </CollapsibleSection>
+    </Box>
+  );
+}
+
+interface DirectInputCardProps {
+  row: InputDataMapRow;
+  onUpdate: (patch: Partial<InputDataMapRow>) => void;
+  onRemove: () => void;
+}
+
+function DirectInputCard({ row, onUpdate, onRemove }: DirectInputCardProps) {
+  const invalid =
+    row.contextVariableName.length > 0 &&
+    !VALID_IDENT.test(row.contextVariableName);
+
+  return (
+    <Box
+      sx={{
+        border: "1px solid",
+        borderColor: "divider",
+        borderRadius: "8px",
+        overflow: "hidden",
+      }}
+    >
+      <Box
+        sx={{
+          px: 0.75,
+          py: 0.75,
+          backgroundColor: "action.hover",
+          display: "flex",
+          flexDirection: "column",
+          gap: 0.75,
+        }}
+      >
+        <Box display="flex" gap={0.5} alignItems="center">
+          <Box
+            sx={{
+              fontSize: 9,
+              fontWeight: 700,
+              fontFamily: EXPR_FONT,
+              px: 0.75,
+              py: 0.25,
+              borderRadius: "4px",
+              backgroundColor: "rgba(79,110,247,0.12)",
+              color: "#4f6ef7",
+              border: "1px solid rgba(79,110,247,0.3)",
+              flexShrink: 0,
+              letterSpacing: "0.04em",
+            }}
+          >
+            IN
+          </Box>
+          <TextField
+            size="small"
+            placeholder="Label / variable name"
+            value={row.contextVariableName}
+            error={invalid}
+            onChange={(e) =>
+              onUpdate({
+                contextVariableName: e.target.value,
+                jsonPath: e.target.value,
+              })
+            }
+            sx={{
+              flex: 1,
+              "& .MuiOutlinedInput-root": {
+                borderRadius: "6px",
+                fontSize: 11,
+                fontFamily: EXPR_FONT,
+                "& fieldset": {
+                  borderColor: invalid ? "error.main" : "divider",
+                },
+              },
+            }}
+            inputProps={ROW_INPUT_PROPS}
+          />
+          <IconButton
+            size="small"
+            onClick={onRemove}
+            sx={{
+              p: 0.25,
+              color: "text.disabled",
+              "&:hover": { color: "#ef4444" },
+            }}
+          >
+            <DeleteOutlineIcon sx={{ fontSize: 13 }} />
+          </IconButton>
+        </Box>
+
+        <DataTypeSelect
+          value={row.dataType || DataType.STRING}
+          onChange={(v) => onUpdate({ dataType: v })}
+        />
+
+        <Box
+          display="flex"
+          alignItems="center"
+          justifyContent="space-between"
+        >
+          <Typography sx={{ fontSize: 11, color: "text.secondary" }}>
+            Required
+          </Typography>
+          <Switch
+            size="small"
+            checked={row.required ?? false}
+            onChange={(e) => onUpdate({ required: e.target.checked })}
+          />
+        </Box>
+
+        <Box
+          display="flex"
+          alignItems="center"
+          justifyContent="space-between"
+        >
+          <Typography sx={{ fontSize: 11, color: "text.secondary" }}>
+            Persist
+          </Typography>
+          <Switch
+            size="small"
+            checked={row.persist ?? false}
+            onChange={(e) => onUpdate({ persist: e.target.checked })}
+          />
+        </Box>
+
+        {!row.required && (
+          <TextField
+            size="small"
+            label="Default value"
+            value={(row.default as string) ?? ""}
+            onChange={(e) => onUpdate({ default: e.target.value })}
+            sx={{
+              "& .MuiOutlinedInput-root": {
+                borderRadius: "6px",
+                fontSize: 11,
+                "& fieldset": { borderColor: "divider" },
+              },
+              "& .MuiInputLabel-root": { fontSize: 11 },
+            }}
+            inputProps={ROW_INPUT_PROPS}
+          />
+        )}
+      </Box>
+    </Box>
+  );
+}
+
+interface FetchedInputCardProps {
+  row: InputDataMapRow;
+  fetchables: FetchableConfig[];
+  onUpdate: (patch: Partial<InputDataMapRow>) => void;
+  onRemove: () => void;
+}
+
+function FetchedInputCard({
+  row,
+  fetchables,
+  onUpdate,
+  onRemove,
+}: FetchedInputCardProps) {
+  const invalidVar =
+    row.contextVariableName.length > 0 &&
+    !VALID_IDENT.test(row.contextVariableName);
+
+  const sourceFetchable = fetchables.find((f) => f.id === row.fetchableId);
+  const sourceLabel = sourceFetchable?.label || "?";
+  const isOrphaned = !sourceFetchable;
+
+  return (
+    <Box
+      sx={{
+        border: "1px solid",
+        borderColor: isOrphaned ? "rgba(239,68,68,0.5)" : "divider",
+        borderRadius: "8px",
+        overflow: "hidden",
+      }}
+    >
+      <Box
+        sx={{
+          px: 0.75,
+          py: 0.75,
+          backgroundColor: isOrphaned
+            ? "rgba(239,68,68,0.04)"
+            : "action.hover",
+          display: "flex",
+          flexDirection: "column",
+          gap: 0.75,
+        }}
+      >
+        <Box display="flex" gap={0.5} alignItems="center">
+          <Box
+            sx={{
+              fontSize: 9,
+              fontWeight: 700,
+              fontFamily: EXPR_FONT,
+              px: 0.75,
+              py: 0.25,
+              borderRadius: "4px",
+              backgroundColor: "rgba(168,85,247,0.12)",
+              color: "#a855f7",
+              border: "1px solid rgba(168,85,247,0.3)",
+              flexShrink: 0,
+              letterSpacing: "0.04em",
+            }}
+          >
+            FETCH
+          </Box>
+          <FormControl size="small" sx={{ flex: 1, ...ROW_FIELD_SX }}>
+            <Select
+              value={row.fetchableId ?? ""}
+              onChange={(e) => onUpdate({ fetchableId: e.target.value })}
+              displayEmpty
+              sx={{ fontSize: 11, borderRadius: "6px" }}
+            >
+              {fetchables.length === 0 && (
+                <MenuItem value="" disabled sx={{ fontSize: 11 }}>
+                  No fetch sources
+                </MenuItem>
+              )}
+              {fetchables.map((f) => (
+                <MenuItem key={f.id} value={f.id} sx={{ fontSize: 11 }}>
+                  {f.label || "(unlabeled)"}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+          <IconButton
+            size="small"
+            onClick={onRemove}
+            sx={{
+              p: 0.25,
+              color: "text.disabled",
+              "&:hover": { color: "#ef4444" },
+            }}
+          >
+            <DeleteOutlineIcon sx={{ fontSize: 13 }} />
+          </IconButton>
+        </Box>
+
+        <Box
+          sx={{
+            border: "1px solid",
+            borderColor: "divider",
+            borderRadius: "6px",
+            p: 0.75,
+            display: "flex",
+            flexDirection: "column",
+            gap: 0.5,
+          }}
+        >
+          <Typography
+            sx={{
+              fontSize: 9,
+              fontWeight: 700,
+              textTransform: "uppercase",
+              letterSpacing: "0.06em",
+              color: "text.secondary",
+            }}
+          >
+            Field Mapping
+          </Typography>
+
+          <Box display="flex" alignItems="center" gap={0.5}>
+            <TextField
+              size="small"
+              placeholder="var_name"
+              value={row.contextVariableName}
+              error={invalidVar}
+              onChange={(e) =>
+                onUpdate({ contextVariableName: e.target.value })
+              }
+              sx={{
+                flex: 1,
+                "& .MuiOutlinedInput-root": {
+                  borderRadius: "6px",
+                  fontSize: 11,
+                  fontFamily: EXPR_FONT,
+                  "& fieldset": {
+                    borderColor: invalidVar ? "error.main" : "divider",
+                  },
+                },
+              }}
+              inputProps={ROW_INPUT_PROPS}
+            />
+            <Typography
+              sx={{
+                fontSize: 11,
+                color: "text.disabled",
+                flexShrink: 0,
+                mx: 0.25,
+                userSelect: "none",
+              }}
+            >
+              =
+            </Typography>
+            <Box
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                flex: 1,
+                minWidth: 0,
+              }}
+            >
+              <Typography
+                sx={{
+                  fontSize: 11,
+                  fontFamily: EXPR_FONT,
+                  color: "primary.main",
+                  flexShrink: 0,
+                  pr: 0.25,
+                  userSelect: "none",
+                }}
+              >
+                {sourceLabel}.
+              </Typography>
+              <TextField
+                size="small"
+                placeholder="field_path"
+                value={row.jsonPath}
+                onChange={(e) => onUpdate({ jsonPath: e.target.value })}
+                sx={{
+                  flex: 1,
+                  "& .MuiOutlinedInput-root": {
+                    borderRadius: "6px",
+                    fontSize: 11,
+                    fontFamily: EXPR_FONT,
+                    "& fieldset": { borderColor: "divider" },
+                  },
+                }}
+                inputProps={ROW_INPUT_PROPS}
+              />
+            </Box>
+          </Box>
+
+          <DataTypeSelect
+            value={row.dataType || DataType.STRING}
+            onChange={(v) => onUpdate({ dataType: v })}
+          />
+        </Box>
+
+        <Typography
+          sx={{
+            fontSize: 9,
+            color: "text.disabled",
+            fontStyle: "italic",
+            lineHeight: 1.4,
+            px: 0.25,
+          }}
+        >
+          fetched values are resolved when used and are not stored
+        </Typography>
+      </Box>
     </Box>
   );
 }

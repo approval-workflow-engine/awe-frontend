@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback, useRef, useMemo } from "react";
-import { useParams, useNavigate, useBlocker } from "react-router-dom";
+import { useState, useEffect, useCallback, useMemo } from "react";
+import { useParams, useNavigate } from "react-router-dom";
 import {
   Box,
   Typography,
@@ -29,34 +29,19 @@ import LightModeIcon from "@mui/icons-material/LightMode";
 import DarkModeIcon from "@mui/icons-material/DarkMode";
 import VisibilityIcon from "@mui/icons-material/Visibility";
 
-import {
-  getWorkflow,
-  getWorkflowVersion,
-  validateVersion,
-  createWorkflowVersion,
-  updateWorkflowVersion,
-  updateVersionStatus,
-} from "../../api/workflowApi";
+import { getWorkflow, getWorkflowVersion } from "../../api/workflowApi";
 import { useApiCall } from "../../hooks/useApiCall";
-import { useSnackbar } from "notistack";
 import { useThemeMode } from "../../context/useThemeMode";
 import NodePalette from "./builder/components/NodePalette";
 import CanvasPanel from "./builder/components/CanvasPanel";
 import ConfigPanel from "./builder/components/ConfigPanel";
 import ContextVarsPanel from "./builder/components/ContextVarsPanel";
 import ScriptTaskEditorPanel from "./builder/components/ScriptTaskEditorPanel";
-import {
-  type CanvasNode,
-  type CanvasEdge,
-  type WorkflowInput,
-  type SelectedItem,
-} from "./builder/type/types";
+import { useBuilderCanvas } from "./builder/hooks/useBuilderCanvas";
+import { useBuilderActions } from "./builder/hooks/useBuilderActions";
+import { definitionToCanvas } from "./builder/utils/serialization";
 import { buildStartNode } from "./builder/utils/nodeHelpers";
-import {
-  definitionToCanvas,
-  canvasToVersionPayload,
-} from "./builder/utils/serialization";
-import type { ValidationResult } from "../../types";
+import { VERSION_STATUS_COLOR, VERSION_STATUS_BG } from "./builder/config/constants";
 
 const VERSION_STATUS_LABELS: Record<string, string> = {
   draft: "Draft",
@@ -72,80 +57,60 @@ export default function WorkflowBuilder() {
   }>();
   const navigate = useNavigate();
   const { call } = useApiCall();
-  const { enqueueSnackbar } = useSnackbar();
   const { mode, toggleTheme } = useThemeMode();
 
   const [workflowName, setWorkflowName] = useState("");
-  const [nodes, setNodes] = useState<CanvasNode[]>([buildStartNode()]);
-  const [edges, setEdges] = useState<CanvasEdge[]>([]);
-  const [inputs, setInputs] = useState<WorkflowInput[]>([]);
-  const [loadedVersionNumber, setLoadedVersionNumber] = useState<number | null>(
-    null,
-  );
-  const [savedVersionNumber, setSavedVersionNumber] = useState<number | null>(
-    null,
-  );
+  const [loadedVersionNumber, setLoadedVersionNumber] = useState<number | null>(null);
+  const [savedVersionNumber, setSavedVersionNumber] = useState<number | null>(null);
   const [versionStatus, setVersionStatus] = useState<string>("draft");
-
-  const [selectedItem, setSelectedItem] = useState<SelectedItem>(null);
-  const [connectingFrom, setConnectingFrom] = useState<{
-    nodeId: string;
-    portId: string;
-  } | null>(null);
-  const [validationResult, setValidationResult] =
-    useState<ValidationResult | null>(null);
-  const saveButtonRef = useRef<HTMLButtonElement>(null);
-  const [errorsPopoverOpen, setErrorsPopoverOpen] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [committing, setCommitting] = useState(false);
-  const [activating, setActivating] = useState(false);
-  const [deactivating, setDeactivating] = useState(false);
-  const [commitConfirmOpen, setCommitConfirmOpen] = useState(false);
-  const [activateConfirmOpen, setActivateConfirmOpen] = useState(false);
-  const [deactivateConfirmOpen, setDeactivateConfirmOpen] = useState(false);
-  const [codeEditorOpen, setCodeEditorOpen] = useState(false);
+  const [codeEditorOpenState, setCodeEditorOpen] = useState(false);
   const [clearConfirmOpen, setClearConfirmOpen] = useState(false);
 
-  const [isDirty, setIsDirty] = useState(false);
-
-  const markDirtyEnabled = useRef(false);
-  const markDirty = useCallback(() => {
-    if (markDirtyEnabled.current) {
-      setIsDirty(true);
-      setValidationResult(null);
-    }
-  }, []);
-
-  const blocker = useBlocker(isDirty);
-
-  useEffect(() => {
-    const handler = (e: BeforeUnloadEvent) => {
-      if (isDirty) {
-        e.preventDefault();
-        e.returnValue = "";
-      }
-    };
-    window.addEventListener("beforeunload", handler);
-    return () => window.removeEventListener("beforeunload", handler);
-  }, [isDirty]);
+  const {
+    nodes, setNodes, edges, setEdges, inputs, setInputs,
+    selectedItem, setSelectedItem, connectingFrom, setConnectingFrom,
+    isDirty, setIsDirty, setMarkDirtyEnabled,
+    markDirty, blocker,
+    handleUpdateNode, handleAddNode, handleAddEdge,
+    handleUpdateEdge, handleDeleteEdge, handleDeleteSelected, handleClearCanvas,
+  } = useBuilderCanvas();
 
   const isReadOnly =
     !!loadedVersionNumber &&
     (versionStatus === "published" || versionStatus === "active");
 
+  const {
+    saving, committing, activating, deactivating,
+    validationResult, setValidationResult,
+    errorsPopoverOpen, setErrorsPopoverOpen,
+    saveAnchorEl, saveButtonRef,
+    commitConfirmOpen, setCommitConfirmOpen,
+    activateConfirmOpen, setActivateConfirmOpen,
+    deactivateConfirmOpen, setDeactivateConfirmOpen,
+    handleSaveDraft, handleCommit, handleActivate, handleDeactivate,
+  } = useBuilderActions({
+    workflowId,
+    savedVersionNumber,
+    setSavedVersionNumber,
+    setLoadedVersionNumber,
+    setVersionStatus,
+    setIsDirty,
+    nodes,
+    edges,
+  });
+
+  const markDirtyAndClearValidation = useCallback(() => {
+    markDirty();
+    setValidationResult(null);
+  }, [markDirty, setValidationResult]);
+
   useEffect(() => {
     if (!workflowId) return;
-    markDirtyEnabled.current = false;
+    setMarkDirtyEnabled(false);
     (async () => {
-      const wfRes = await call(() => getWorkflow(workflowId), {
-        showError: false,
-      });
+      const wfRes = await call(() => getWorkflow(workflowId), { showError: false });
       if (wfRes) {
-        const body = wfRes as {
-          name?: string;
-          id?: string;
-          workflow?: { name?: string; id?: string };
-        };
+        const body = wfRes as { name?: string; workflow?: { name?: string } };
         setWorkflowName(body?.workflow?.name ?? body?.name ?? "Workflow");
       }
 
@@ -168,265 +133,56 @@ export default function WorkflowBuilder() {
             const vn = (vData.versionNumber as number) || Number(versionNumber);
             setLoadedVersionNumber(vn);
             setSavedVersionNumber(vn);
-            setVersionStatus(
-              (vData.status as string)?.toLowerCase?.() || "draft",
-            );
+            setVersionStatus((vData.status as string)?.toLowerCase?.() || "draft");
           }
         }
       }
 
-      markDirtyEnabled.current = true;
+      setMarkDirtyEnabled(true);
     })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [workflowId, versionNumber]);
-
-  const handleUpdateNode = useCallback(
-    (id: string, updates: Partial<CanvasNode>) => {
-      setNodes((prev) =>
-        prev.map((n) => (n.id === id ? { ...n, ...updates } : n)),
-      );
-      markDirty();
-    },
-    [markDirty],
-  );
-
-  const handleAddNode = useCallback(
-    (node: CanvasNode) => {
-      setNodes((prev) => [...prev, node]);
-      markDirty();
-    },
-    [markDirty],
-  );
-
-  const handleAddEdge = useCallback(
-    (edge: CanvasEdge) => {
-      setEdges((prev) => [...prev, edge]);
-      markDirty();
-    },
-    [markDirty],
-  );
-
-  const handleUpdateEdge = useCallback(
-    (id: string, updates: Partial<CanvasEdge>) => {
-      setEdges((prev) =>
-        prev.map((e) => (e.id === id ? { ...e, ...updates } : e)),
-      );
-      markDirty();
-    },
-    [markDirty],
-  );
-
-  const handleDeleteEdge = useCallback(
-    (id: string) => {
-      setEdges((prev) => prev.filter((e) => e.id !== id));
-      markDirty();
-    },
-    [markDirty],
-  );
-
-  const handleDeleteSelected = useCallback(() => {
-    if (!selectedItem) return;
-    if (selectedItem.type === "node") {
-      if (nodes.find((n) => n.id === selectedItem.id)?.type === "start") return;
-      setNodes((prev) => prev.filter((n) => n.id !== selectedItem.id));
-      setEdges((prev) =>
-        prev.filter(
-          (e) => e.source !== selectedItem.id && e.target !== selectedItem.id,
-        ),
-      );
-    } else {
-      setEdges((prev) => prev.filter((e) => e.id !== selectedItem.id));
-    }
-    setSelectedItem(null);
-    markDirty();
-  }, [selectedItem, markDirty, nodes]);
-
-  const handleClearCanvas = useCallback(() => {
-    setNodes([buildStartNode()]);
-    setEdges([]);
-    setInputs([]);
-    setSelectedItem(null);
-    setCodeEditorOpen(false);
-    markDirty();
-    setClearConfirmOpen(false);
-  }, [markDirty]);
+  }, [workflowId, versionNumber, call, setMarkDirtyEnabled, setWorkflowName, setNodes, setEdges, setInputs, setLoadedVersionNumber, setSavedVersionNumber, setVersionStatus]);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement;
-      if (
-        target.tagName === "INPUT" ||
-        target.tagName === "TEXTAREA" ||
-        target.isContentEditable
-      )
-        return;
-      if (e.key === "Delete" && selectedItem && !isReadOnly)
-        handleDeleteSelected();
+      if (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable) return;
+      if (e.key === "Delete" && selectedItem && !isReadOnly) handleDeleteSelected();
     };
     document.addEventListener("keydown", handler);
     return () => document.removeEventListener("keydown", handler);
   }, [selectedItem, handleDeleteSelected, isReadOnly]);
 
-  useEffect(() => {
-    const node = nodes.find((n) => n.id === selectedItem?.id);
-    if (codeEditorOpen && (!node || node.type !== "script_task")) {
-      setCodeEditorOpen(false);
-    }
-  }, [selectedItem, nodes, codeEditorOpen]);
-
-  const saveDraft = async (successMsg?: string): Promise<number | null> => {
-    if (!workflowId) return null;
-    const payload = canvasToVersionPayload(nodes, edges);
-    const res = await call(
-      () =>
-        savedVersionNumber !== null
-          ? updateWorkflowVersion(workflowId, savedVersionNumber, payload as Record<string, unknown>)
-          : createWorkflowVersion(workflowId, payload as Record<string, unknown>),
-      { successMsg, showError: true },
-    );
-    if (!res) return null;
-    const body = res as { version?: number; versionNumber?: number; id?: string };
-    const vn = (typeof body?.version === "number" ? body.version : undefined) ?? body?.versionNumber ?? null;
-    setSavedVersionNumber(vn);
-    if (vn) {
-      setLoadedVersionNumber(vn);
-      setVersionStatus("draft");
-    }
-    setIsDirty(false);
-    return vn;
-  };
-
-  const handleSaveDraft = async () => {
-    if (!workflowId) return;
-    setSaving(true);
-    setValidationResult(null);
-    setErrorsPopoverOpen(false);
-    const vn = await saveDraft();
-    if (vn === null) {
-      setSaving(false);
-      return;
-    }
-    const res = await call(
-      () => validateVersion(workflowId, vn),
-      { showError: false },
-    );
-    const result = res
-      ? (res as ValidationResult)
-      : { valid: false, errors: [{ code: -1, message: "Validation request failed" }] };
-    setValidationResult(result);
-    setVersionStatus(result.valid ? "valid" : "draft");
-    enqueueSnackbar(
-      result.valid ? "Saved - No validation errors" : "Saved - Validation errors present",
-      { variant: result.valid ? "success" : "warning" },
-    );
-    if (!result.valid) {
-      setErrorsPopoverOpen(true);
-    }
-    setSaving(false);
-  };
-
-  const handleCommit = async () => {
-    if (!workflowId || !savedVersionNumber) return;
-    setCommitting(true);
-    const res = await call(
-      () => updateVersionStatus(workflowId, savedVersionNumber, "published"),
-      { successMsg: `v${savedVersionNumber} committed.`, showError: true },
-    );
-    setCommitting(false);
-    setCommitConfirmOpen(false);
-    if (res) {
-      setVersionStatus("published");
-    }
-  };
-
-  const handleActivate = async () => {
-    if (!workflowId || !savedVersionNumber) return;
-    setActivating(true);
-    const res = await call(
-      () => updateVersionStatus(workflowId, savedVersionNumber, "active"),
-      { successMsg: `v${savedVersionNumber} is now active.`, showError: true },
-    );
-    setActivating(false);
-    setActivateConfirmOpen(false);
-    if (res) navigate(`/workflows/${workflowId}/versions`);
-  };
-
-  const handleDeactivate = async () => {
-    if (!workflowId || !savedVersionNumber) return;
-    setDeactivating(true);
-    const res = await call(
-      () => updateVersionStatus(workflowId, savedVersionNumber, "published"),
-      { successMsg: `v${savedVersionNumber} deactivated.`, showError: true },
-    );
-    setDeactivating(false);
-    setDeactivateConfirmOpen(false);
-    if (res) {
-      setVersionStatus("published");
-    }
-  };
-
   const currentVersionNum = savedVersionNumber || loadedVersionNumber;
   const statusLabel = VERSION_STATUS_LABELS[versionStatus] ?? versionStatus;
-  const versionLabel = currentVersionNum
-    ? `v${currentVersionNum}`
-    : "New Draft";
+  const versionLabel = currentVersionNum ? `v${currentVersionNum}` : "New Draft";
+  const statusColor = VERSION_STATUS_COLOR[versionStatus] ?? "#8b91a8";
+  const statusBg = VERSION_STATUS_BG[versionStatus] ?? "rgba(139,145,168,0.12)";
 
   const errorNodeIds = useMemo(() => {
     if (!validationResult || validationResult.valid) return new Set<string>();
     return new Set(
-      validationResult.errors
-        .filter((e) => e.nodeId)
-        .map((e) => e.nodeId as string),
+      validationResult.errors.filter((e) => e.nodeId).map((e) => e.nodeId as string),
     );
   }, [validationResult]);
 
   const canDelete =
     !isReadOnly &&
     selectedItem &&
-    !(
-      selectedItem.type === "node" &&
-      nodes.find((n) => n.id === selectedItem.id)?.type === "start"
-    );
+    !(selectedItem.type === "node" && nodes.find((n) => n.id === selectedItem.id)?.type === "start");
 
   const selectedScriptNode =
-    nodes.find((n) => n.id === selectedItem?.id && n.type === "script_task") ??
-    null;
+    nodes.find((n) => n.id === selectedItem?.id && n.type === "script_task") ?? null;
 
-  const statusColor = {
-    draft: "#a855f7",
-    valid: "#06b6d4",
-    published: "#f59e0b",
-    active: "#22c55e",
-  }[versionStatus] ?? "#8b91a8";
-
-  const statusBg = {
-    draft: "rgba(168,85,247,0.12)",
-    valid: "rgba(6,182,212,0.12)",
-    published: "rgba(245,158,11,0.12)",
-    active: "rgba(34,197,94,0.12)",
-  }[versionStatus] ?? "rgba(139,145,168,0.12)";
+  const codeEditorOpen = codeEditorOpenState && !!selectedScriptNode;
 
   return (
-    <Box
-      sx={{
-        display: "flex",
-        flexDirection: "column",
-        height: "100vh",
-        backgroundColor: "background.default",
-        overflow: "hidden",
-      }}
-    >
+    <Box sx={{ display: "flex", flexDirection: "column", height: "100vh", backgroundColor: "background.default", overflow: "hidden" }}>
       <Box
         sx={{
-          height: 48,
-          flexShrink: 0,
-          borderBottom: "1px solid",
-          borderColor: "divider",
+          height: 48, flexShrink: 0,
+          borderBottom: "1px solid", borderColor: "divider",
           backgroundColor: "background.paper",
-          display: "flex",
-          alignItems: "center",
-          px: 1.5,
-          gap: 1.5,
+          display: "flex", alignItems: "center", px: 1.5, gap: 1.5,
         }}
       >
         <IconButton
@@ -437,127 +193,39 @@ export default function WorkflowBuilder() {
           <ArrowBackIcon fontSize="small" />
         </IconButton>
 
-        <Typography
-          sx={{
-            fontSize: 14,
-            fontWeight: 600,
-            color: "text.primary",
-            whiteSpace: "nowrap",
-          }}
-        >
+        <Typography sx={{ fontSize: 14, fontWeight: 600, color: "text.primary", whiteSpace: "nowrap" }}>
           {workflowName || "Builder"}
         </Typography>
 
-        <Divider
-          orientation="vertical"
-          flexItem
-          sx={{ my: "auto", height: 16, borderColor: "divider" }}
-        />
+        <Divider orientation="vertical" flexItem sx={{ my: "auto", height: 16, borderColor: "divider" }} />
 
         <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
-          <Typography
-            sx={{
-              fontSize: 12,
-              fontFamily: "'JetBrains Mono', monospace",
-              color: "text.secondary",
-              fontWeight: 500,
-            }}
-          >
+          <Typography sx={{ fontSize: 12, fontFamily: "'JetBrains Mono', monospace", color: "text.secondary", fontWeight: 500 }}>
             {versionLabel}
           </Typography>
 
           {loadedVersionNumber && (
-            <Box
-              sx={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 0.5,
-                px: 0.75,
-                py: "2px",
-                borderRadius: "4px",
-                backgroundColor: statusBg,
-              }}
-            >
-              <Box
-                sx={{
-                  width: 5,
-                  height: 5,
-                  borderRadius: "50%",
-                  backgroundColor: statusColor,
-                  flexShrink: 0,
-                }}
-              />
-              <Typography
-                sx={{
-                  fontSize: 11,
-                  color: statusColor,
-                  fontWeight: 600,
-                  lineHeight: 1.2,
-                  userSelect: "none",
-                }}
-              >
+            <Box sx={{ display: "inline-flex", alignItems: "center", gap: 0.5, px: 0.75, py: "2px", borderRadius: "4px", backgroundColor: statusBg }}>
+              <Box sx={{ width: 5, height: 5, borderRadius: "50%", backgroundColor: statusColor, flexShrink: 0 }} />
+              <Typography sx={{ fontSize: 11, color: statusColor, fontWeight: 600, lineHeight: 1.2, userSelect: "none" }}>
                 {statusLabel}
               </Typography>
             </Box>
           )}
 
           {isReadOnly && (
-            <Box
-              sx={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 0.375,
-                px: 0.75,
-                py: "2px",
-                borderRadius: "4px",
-                backgroundColor: "action.hover",
-              }}
-            >
+            <Box sx={{ display: "inline-flex", alignItems: "center", gap: 0.375, px: 0.75, py: "2px", borderRadius: "4px", backgroundColor: "action.hover" }}>
               <VisibilityIcon sx={{ fontSize: 10, color: "text.disabled" }} />
-              <Typography
-                sx={{
-                  fontSize: 11,
-                  color: "text.disabled",
-                  fontWeight: 500,
-                  lineHeight: 1.2,
-                  userSelect: "none",
-                }}
-              >
+              <Typography sx={{ fontSize: 11, color: "text.disabled", fontWeight: 500, lineHeight: 1.2, userSelect: "none" }}>
                 Read Only
               </Typography>
             </Box>
           )}
 
           {isDirty && !isReadOnly && (
-            <Box
-              sx={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 0.5,
-                px: 0.75,
-                py: "2px",
-                borderRadius: "4px",
-                backgroundColor: "rgba(245,158,11,0.12)",
-              }}
-            >
-              <Box
-                sx={{
-                  width: 5,
-                  height: 5,
-                  borderRadius: "50%",
-                  backgroundColor: "#f59e0b",
-                  flexShrink: 0,
-                }}
-              />
-              <Typography
-                sx={{
-                  fontSize: 11,
-                  color: "#f59e0b",
-                  fontWeight: 600,
-                  lineHeight: 1.2,
-                  userSelect: "none",
-                }}
-              >
+            <Box sx={{ display: "inline-flex", alignItems: "center", gap: 0.5, px: 0.75, py: "2px", borderRadius: "4px", backgroundColor: "rgba(245,158,11,0.12)" }}>
+              <Box sx={{ width: 5, height: 5, borderRadius: "50%", backgroundColor: "#f59e0b", flexShrink: 0 }} />
+              <Typography sx={{ fontSize: 11, color: "#f59e0b", fontWeight: 600, lineHeight: 1.2, userSelect: "none" }}>
                 Unsaved
               </Typography>
             </Box>
@@ -568,11 +236,7 @@ export default function WorkflowBuilder() {
 
         {canDelete && (
           <Tooltip title={`Delete selected ${selectedItem?.type}`}>
-            <IconButton
-              size="small"
-              onClick={handleDeleteSelected}
-              sx={{ color: "#ef4444" }}
-            >
+            <IconButton size="small" onClick={handleDeleteSelected} sx={{ color: "#ef4444" }}>
               <DeleteIcon fontSize="small" />
             </IconButton>
           </Tooltip>
@@ -580,23 +244,13 @@ export default function WorkflowBuilder() {
 
         {!isReadOnly && (
           <>
-            <Divider
-              orientation="vertical"
-              flexItem
-              sx={{ my: "auto", height: 24, borderColor: "divider" }}
-            />
+            <Divider orientation="vertical" flexItem sx={{ my: "auto", height: 24, borderColor: "divider" }} />
 
             <Button
               size="small"
               startIcon={<LayersClearIcon sx={{ fontSize: 14 }} />}
               onClick={() => setClearConfirmOpen(true)}
-              sx={{
-                fontSize: 12,
-                color: "text.secondary",
-                borderColor: "divider",
-                height: 30,
-                borderRadius: "8px",
-              }}
+              sx={{ fontSize: 12, color: "text.secondary", borderColor: "divider", height: 30, borderRadius: "8px" }}
               variant="outlined"
             >
               Clear
@@ -609,68 +263,33 @@ export default function WorkflowBuilder() {
               disabled={saving}
               onClick={handleSaveDraft}
               startIcon={
-                saving ? (
-                  <CircularProgress size={12} />
-                ) : validationResult?.valid ? (
-                  <CheckCircleIcon sx={{ fontSize: 14, color: "#22c55e" }} />
-                ) : validationResult ? (
-                  <ErrorIcon sx={{ fontSize: 14, color: "#ef4444" }} />
-                ) : (
-                  <SaveIcon sx={{ fontSize: 14 }} />
-                )
+                saving ? <CircularProgress size={12} />
+                : validationResult?.valid ? <CheckCircleIcon sx={{ fontSize: 14, color: "#22c55e" }} />
+                : validationResult ? <ErrorIcon sx={{ fontSize: 14, color: "#ef4444" }} />
+                : <SaveIcon sx={{ fontSize: 14 }} />
               }
               sx={{
-                fontSize: 12,
-                height: 30,
-                borderRadius: "8px",
-                color: validationResult?.valid
-                  ? "#22c55e"
-                  : validationResult
-                    ? "#ef4444"
-                    : "text.secondary",
-                borderColor: validationResult?.valid
-                  ? "#22c55e"
-                  : validationResult
-                    ? "#ef4444"
-                    : "divider",
+                fontSize: 12, height: 30, borderRadius: "8px",
+                color: validationResult?.valid ? "#22c55e" : validationResult ? "#ef4444" : "text.secondary",
+                borderColor: validationResult?.valid ? "#22c55e" : validationResult ? "#ef4444" : "divider",
               }}
             >
-              {saving
-                ? "Saving…"
-                : validationResult?.valid
-                  ? "Saved - No errors"
-                  : validationResult
-                    ? `Saved - ${validationResult.errors.length} error${validationResult.errors.length !== 1 ? "s" : ""}`
-                    : "Save"}
+              {saving ? "Saving…"
+                : validationResult?.valid ? "Saved - No errors"
+                : validationResult ? `Saved - ${validationResult.errors.length} error${validationResult.errors.length !== 1 ? "s" : ""}`
+                : "Save"}
             </Button>
 
             <Popover
               open={errorsPopoverOpen && !!validationResult && !validationResult.valid}
-              anchorEl={saveButtonRef.current}
+              anchorEl={saveAnchorEl}
               onClose={() => setErrorsPopoverOpen(false)}
               anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
               transformOrigin={{ vertical: "top", horizontal: "right" }}
-              slotProps={{
-                paper: {
-                  sx: {
-                    mt: 0.5,
-                    maxWidth: 360,
-                    border: "1px solid",
-                    borderColor: "divider",
-                    backgroundColor: "background.paper",
-                  },
-                },
-              }}
+              slotProps={{ paper: { sx: { mt: 0.5, maxWidth: 360, border: "1px solid", borderColor: "divider", backgroundColor: "background.paper" } } }}
             >
               <Box sx={{ p: 1.5 }}>
-                <Typography
-                  sx={{
-                    fontSize: 12,
-                    fontWeight: 600,
-                    color: "#ef4444",
-                    mb: 1,
-                  }}
-                >
+                <Typography sx={{ fontSize: 12, fontWeight: 600, color: "#ef4444", mb: 1 }}>
                   Validation Errors
                 </Typography>
                 <List disablePadding dense>
@@ -680,17 +299,9 @@ export default function WorkflowBuilder() {
                       : null;
                     return (
                       <ListItem key={i} sx={{ px: 0, py: 0.25 }}>
-                        <Typography
-                          sx={{
-                            fontSize: 11,
-                            color: "text.secondary",
-                            lineHeight: 1.5,
-                          }}
-                        >
+                        <Typography sx={{ fontSize: 11, color: "text.secondary", lineHeight: 1.5 }}>
                           • {err.message}
-                          {nodeLabel && (
-                            <span style={{ opacity: 0.6 }}> - {nodeLabel}</span>
-                          )}
+                          {nodeLabel && <span style={{ opacity: 0.6 }}> - {nodeLabel}</span>}
                         </Typography>
                       </ListItem>
                     );
@@ -704,29 +315,12 @@ export default function WorkflowBuilder() {
               variant="contained"
               disabled={committing || !savedVersionNumber || versionStatus === "draft" || isDirty}
               onClick={() => setCommitConfirmOpen(true)}
-              startIcon={
-                committing ? (
-                  <CircularProgress
-                    size={12}
-                    sx={{ color: "rgba(245,158,11,0.7)" }}
-                  />
-                ) : (
-                  <LockOutlinedIcon sx={{ fontSize: 14 }} />
-                )
-              }
+              startIcon={committing ? <CircularProgress size={12} sx={{ color: "rgba(245,158,11,0.7)" }} /> : <LockOutlinedIcon sx={{ fontSize: 14 }} />}
               sx={{
-                fontSize: 12,
-                height: 30,
-                borderRadius: "8px",
-                fontWeight: 600,
-                backgroundColor: "rgba(245,158,11,0.9)",
-                color: "#fff",
-                boxShadow: "none",
+                fontSize: 12, height: 30, borderRadius: "8px", fontWeight: 600,
+                backgroundColor: "rgba(245,158,11,0.9)", color: "#fff", boxShadow: "none",
                 "&:hover": { backgroundColor: "#f59e0b", boxShadow: "none" },
-                "&.Mui-disabled": {
-                  backgroundColor: "rgba(245,158,11,0.25)",
-                  color: "rgba(245,158,11,0.5)",
-                },
+                "&.Mui-disabled": { backgroundColor: "rgba(245,158,11,0.25)", color: "rgba(245,158,11,0.5)" },
               }}
             >
               Commit
@@ -736,34 +330,16 @@ export default function WorkflowBuilder() {
 
         {isReadOnly && versionStatus === "published" && (
           <>
-            <Divider
-              orientation="vertical"
-              flexItem
-              sx={{ my: "auto", height: 24, borderColor: "divider" }}
-            />
+            <Divider orientation="vertical" flexItem sx={{ my: "auto", height: 24, borderColor: "divider" }} />
             <Button
               size="small"
               variant="contained"
               disabled={activating}
               onClick={() => setActivateConfirmOpen(true)}
-              startIcon={
-                activating ? (
-                  <CircularProgress
-                    size={12}
-                    sx={{ color: "rgba(34,197,94,0.7)" }}
-                  />
-                ) : (
-                  <BoltIcon sx={{ fontSize: 14 }} />
-                )
-              }
+              startIcon={activating ? <CircularProgress size={12} sx={{ color: "rgba(34,197,94,0.7)" }} /> : <BoltIcon sx={{ fontSize: 14 }} />}
               sx={{
-                fontSize: 12,
-                height: 30,
-                borderRadius: "8px",
-                fontWeight: 600,
-                backgroundColor: "#22c55e",
-                color: "#fff",
-                boxShadow: "none",
+                fontSize: 12, height: 30, borderRadius: "8px", fontWeight: 600,
+                backgroundColor: "#22c55e", color: "#fff", boxShadow: "none",
                 "&:hover": { backgroundColor: "#16a34a", boxShadow: "none" },
               }}
             >
@@ -774,34 +350,17 @@ export default function WorkflowBuilder() {
 
         {isReadOnly && versionStatus === "active" && (
           <>
-            <Divider
-              orientation="vertical"
-              flexItem
-              sx={{ my: "auto", height: 24, borderColor: "divider" }}
-            />
+            <Divider orientation="vertical" flexItem sx={{ my: "auto", height: 24, borderColor: "divider" }} />
             <Button
               size="small"
               variant="outlined"
               disabled={deactivating}
               onClick={() => setDeactivateConfirmOpen(true)}
-              startIcon={
-                deactivating ? (
-                  <CircularProgress size={12} />
-                ) : (
-                  <PowerSettingsNewIcon sx={{ fontSize: 14 }} />
-                )
-              }
+              startIcon={deactivating ? <CircularProgress size={12} /> : <PowerSettingsNewIcon sx={{ fontSize: 14 }} />}
               sx={{
-                fontSize: 12,
-                height: 30,
-                borderRadius: "8px",
-                fontWeight: 600,
-                borderColor: "#ef4444",
-                color: "#ef4444",
-                "&:hover": {
-                  backgroundColor: "rgba(239,68,68,0.08)",
-                  borderColor: "#ef4444",
-                },
+                fontSize: 12, height: 30, borderRadius: "8px", fontWeight: 600,
+                borderColor: "#ef4444", color: "#ef4444",
+                "&:hover": { backgroundColor: "rgba(239,68,68,0.08)", borderColor: "#ef4444" },
               }}
             >
               Deactivate
@@ -809,78 +368,32 @@ export default function WorkflowBuilder() {
           </>
         )}
 
-        <Divider
-          orientation="vertical"
-          flexItem
-          sx={{ my: "auto", height: 24, borderColor: "divider" }}
-        />
-        <Tooltip
-          title={
-            mode === "dark" ? "Switch to light mode" : "Switch to dark mode"
-          }
-        >
-          <IconButton
-            size="small"
-            onClick={toggleTheme}
-            sx={{
-              color: "text.disabled",
-              "&:hover": { color: "text.primary" },
-            }}
-          >
-            {mode === "dark" ? (
-              <LightModeIcon fontSize="small" />
-            ) : (
-              <DarkModeIcon fontSize="small" />
-            )}
+        <Divider orientation="vertical" flexItem sx={{ my: "auto", height: 24, borderColor: "divider" }} />
+        <Tooltip title={mode === "dark" ? "Switch to light mode" : "Switch to dark mode"}>
+          <IconButton size="small" onClick={toggleTheme} sx={{ color: "text.disabled", "&:hover": { color: "text.primary" } }}>
+            {mode === "dark" ? <LightModeIcon fontSize="small" /> : <DarkModeIcon fontSize="small" />}
           </IconButton>
         </Tooltip>
       </Box>
 
-      <Box
-        sx={{
-          flex: 1,
-          display: "flex",
-          flexDirection: "column",
-          overflow: "hidden",
-        }}
-      >
+      <Box sx={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
         <Box sx={{ flex: 1, display: "flex", overflow: "hidden" }}>
           <Box
             sx={{
-              width: 200,
-              flexShrink: 0,
-              borderRight: "1px solid",
-              borderColor: "divider",
-              backgroundColor: "background.default",
-              display: "flex",
-              flexDirection: "column",
-              overflow: "hidden",
+              width: 200, flexShrink: 0, borderRight: "1px solid", borderColor: "divider",
+              backgroundColor: "background.default", display: "flex", flexDirection: "column", overflow: "hidden",
             }}
           >
             {!isReadOnly && <NodePalette />}
             {isReadOnly && (
               <Box sx={{ p: 1.5, pt: 2 }}>
-                <Typography
-                  sx={{
-                    fontSize: 10,
-                    color: "text.disabled",
-                    textTransform: "uppercase",
-                    letterSpacing: "0.08em",
-                    fontWeight: 600,
-                    mb: 1,
-                  }}
-                >
+                <Typography sx={{ fontSize: 10, color: "text.disabled", textTransform: "uppercase", letterSpacing: "0.08em", fontWeight: 600, mb: 1 }}>
                   View Only
                 </Typography>
-                <Typography
-                  sx={{ fontSize: 11, color: "text.disabled", lineHeight: 1.5 }}
-                >
-                  This version is <strong>{statusLabel}</strong> and cannot be
-                  edited.
-                  {versionStatus === "published" &&
-                    " Use the Activate button to make it live."}
-                  {versionStatus === "active" &&
-                    " Use the Deactivate button to move it back to Committed."}
+                <Typography sx={{ fontSize: 11, color: "text.disabled", lineHeight: 1.5 }}>
+                  This version is <strong>{statusLabel}</strong> and cannot be edited.
+                  {versionStatus === "published" && " Use the Activate button to make it live."}
+                  {versionStatus === "active" && " Use the Deactivate button to move it back to Committed."}
                 </Typography>
               </Box>
             )}
@@ -914,9 +427,7 @@ export default function WorkflowBuilder() {
               inputs={inputs}
               nodeErrors={
                 selectedItem.type === "node"
-                  ? (validationResult?.errors.filter(
-                      (e) => e.nodeId === selectedItem.id,
-                    ) ?? [])
+                  ? (validationResult?.errors.filter((e) => e.nodeId === selectedItem.id) ?? [])
                   : undefined
               }
               onClose={() => setSelectedItem(null)}
@@ -926,7 +437,7 @@ export default function WorkflowBuilder() {
               onChangeInputs={(newInputs) => {
                 if (isReadOnly) return;
                 setInputs(newInputs);
-                markDirty();
+                markDirtyAndClearValidation();
               }}
               onOpenCodeEditor={() => {
                 if (!isReadOnly) setCodeEditorOpen(true);
@@ -938,261 +449,108 @@ export default function WorkflowBuilder() {
         {codeEditorOpen && selectedScriptNode && !isReadOnly && (
           <ScriptTaskEditorPanel
             node={selectedScriptNode}
-            onUpdateConfig={(config) =>
-              handleUpdateNode(selectedScriptNode.id, { config })
-            }
+            onUpdateConfig={(config) => handleUpdateNode(selectedScriptNode.id, { config })}
             onClose={() => setCodeEditorOpen(false)}
           />
         )}
       </Box>
 
-      <Dialog
-        open={clearConfirmOpen}
-        onClose={() => setClearConfirmOpen(false)}
-        maxWidth="xs"
-        fullWidth
-      >
-        <DialogTitle
-          sx={{
-            fontFamily: "'Syne', sans-serif",
-            fontWeight: 700,
-            fontSize: 16,
-          }}
-        >
+      <Dialog open={clearConfirmOpen} onClose={() => setClearConfirmOpen(false)} maxWidth="xs" fullWidth>
+        <DialogTitle sx={{ fontFamily: "'Syne', sans-serif", fontWeight: 700, fontSize: 16 }}>
           Clear Canvas?
         </DialogTitle>
         <DialogContent sx={{ pt: "8px !important" }}>
           <Typography sx={{ fontSize: 13, color: "text.secondary" }}>
-            This will remove all nodes and edges, leaving only the Start node.
-            This cannot be undone.
+            This will remove all nodes and edges, leaving only the Start node. This cannot be undone.
           </Typography>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button size="small" onClick={() => setClearConfirmOpen(false)} sx={{ color: "text.secondary" }}>Cancel</Button>
           <Button
-            size="small"
-            onClick={() => setClearConfirmOpen(false)}
-            sx={{ color: "text.secondary" }}
-          >
-            Cancel
-          </Button>
-          <Button
-            variant="contained"
-            size="small"
-            onClick={handleClearCanvas}
-            sx={{
-              borderRadius: "8px",
-              fontWeight: 600,
-              backgroundColor: "#ef4444",
-              color: "#fff",
-              "&:hover": { backgroundColor: "#dc2626" },
-            }}
+            variant="contained" size="small"
+            onClick={() => handleClearCanvas(() => setClearConfirmOpen(false))}
+            sx={{ borderRadius: "8px", fontWeight: 600, backgroundColor: "#ef4444", color: "#fff", "&:hover": { backgroundColor: "#dc2626" } }}
           >
             Clear
           </Button>
         </DialogActions>
       </Dialog>
 
-      <Dialog
-        open={commitConfirmOpen}
-        onClose={() => setCommitConfirmOpen(false)}
-        maxWidth="xs"
-        fullWidth
-      >
-        <DialogTitle
-          sx={{
-            fontFamily: "'Syne', sans-serif",
-            fontWeight: 700,
-            fontSize: 16,
-          }}
-        >
+      <Dialog open={commitConfirmOpen} onClose={() => setCommitConfirmOpen(false)} maxWidth="xs" fullWidth>
+        <DialogTitle sx={{ fontFamily: "'Syne', sans-serif", fontWeight: 700, fontSize: 16 }}>
           Commit v{savedVersionNumber}?
         </DialogTitle>
         <DialogContent sx={{ pt: "8px !important" }}>
           <Typography sx={{ fontSize: 13, color: "text.secondary" }}>
-            Locking <strong>v{savedVersionNumber}</strong> marks it as ready for
-            activation. The version can no longer be edited after committing.
+            Locking <strong>v{savedVersionNumber}</strong> marks it as ready for activation. The version can no longer be edited after committing.
           </Typography>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button size="small" onClick={() => setCommitConfirmOpen(false)} sx={{ color: "text.secondary" }}>Cancel</Button>
           <Button
-            size="small"
-            onClick={() => setCommitConfirmOpen(false)}
-            sx={{ color: "text.secondary" }}
+            variant="contained" size="small" disabled={committing} onClick={handleCommit}
+            sx={{ borderRadius: "8px", fontWeight: 600, backgroundColor: "#f59e0b", color: "#fff", "&:hover": { backgroundColor: "#d97706" } }}
           >
-            Cancel
-          </Button>
-          <Button
-            variant="contained"
-            size="small"
-            disabled={committing}
-            onClick={handleCommit}
-            sx={{
-              borderRadius: "8px",
-              fontWeight: 600,
-              backgroundColor: "#f59e0b",
-              color: "#fff",
-              "&:hover": { backgroundColor: "#d97706" },
-            }}
-          >
-            {committing ? (
-              <CircularProgress size={14} sx={{ color: "#fff" }} />
-            ) : (
-              "Commit"
-            )}
+            {committing ? <CircularProgress size={14} sx={{ color: "#fff" }} /> : "Commit"}
           </Button>
         </DialogActions>
       </Dialog>
 
-      <Dialog
-        open={activateConfirmOpen}
-        onClose={() => setActivateConfirmOpen(false)}
-        maxWidth="xs"
-        fullWidth
-      >
-        <DialogTitle
-          sx={{
-            fontFamily: "'Syne', sans-serif",
-            fontWeight: 700,
-            fontSize: 16,
-          }}
-        >
+      <Dialog open={activateConfirmOpen} onClose={() => setActivateConfirmOpen(false)} maxWidth="xs" fullWidth>
+        <DialogTitle sx={{ fontFamily: "'Syne', sans-serif", fontWeight: 700, fontSize: 16 }}>
           Activate v{savedVersionNumber}?
         </DialogTitle>
         <DialogContent sx={{ pt: "8px !important" }}>
           <Typography sx={{ fontSize: 13, color: "text.secondary" }}>
-            This will make <strong>v{savedVersionNumber}</strong> the live
-            version for this workflow. The currently active version (if any)
-            will be archived.
+            This will make <strong>v{savedVersionNumber}</strong> the live version for this workflow. The currently active version (if any) will be archived.
           </Typography>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button size="small" onClick={() => setActivateConfirmOpen(false)} sx={{ color: "text.secondary" }}>Cancel</Button>
           <Button
-            size="small"
-            onClick={() => setActivateConfirmOpen(false)}
-            sx={{ color: "text.secondary" }}
+            variant="contained" size="small" disabled={activating} onClick={handleActivate}
+            sx={{ borderRadius: "8px", fontWeight: 600, backgroundColor: "#22c55e", color: "#fff", "&:hover": { backgroundColor: "#16a34a" } }}
           >
-            Cancel
-          </Button>
-          <Button
-            variant="contained"
-            size="small"
-            disabled={activating}
-            onClick={handleActivate}
-            sx={{
-              borderRadius: "8px",
-              fontWeight: 600,
-              backgroundColor: "#22c55e",
-              color: "#fff",
-              "&:hover": { backgroundColor: "#16a34a" },
-            }}
-          >
-            {activating ? (
-              <CircularProgress size={14} sx={{ color: "#fff" }} />
-            ) : (
-              "Activate"
-            )}
+            {activating ? <CircularProgress size={14} sx={{ color: "#fff" }} /> : "Activate"}
           </Button>
         </DialogActions>
       </Dialog>
 
-      {/*  Deactivate Confirm Dialog  */}
-      <Dialog
-        open={deactivateConfirmOpen}
-        onClose={() => setDeactivateConfirmOpen(false)}
-        maxWidth="xs"
-        fullWidth
-      >
-        <DialogTitle
-          sx={{
-            fontFamily: "'Syne', sans-serif",
-            fontWeight: 700,
-            fontSize: 16,
-          }}
-        >
+      <Dialog open={deactivateConfirmOpen} onClose={() => setDeactivateConfirmOpen(false)} maxWidth="xs" fullWidth>
+        <DialogTitle sx={{ fontFamily: "'Syne', sans-serif", fontWeight: 700, fontSize: 16 }}>
           Deactivate v{savedVersionNumber}?
         </DialogTitle>
         <DialogContent sx={{ pt: "8px !important" }}>
           <Typography sx={{ fontSize: 13, color: "text.secondary" }}>
-            This will move <strong>v{savedVersionNumber}</strong> back to
-            Committed status. It will no longer be the live version and no new
-            instances can be started until another version is activated.
+            This will move <strong>v{savedVersionNumber}</strong> back to Committed status. It will no longer be the live version and no new instances can be started until another version is activated.
           </Typography>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button size="small" onClick={() => setDeactivateConfirmOpen(false)} sx={{ color: "text.secondary" }}>Cancel</Button>
           <Button
-            size="small"
-            onClick={() => setDeactivateConfirmOpen(false)}
-            sx={{ color: "text.secondary" }}
+            variant="contained" size="small" disabled={deactivating} onClick={handleDeactivate}
+            sx={{ borderRadius: "8px", fontWeight: 600, backgroundColor: "#ef4444", color: "#fff", "&:hover": { backgroundColor: "#dc2626" } }}
           >
-            Cancel
-          </Button>
-          <Button
-            variant="contained"
-            size="small"
-            disabled={deactivating}
-            onClick={handleDeactivate}
-            sx={{
-              borderRadius: "8px",
-              fontWeight: 600,
-              backgroundColor: "#ef4444",
-              color: "#fff",
-              "&:hover": { backgroundColor: "#dc2626" },
-            }}
-          >
-            {deactivating ? (
-              <CircularProgress size={14} sx={{ color: "#fff" }} />
-            ) : (
-              "Deactivate"
-            )}
+            {deactivating ? <CircularProgress size={14} sx={{ color: "#fff" }} /> : "Deactivate"}
           </Button>
         </DialogActions>
       </Dialog>
 
-      {/*  Unsaved Changes Dialog  */}
-      <Dialog
-        open={blocker.state === "blocked"}
-        onClose={() => blocker.reset?.()}
-        maxWidth="xs"
-        fullWidth
-      >
-        <DialogTitle
-          sx={{
-            fontFamily: "'Syne', sans-serif",
-            fontWeight: 700,
-            fontSize: 16,
-          }}
-        >
+      <Dialog open={blocker.state === "blocked"} onClose={() => blocker.reset?.()} maxWidth="xs" fullWidth>
+        <DialogTitle sx={{ fontFamily: "'Syne', sans-serif", fontWeight: 700, fontSize: 16 }}>
           Unsaved Changes
         </DialogTitle>
         <DialogContent sx={{ pt: "8px !important" }}>
           <Typography sx={{ fontSize: 13, color: "text.secondary" }}>
-            You have unsaved changes. Save your draft before leaving, or your
-            work will be lost.
+            You have unsaved changes. Save your draft before leaving, or your work will be lost.
           </Typography>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button size="small" onClick={() => blocker.reset?.()} sx={{ color: "text.secondary" }}>Stay</Button>
+          <Button size="small" onClick={() => blocker.proceed?.()} sx={{ color: "#ef4444" }}>Leave without saving</Button>
           <Button
-            size="small"
-            onClick={() => blocker.reset?.()}
-            sx={{ color: "text.secondary" }}
-          >
-            Stay
-          </Button>
-          <Button
-            size="small"
-            onClick={() => blocker.proceed?.()}
-            sx={{ color: "#ef4444" }}
-          >
-            Leave without saving
-          </Button>
-          <Button
-            variant="contained"
-            size="small"
-            disabled={saving}
-            onClick={async () => {
-              await handleSaveDraft();
-              blocker.proceed?.();
-            }}
+            variant="contained" size="small" disabled={saving}
+            onClick={async () => { await handleSaveDraft(); blocker.proceed?.(); }}
             sx={{ borderRadius: "8px", fontWeight: 600 }}
           >
             {saving ? <CircularProgress size={14} /> : "Save & Leave"}

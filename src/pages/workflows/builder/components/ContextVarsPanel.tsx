@@ -27,17 +27,17 @@ export default function ContextVarsPanel({
   if (startNode) {
     const idm =
       (startNode.config.inputDataMap as Array<{
-        contextVariable?: { name?: string };
-        type?: string;
-        label?: string;
+        contextVariableName?: string;
+        dataType?: string;
+        fetchableId?: string;
       }>) ?? [];
     for (const row of idm) {
-      const varName = row.contextVariable?.name;
+      const varName = row.contextVariableName;
       if (varName)
         startInputVars.push({
           name: varName,
-          type: row.type || "string",
-          source: "Start",
+          type: row.dataType || "string",
+          source: row.fetchableId ? "Fetch" : "Input",
         });
     }
   }
@@ -120,7 +120,7 @@ export default function ContextVarsPanel({
           </Typography>
           <Box display="flex" flexDirection="column" gap={0.5}>
             {displayInputVars.map((v, i) => (
-              <VarRow key={i} entry={v} isInput />
+              <VarRow key={i} entry={v} />
             ))}
           </Box>
         </Box>
@@ -143,7 +143,7 @@ export default function ContextVarsPanel({
           </Typography>
           <Box display="flex" flexDirection="column" gap={0.5}>
             {outputVars.map((v, i) => (
-              <VarRow key={i} entry={v} isInput={false} />
+              <VarRow key={i} entry={v} />
             ))}
           </Box>
         </Box>
@@ -152,13 +152,22 @@ export default function ContextVarsPanel({
   );
 }
 
-function VarRow({
-  entry,
-  isInput,
-}: {
-  entry: ContextVarEntry;
-  isInput: boolean;
-}) {
+function VarRow({ entry }: { entry: ContextVarEntry }) {
+  const isFetch = entry.source === "Fetch";
+  const isInput = entry.source === "Input" || isFetch;
+  const dotColor = isFetch ? "#a855f7" : isInput ? "#4f6ef7" : "#8b91a8";
+  const chipColor = isFetch ? "#a855f7" : isInput ? "#4f6ef7" : "#8b91a8";
+  const chipBg = isFetch
+    ? "rgba(168,85,247,0.12)"
+    : isInput
+      ? "rgba(79,110,247,0.12)"
+      : "rgba(139,145,168,0.12)";
+  const chipBorder = isFetch
+    ? "rgba(168,85,247,0.25)"
+    : isInput
+      ? "rgba(79,110,247,0.25)"
+      : "rgba(139,145,168,0.25)";
+
   return (
     <Box
       sx={{
@@ -179,7 +188,7 @@ function VarRow({
           height: 6,
           borderRadius: "50%",
           flexShrink: 0,
-          backgroundColor: isInput ? "#4f6ef7" : "#8b91a8",
+          backgroundColor: dotColor,
         }}
       />
       <Typography
@@ -203,11 +212,9 @@ function VarRow({
           fontSize: 8,
           height: 14,
           flexShrink: 0,
-          backgroundColor: isInput
-            ? "rgba(79,110,247,0.12)"
-            : "rgba(139,145,168,0.12)",
-          color: isInput ? "#4f6ef7" : "#8b91a8",
-          border: `1px solid ${isInput ? "rgba(79,110,247,0.25)" : "rgba(139,145,168,0.25)"}`,
+          backgroundColor: chipBg,
+          color: chipColor,
+          border: `1px solid ${chipBorder}`,
           "& .MuiChip-label": { px: 0.5 },
         }}
       />

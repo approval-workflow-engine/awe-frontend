@@ -20,15 +20,12 @@ import {
   TextField,
   CircularProgress,
   Skeleton,
-  InputAdornment,
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import AccountTreeIcon from "@mui/icons-material/AccountTree";
 import HistoryIcon from "@mui/icons-material/History";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
-import SearchIcon from "@mui/icons-material/Search";
-import ClearIcon from "@mui/icons-material/Clear";
 import {
   getWorkflows,
   createWorkflow,
@@ -38,6 +35,7 @@ import {
 import { useApiCall } from "../../hooks/useApiCall";
 import { extractApiError } from "../../utils/apiError";
 import DialogErrorAlert from "../../components/common/DialogErrorAlert";
+import PageHeader from "../../components/common/PageHeader";
 import type { Workflow } from "../../types";
 
 export default function WorkflowsPage() {
@@ -197,60 +195,13 @@ export default function WorkflowsPage() {
 
   return (
     <Box>
-      <Box
-        display="flex"
-        alignItems="flex-start"
-        justifyContent="space-between"
-        mb={2.5}
-      >
-        <Box>
-          <Typography
-            sx={{
-              fontFamily: "'Syne', sans-serif",
-              fontWeight: 700,
-              fontSize: 22,
-              color: "text.primary",
-            }}
-          >
-            Workflows
-          </Typography>
-          <Typography sx={{ fontSize: 13, color: "text.secondary" }}>
-            Manage your workflows
-          </Typography>
-        </Box>
-        <Box display="flex" alignItems="center" gap={1.5}>
-          <TextField
-            size="small"
-            placeholder="Search workflows…"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            sx={{
-              width: 260,
-              "& .MuiOutlinedInput-root": {
-                borderRadius: "8px",
-                fontSize: 13,
-                "& fieldset": { borderColor: "divider" },
-              },
-            }}
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <SearchIcon sx={{ fontSize: 16, color: "text.disabled" }} />
-                </InputAdornment>
-              ),
-              endAdornment: searchQuery ? (
-                <InputAdornment position="end">
-                  <IconButton
-                    size="small"
-                    onClick={() => setSearchQuery("")}
-                    sx={{ p: 0.25, color: "text.disabled" }}
-                  >
-                    <ClearIcon sx={{ fontSize: 14 }} />
-                  </IconButton>
-                </InputAdornment>
-              ) : null,
-            }}
-          />
+      <PageHeader
+        title="Workflows"
+        subtitle="Manage your workflows"
+        searchQuery={searchQuery}
+        onSearchChange={setSearchQuery}
+        searchPlaceholder="Search workflows…"
+        action={
           <Button
             variant="contained"
             startIcon={<AddIcon />}
@@ -259,17 +210,12 @@ export default function WorkflowsPage() {
               setNewError("");
               setNewOpen(true);
             }}
-            sx={{
-              borderRadius: "8px",
-              fontWeight: 600,
-              height: 36,
-              whiteSpace: "nowrap",
-            }}
+            sx={{ borderRadius: "8px", fontWeight: 600, height: 36, whiteSpace: "nowrap" }}
           >
             New Workflow
           </Button>
-        </Box>
-      </Box>
+        }
+      />
 
       <Paper sx={{ overflow: "hidden", borderRadius: "10px" }}>
         <TableContainer>

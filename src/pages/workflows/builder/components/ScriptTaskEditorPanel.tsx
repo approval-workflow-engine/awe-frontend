@@ -51,7 +51,6 @@ export default function ScriptTaskEditorPanel({
         sourceCode: `\t# code here\n`,
       });
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [node.id]);
 
   const handleDragHandleMouseDown = useCallback(
