@@ -19,24 +19,20 @@ import {
   DialogContent,
   DialogActions,
   Skeleton,
-  InputAdornment,
-  TextField,
   Chip,
 } from "@mui/material";
-import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import EditIcon from "@mui/icons-material/Edit";
 import VisibilityIcon from "@mui/icons-material/Visibility";
 import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
 import BoltIcon from "@mui/icons-material/Bolt";
 import PowerSettingsNewIcon from "@mui/icons-material/PowerSettingsNew";
 import AddIcon from "@mui/icons-material/Add";
-import SearchIcon from "@mui/icons-material/Search";
-import ClearIcon from "@mui/icons-material/Clear";
 import {
   getWorkflow,
   updateVersionStatus,
 } from "../../api/workflowApi";
 import { useApiCall } from "../../hooks/useApiCall";
+import PageHeader from "../../components/common/PageHeader";
 import type { Workflow, WorkflowVersion } from "../../types";
 
 type LifecycleAction = "commit" | "activate" | "deactivate";
@@ -224,125 +220,45 @@ export default function WorkflowVersionsPage() {
   return (
     <Box>
 
-      <Box display="flex" alignItems="center" gap={2} mb={3}>
-
-        <IconButton
-          onClick={() => navigate("/workflows")}
-          size="small"
-          sx={{ color: "text.secondary", mt: 0.25 }}
-        >
-          <ArrowBackIcon fontSize="small" />
-        </IconButton>
-
-        <Box flex={1} minWidth={0}>
-          <Box display="flex" alignItems="center" gap={1} mb={0.25}>
-            <Typography
+      <PageHeader
+        title={workflow?.name || "Version History"}
+        subtitle={workflow?.description || undefined}
+        onBack={() => navigate("/workflows")}
+        chip={
+          !loading && versions.length > 0 && (
+            <Chip
+              label={`${versions.length} version${versions.length !== 1 ? "s" : ""}`}
+              size="small"
               sx={{
-                fontFamily: "'Syne', sans-serif",
-                fontWeight: 700,
-                fontSize: 20,
-                color: "text.primary",
-                lineHeight: 1.2,
-              }}
-            >
-              {workflow?.name || "Version History"}
-            </Typography>
-
-            {!loading && versions.length > 0 && (
-              <Chip
-                label={`${versions.length} version${
-                  versions.length !== 1 ? "s" : ""
-                }`}
-                size="small"
-                sx={{
-                  fontSize: 10,
-                  height: 20,
-                  fontFamily: "'JetBrains Mono', monospace",
-                  backgroundColor: "action.selected",
-                  color: "text.secondary",
-                  "& .MuiChip-label": { px: 0.75 },
-                }}
-              />
-            )}
-          </Box>
-
-          {workflow?.description && (
-            <Typography
-              sx={{
-                fontSize: 13,
+                fontSize: 10,
+                height: 20,
+                fontFamily: "'JetBrains Mono', monospace",
+                backgroundColor: "action.selected",
                 color: "text.secondary",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                display: "-webkit-box",
-                WebkitLineClamp: 2,
-                WebkitBoxOrient: "vertical",
+                "& .MuiChip-label": { px: 0.75 },
               }}
-            >
-              {workflow.description}
-            </Typography>
-          )}
-        </Box>
-
-        <TextField
-          size="small"
-          placeholder="Search versions…"
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          sx={{
-            width: 220,
-            flexShrink: 0,
-            "& .MuiOutlinedInput-root": {
-              borderRadius: "8px",
-              fontSize: 13,
-              "& fieldset": { borderColor: "divider" },
-            },
-          }}
-          InputProps={{
-            startAdornment: (
-              <InputAdornment position="start">
-                <SearchIcon sx={{ fontSize: 16, color: "text.disabled" }} />
-              </InputAdornment>
-            ),
-            endAdornment: searchQuery ? (
-              <InputAdornment position="end">
-                <IconButton
-                  size="small"
-                  onClick={() => setSearchQuery("")}
-                  sx={{ p: 0.25, color: "text.disabled" }}
-                >
-                  <ClearIcon sx={{ fontSize: 14 }} />
-                </IconButton>
-              </InputAdornment>
-            ) : null,
-          }}
-        />
-
-        <Tooltip
-          title={
-            hasDraft
-              ? "A draft version already exists. Complete or discard it before creating a new one."
-              : ""
-          }
-        >
-          <span>
-            <Button
-              variant="contained"
-              startIcon={<AddIcon />}
-              disabled={hasDraft}
-              onClick={() => navigate(`/workflows/${workflowId}/builder`)}
-              sx={{
-                borderRadius: "8px",
-                fontWeight: 600,
-                height: 36,
-                flexShrink: 0,
-              }}
-            >
-              New Draft
-            </Button>
-          </span>
-        </Tooltip>
-
-      </Box>
+            />
+          )
+        }
+        searchQuery={searchQuery}
+        onSearchChange={setSearchQuery}
+        searchPlaceholder="Search versions…"
+        action={
+          <Tooltip title={hasDraft ? "A draft version already exists. Complete or discard it before creating a new one." : ""}>
+            <span>
+              <Button
+                variant="contained"
+                startIcon={<AddIcon />}
+                disabled={hasDraft}
+                onClick={() => navigate(`/workflows/${workflowId}/builder`)}
+                sx={{ borderRadius: "8px", fontWeight: 600, height: 36, flexShrink: 0 }}
+              >
+                New Draft
+              </Button>
+            </span>
+          </Tooltip>
+        }
+      />
 
       <Paper sx={{ overflow: "hidden" }}>
         <TableContainer>

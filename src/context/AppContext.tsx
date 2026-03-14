@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, type ReactNode } from 'react';
 import axiosClient from '../api/axiosClient';
 import type { User } from '../types';
 import { AppContext } from './appContextInstance';
+import { TOKEN_KEYS } from '../constants/tokens';
 
 export function AppProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
@@ -9,40 +10,37 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const token = localStorage.getItem('awe_access_token');
-    const storedUser = localStorage.getItem('awe_user');
+    const token = localStorage.getItem(TOKEN_KEYS.ACCESS);
+    const storedUser = localStorage.getItem(TOKEN_KEYS.USER);
     if (token && storedUser) {
       try {
         setUser(JSON.parse(storedUser) as User);
         setIsAuthenticated(true);
       } catch {
-        localStorage.removeItem('awe_user');
-        localStorage.removeItem('awe_access_token');
+        localStorage.removeItem(TOKEN_KEYS.USER);
+        localStorage.removeItem(TOKEN_KEYS.ACCESS);
       }
     }
     setLoading(false);
   }, []);
 
   const login = useCallback((userData: User, accessToken: string, refreshToken: string) => {
-    localStorage.setItem('awe_access_token', accessToken);
-    localStorage.setItem('awe_refresh_token', refreshToken);
-    localStorage.setItem('awe_user', JSON.stringify(userData));
+    localStorage.setItem(TOKEN_KEYS.ACCESS, accessToken);
+    localStorage.setItem(TOKEN_KEYS.REFRESH, refreshToken);
+    localStorage.setItem(TOKEN_KEYS.USER, JSON.stringify(userData));
     setUser(userData);
     setIsAuthenticated(true);
   }, []);
 
   const logout = useCallback(async () => {
     try {
-      const refreshToken = localStorage.getItem('awe_refresh_token');
+      const refreshToken = localStorage.getItem(TOKEN_KEYS.REFRESH);
       if (refreshToken) {
         await axiosClient.post('/auth/logout', { refreshToken });
       }
     } catch {
-      //
     } finally {
-      ['awe_access_token', 'awe_refresh_token', 'awe_user'].forEach(k =>
-        localStorage.removeItem(k)
-      );
+      Object.values(TOKEN_KEYS).forEach(k => localStorage.removeItem(k));
       setUser(null);
       setIsAuthenticated(false);
     }
@@ -50,7 +48,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const updateUser = useCallback((userData: User) => {
     setUser(userData);
-    localStorage.setItem('awe_user', JSON.stringify(userData));
+    localStorage.setItem(TOKEN_KEYS.USER, JSON.stringify(userData));
   }, []);
 
   if (loading) return null;

@@ -16,9 +16,6 @@ export const updateWorkflow = (id: string, data: { name?: string; description?: 
 export const deleteWorkflow = (id: string) =>
   axiosClient.delete(`/workflows/${id}`);
 
-export const updateWorkflowStatus = (id: string, status: string) =>
-  axiosClient.patch(`/workflows/${id}/status`, { status });
-
 export const createWorkflowVersion = (id: string, payload: Record<string, unknown>) =>
   axiosClient.post(`/workflows/${id}/versions`, payload);
 

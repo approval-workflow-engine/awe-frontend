@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Box, Grid, Paper, Typography, Button, Skeleton } from '@mui/material';
 import AccountTreeIcon from '@mui/icons-material/AccountTree';
@@ -7,6 +7,7 @@ import SpeedIcon from '@mui/icons-material/Speed';
 import AssignmentIcon from '@mui/icons-material/Assignment';
 import axiosClient from '../../api/axiosClient';
 import StatusChip from '../../components/common/StatusChip';
+import PageHeader from '../../components/common/PageHeader';
 import type { Instance, Task } from '../../types';
 
 interface StatCardDef {
@@ -82,76 +83,74 @@ export default function Dashboard() {
   const [instances, setInstances] = useState<Instance[] | null>(null);
   const [tasks, setTasks] = useState<Task[] | null>(null);
 
-  const fetchData = useCallback(async () => {
-    try {
-      const [wfRes, instRes, runningRes, pendingRes, recentInstRes, recentTaskRes] =
-        await Promise.allSettled([
-          axiosClient.get('/workflows', { params: { page: 1, limit: 1 } }),
-          axiosClient.get('/instances', { params: { page: 1, limit: 1 } }),
-          axiosClient.get('/instances', { params: { status: 'IN_PROGRESS', page: 1, limit: 1 } }),
-          axiosClient.get('/tasks', { params: { status: 'IN_PROGRESS', page: 1, limit: 1 } }),
-          axiosClient.get('/instances', { params: { page: 1, limit: 5 } }),
-          axiosClient.get('/tasks', { params: { status: 'IN_PROGRESS', page: 1, limit: 5 } }),
-        ]);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const [wfRes, instRes, runningRes, pendingRes, recentInstRes, recentTaskRes] =
+          await Promise.allSettled([
+            axiosClient.get('/workflows', { params: { page: 1, limit: 1 } }),
+            axiosClient.get('/instances', { params: { page: 1, limit: 1 } }),
+            axiosClient.get('/instances', { params: { status: 'IN_PROGRESS', page: 1, limit: 1 } }),
+            axiosClient.get('/tasks', { params: { status: 'IN_PROGRESS', page: 1, limit: 1 } }),
+            axiosClient.get('/instances', { params: { page: 1, limit: 5 } }),
+            axiosClient.get('/tasks', { params: { status: 'IN_PROGRESS', page: 1, limit: 5 } }),
+          ]);
 
-      const getTotal = (res: PromiseSettledResult<{ data: unknown }>): number | null => {
-        if (res.status === 'rejected') return 0;
-        const body = (res.value as { data: Record<string, unknown> }).data as Record<string, unknown>;
-        const nested = body?.data as Record<string, unknown> | undefined;
-        const candidates = [
-          nested?.pagination,
-          body?.pagination,
-          body?.meta,
-          nested,
-          body,
-        ] as Array<Record<string, unknown> | undefined>;
-        for (const obj of candidates) {
-          const t = obj?.total ?? obj?.count ?? obj?.totalCount;
-          if (typeof t === 'number') return t;
+        if (cancelled) return;
+
+        const getTotal = (res: PromiseSettledResult<{ data: unknown }>): number | null => {
+          if (res.status === 'rejected') return 0;
+          const body = (res.value as { data: Record<string, unknown> }).data as Record<string, unknown>;
+          const nested = body?.data as Record<string, unknown> | undefined;
+          const candidates = [
+            nested?.pagination,
+            body?.pagination,
+            body?.meta,
+            nested,
+            body,
+          ] as Array<Record<string, unknown> | undefined>;
+          for (const obj of candidates) {
+            const t = obj?.total ?? obj?.count ?? obj?.totalCount;
+            if (typeof t === 'number') return t;
+          }
+          return null;
+        };
+
+        setStats({
+          workflows: getTotal(wfRes),
+          instances: getTotal(instRes),
+          running:   getTotal(runningRes),
+          pending:   getTotal(pendingRes),
+        });
+
+        if (recentInstRes.status === 'fulfilled') {
+          const body = (recentInstRes.value as { data: Record<string, unknown> }).data as Record<string, unknown>;
+          const inner = body?.data as Record<string, unknown> | undefined;
+          const arr = (inner?.instances ?? (Array.isArray(inner) ? inner : [])) as Instance[];
+          setInstances(Array.isArray(arr) ? arr : []);
+        } else {
+          setInstances([]);
         }
-        return null;
-      };
 
-      setStats({
-        workflows: getTotal(wfRes),
-        instances: getTotal(instRes),
-        running:   getTotal(runningRes),
-        pending:   getTotal(pendingRes),
-      });
-
-      if (recentInstRes.status === 'fulfilled') {
-        const body = (recentInstRes.value as { data: Record<string, unknown> }).data as Record<string, unknown>;
-        const inner = body?.data as Record<string, unknown> | undefined;
-        const arr = (inner?.instances ?? (Array.isArray(inner) ? inner : [])) as Instance[];
-        setInstances(Array.isArray(arr) ? arr : []);
-      } else {
-        setInstances([]);
+        if (recentTaskRes.status === 'fulfilled') {
+          const body = (recentTaskRes.value as { data: Record<string, unknown> }).data as Record<string, unknown>;
+          const inner = body?.data as Record<string, unknown> | undefined;
+          const arr = (inner?.tasks ?? (Array.isArray(inner) ? inner : [])) as Task[];
+          setTasks(Array.isArray(arr) ? arr : []);
+        } else {
+          setTasks([]);
+        }
+      } catch {
+        //
       }
-
-      if (recentTaskRes.status === 'fulfilled') {
-        const body = (recentTaskRes.value as { data: Record<string, unknown> }).data as Record<string, unknown>;
-        const inner = body?.data as Record<string, unknown> | undefined;
-        const arr = (inner?.tasks ?? (Array.isArray(inner) ? inner : [])) as Task[];
-        setTasks(Array.isArray(arr) ? arr : []);
-      } else {
-        setTasks([]);
-      }
-    } catch {
-    }
+    })();
+    return () => { cancelled = true; };
   }, []);
-
-  useEffect(() => { fetchData(); }, [fetchData]);
 
   return (
     <Box>
-      <Box mb={3}>
-        <Typography sx={{ fontFamily: "'Syne', sans-serif", fontWeight: 700, fontSize: 22, color: 'text.primary' }}>
-          Dashboard
-        </Typography>
-        <Typography sx={{ fontSize: 13, color: 'text.secondary' }}>
-          Overview of your workflow system
-        </Typography>
-      </Box>
+      <PageHeader title="Dashboard" subtitle="Overview of your workflow system" />
 
       <Grid container spacing={2} mb={4}>
         {STAT_CARDS.map(card => (

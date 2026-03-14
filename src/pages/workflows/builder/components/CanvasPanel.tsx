@@ -1,13 +1,6 @@
 import React, { useRef, useCallback, useEffect, useState } from "react";
 import { Box, Typography } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
-import PersonIcon from "@mui/icons-material/Person";
-import HttpIcon from "@mui/icons-material/Http";
-import CodeIcon from "@mui/icons-material/Code";
-import AltRouteIcon from "@mui/icons-material/AltRoute";
-import StopCircleIcon from "@mui/icons-material/StopCircle";
-import PlayCircleIcon from "@mui/icons-material/PlayCircle";
-import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import {
   type CanvasNode,
   type CanvasEdge,
@@ -23,33 +16,10 @@ import {
   portYFraction,
   estimateCardHeight,
 } from "../utils/nodeHelpers";
+import NodeIcon from "../config/shared/NodeIcon";
 
 const CANVAS_W = 3200;
 const CANVAS_H = 2000;
-
-function NodeIcon({
-  type,
-  color,
-  isFailureEnd,
-}: {
-  type: string;
-  color: string;
-  isFailureEnd?: boolean;
-}) {
-  const s = { fontSize: 16, color } as const;
-  if (type === "start") return <PlayCircleIcon sx={s} />;
-  if (type === "user_task") return <PersonIcon sx={s} />;
-  if (type === "service_task") return <HttpIcon sx={s} />;
-  if (type === "script_task") return <CodeIcon sx={s} />;
-  if (type === "exclusive_gateway") return <AltRouteIcon sx={s} />;
-  if (type === "end")
-    return isFailureEnd ? (
-      <WarningAmberIcon sx={s} />
-    ) : (
-      <StopCircleIcon sx={s} />
-    );
-  return <CodeIcon sx={s} />;
-}
 
 interface EdgePathProps {
   edge: CanvasEdge;

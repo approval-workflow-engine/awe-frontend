@@ -27,8 +27,6 @@ import type {
 } from "../../type/types";
 import { DataType } from "../../type/types";
 
-// ── Internal types ─────────────────────────────────────────────────────────────
-
 interface FetchableConfig {
   id: string;
   label?: string;
@@ -41,14 +39,11 @@ interface InputDataMapRow {
   jsonPath: string;
   dataType: string;
   contextVariableName: string;
-  /** Undefined = Direct Input. Set to a fetchable id = Fetched Input. */
   fetchableId?: string;
   persist: boolean;
   default?: unknown;
   required?: boolean;
 }
-
-// ── Props ─────────────────────────────────────────────────────────────────────
 
 interface Props {
   node: CanvasNode;
@@ -56,8 +51,6 @@ interface Props {
   onChangeInputs: (v: WorkflowInput[]) => void;
   availableContext: AvailableCtxVar[];
 }
-
-// ── Constants ─────────────────────────────────────────────────────────────────
 
 const VALID_IDENT = /^[a-zA-Z_][a-zA-Z0-9_.]*$/;
 
@@ -78,8 +71,6 @@ export const ROW_FIELD_SX = {
 
 export const ROW_INPUT_PROPS = { style: { padding: "4px 8px", fontSize: 11 } };
 
-// ── Main component ────────────────────────────────────────────────────────────
-
 export default function StartConfig({
   node,
   onUpdateConfig,
@@ -91,12 +82,9 @@ export default function StartConfig({
   const fetchables: FetchableConfig[] =
     (node.config.fetchables as FetchableConfig[]) ?? [];
 
-  /** Which type of input the "Add Input" button will create. */
   const [addInputType, setAddInputType] = useState<"direct" | "fetched">(
     "direct",
   );
-
-  // ── Sync ────────────────────────────────────────────────────────────────────
 
   const sync = useCallback(
     (newRows: InputDataMapRow[], newFetchables: FetchableConfig[]) => {
@@ -105,7 +93,6 @@ export default function StartConfig({
         inputDataMap: newRows,
         fetchables: newFetchables,
       });
-      // Include ALL named variables (direct + fetched) so they appear in context.
       onChangeInputs(
         newRows
           .filter((r) => r.contextVariableName.trim() !== "")
@@ -121,8 +108,6 @@ export default function StartConfig({
     [node.config, onUpdateConfig, onChangeInputs],
   );
 
-  // ── Row mutators ─────────────────────────────────────────────────────────────
-
   const updateRow = (idx: number, patch: Partial<InputDataMapRow>) =>
     sync(
       rows.map((r, i) => (i === idx ? { ...r, ...patch } : r)),
@@ -134,8 +119,6 @@ export default function StartConfig({
       rows.filter((_, i) => i !== idx),
       fetchables,
     );
-
-  // ── Fetchable mutators ────────────────────────────────────────────────────────
 
   const updateFetchable = (fIdx: number, patch: Partial<FetchableConfig>) =>
     sync(
@@ -150,8 +133,6 @@ export default function StartConfig({
       fetchables.filter((_, i) => i !== fIdx),
     );
   };
-
-  // ── Add actions ──────────────────────────────────────────────────────────────
 
   const addDirectInput = () =>
     sync(
@@ -196,8 +177,6 @@ export default function StartConfig({
       },
     ]);
 
-  // ── Derived state ─────────────────────────────────────────────────────────────
-
   const directRows = rows
     .map((r, i) => ({ row: r, idx: i }))
     .filter(({ row }) => !row.fetchableId);
@@ -213,11 +192,8 @@ export default function StartConfig({
 
   const canAddFetched = fetchables.length > 0;
 
-  // ── Render ────────────────────────────────────────────────────────────────────
-
   return (
     <Box display="flex" flexDirection="column" gap={1.5}>
-      {/* ── Fetch Source Configuration ────────────────────────────────────── */}
       <CollapsibleSection
         title="Fetch Source"
         defaultOpen
@@ -246,10 +222,8 @@ export default function StartConfig({
 
       <Divider sx={{ borderColor: "divider" }} />
 
-      {/* ── Inputs ───────────────────────────────────────────────────────── */}
       <CollapsibleSection title="Inputs" defaultOpen count={rows.length}>
         <Box display="flex" flexDirection="column" gap={0.75}>
-          {/* Orphan warning */}
           {orphanCount > 0 && (
             <Box
               sx={{
@@ -288,7 +262,6 @@ export default function StartConfig({
             </Typography>
           )}
 
-          {/* Direct input rows */}
           {directRows.map(({ row, idx }) => (
             <DirectInputCard
               key={idx}
@@ -298,7 +271,6 @@ export default function StartConfig({
             />
           ))}
 
-          {/* Fetched input rows */}
           {fetchedRows.map(({ row, idx }) => (
             <FetchedInputCard
               key={idx}
@@ -309,7 +281,6 @@ export default function StartConfig({
             />
           ))}
 
-          {/* Add input controls: type toggle + button */}
           <Box display="flex" flexDirection="column" gap={0.5} mt={0.25}>
             <ToggleButtonGroup
               value={addInputType}
@@ -351,8 +322,6 @@ export default function StartConfig({
   );
 }
 
-// ── FetchSourceCard ───────────────────────────────────────────────────────────
-
 interface FetchSourceCardProps {
   fetchable: FetchableConfig;
   onUpdate: (patch: Partial<FetchableConfig>) => void;
@@ -381,7 +350,6 @@ function FetchSourceCard({
         backgroundColor: "action.hover",
       }}
     >
-      {/* Row: GET badge · label · delete */}
       <Box display="flex" gap={0.5} alignItems="center">
         <Box
           sx={{
@@ -417,7 +385,6 @@ function FetchSourceCard({
         </IconButton>
       </Box>
 
-      {/* URL */}
       <ExpressionInput
         label="URL"
         value={fetchable.urlExpression}
@@ -426,7 +393,6 @@ function FetchSourceCard({
         availableContext={availableContext}
       />
 
-      {/* Headers — collapsible, no extra wrapper box */}
       <CollapsibleSection title="Headers" count={headers.length}>
         <Box display="flex" flexDirection="column" gap={0.5} mt={0.25}>
           {headers.map((h, hIdx) => (
@@ -492,8 +458,6 @@ function FetchSourceCard({
   );
 }
 
-// ── DirectInputCard ───────────────────────────────────────────────────────────
-
 interface DirectInputCardProps {
   row: InputDataMapRow;
   onUpdate: (patch: Partial<InputDataMapRow>) => void;
@@ -524,7 +488,6 @@ function DirectInputCard({ row, onUpdate, onRemove }: DirectInputCardProps) {
           gap: 0.75,
         }}
       >
-        {/* Badge + Label + Delete */}
         <Box display="flex" gap={0.5} alignItems="center">
           <Box
             sx={{
@@ -580,13 +543,11 @@ function DirectInputCard({ row, onUpdate, onRemove }: DirectInputCardProps) {
           </IconButton>
         </Box>
 
-        {/* Data Type */}
         <DataTypeSelect
           value={row.dataType || DataType.STRING}
           onChange={(v) => onUpdate({ dataType: v })}
         />
 
-        {/* Required */}
         <Box
           display="flex"
           alignItems="center"
@@ -602,7 +563,6 @@ function DirectInputCard({ row, onUpdate, onRemove }: DirectInputCardProps) {
           />
         </Box>
 
-        {/* Persist */}
         <Box
           display="flex"
           alignItems="center"
@@ -618,7 +578,6 @@ function DirectInputCard({ row, onUpdate, onRemove }: DirectInputCardProps) {
           />
         </Box>
 
-        {/* Default value — only shown when not required */}
         {!row.required && (
           <TextField
             size="small"
@@ -640,8 +599,6 @@ function DirectInputCard({ row, onUpdate, onRemove }: DirectInputCardProps) {
     </Box>
   );
 }
-
-// ── FetchedInputCard ──────────────────────────────────────────────────────────
 
 interface FetchedInputCardProps {
   row: InputDataMapRow;
@@ -685,7 +642,6 @@ function FetchedInputCard({
           gap: 0.75,
         }}
       >
-        {/* Badge + Source selector + Delete */}
         <Box display="flex" gap={0.5} alignItems="center">
           <Box
             sx={{
@@ -736,7 +692,6 @@ function FetchedInputCard({
           </IconButton>
         </Box>
 
-        {/* Field Mapping — var_name = sourceLabel.field_path */}
         <Box
           sx={{
             border: "1px solid",
@@ -760,9 +715,7 @@ function FetchedInputCard({
             Field Mapping
           </Typography>
 
-          {/* var_name = sourceLabel.field_path */}
           <Box display="flex" alignItems="center" gap={0.5}>
-            {/* Left: context variable name */}
             <TextField
               size="small"
               placeholder="var_name"
@@ -784,7 +737,6 @@ function FetchedInputCard({
               }}
               inputProps={ROW_INPUT_PROPS}
             />
-            {/* = separator */}
             <Typography
               sx={{
                 fontSize: 11,
@@ -796,7 +748,6 @@ function FetchedInputCard({
             >
               =
             </Typography>
-            {/* Right: sourceLabel.field_path */}
             <Box
               sx={{
                 display: "flex",
@@ -842,7 +793,6 @@ function FetchedInputCard({
           />
         </Box>
 
-        {/* Helper text */}
         <Typography
           sx={{
             fontSize: 9,

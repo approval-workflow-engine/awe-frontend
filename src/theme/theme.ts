@@ -2,7 +2,6 @@ import { createTheme } from '@mui/material/styles';
 import type { Theme } from '@mui/material/styles';
 import type { ThemeMode } from '../types';
 
-//  Shared Typography 
 const typography = {
   fontFamily: "'DM Sans', sans-serif",
   h1: { fontFamily: "'Syne', sans-serif", fontWeight: 700 },
@@ -16,14 +15,12 @@ const typography = {
 
 const shape = { borderRadius: 10 };
 
-//  Dark Theme 
-// Slightly lifted from near-black to improve readability while keeping depth
 export const darkTheme: Theme = createTheme({
   palette: {
     mode: 'dark',
     background: {
-      default: '#12141c',  // was #0a0b0f - lifted from near-black
-      paper: '#181a24',    // was #0f1117
+      default: '#12141c',
+      paper: '#181a24',
     },
     primary: { main: '#4f6ef7' },
     secondary: { main: '#a855f7' },
@@ -34,9 +31,9 @@ export const darkTheme: Theme = createTheme({
     text: {
       primary: '#e8eaf2',
       secondary: '#8b91a8',
-      disabled: '#7a7f9e',  // improved contrast from #636882 for readable metadata
+      disabled: '#7a7f9e',
     },
-    divider: '#22273a',  // was #1f2437
+    divider: '#22273a',
   },
   typography,
   shape,
@@ -70,7 +67,7 @@ export const darkTheme: Theme = createTheme({
     MuiOutlinedInput: {
       styleOverrides: {
         root: {
-          backgroundColor: '#1c1e2b',  // was #141720
+          backgroundColor: '#1c1e2b',
           '& fieldset': { borderColor: '#2a2f45' },
           '&:hover fieldset': { borderColor: '#4f6ef7' },
           '&.Mui-focused fieldset': { borderColor: '#4f6ef7' },
@@ -92,7 +89,7 @@ export const darkTheme: Theme = createTheme({
             textTransform: 'uppercase',
             letterSpacing: '0.06em',
             color: '#8b91a8',
-            backgroundColor: '#1c1e2b',  // was #141720
+            backgroundColor: '#1c1e2b',
           },
         },
       },
@@ -100,7 +97,7 @@ export const darkTheme: Theme = createTheme({
     MuiTableRow: {
       styleOverrides: {
         root: {
-          '&:hover': { backgroundColor: '#1f2133' },  // was #1a1e2e
+          '&:hover': { backgroundColor: '#1f2133' },
           '&:last-child td': { borderBottom: 0 },
         },
       },
@@ -116,7 +113,7 @@ export const darkTheme: Theme = createTheme({
     MuiDrawer: {
       styleOverrides: {
         paper: {
-          backgroundColor: '#181a24',  // was #0f1117
+          backgroundColor: '#181a24',
           borderRight: '1px solid #22273a',
           backgroundImage: 'none',
         },
@@ -134,12 +131,12 @@ export const darkTheme: Theme = createTheme({
       styleOverrides: { root: { height: '2px', borderRadius: 0 } },
     },
     MuiSelect: {
-      styleOverrides: { root: { backgroundColor: '#1c1e2b' } },  // was #141720
+      styleOverrides: { root: { backgroundColor: '#1c1e2b' } },
     },
     MuiMenuItem: {
       styleOverrides: {
         root: {
-          '&:hover': { backgroundColor: '#1f2133' },  // was #1a1e2e
+          '&:hover': { backgroundColor: '#1f2133' },
           '&.Mui-selected': { backgroundColor: 'rgba(79, 110, 247, 0.12)' },
         },
       },
@@ -147,7 +144,6 @@ export const darkTheme: Theme = createTheme({
   },
 });
 
-//  Light Theme 
 export const lightTheme: Theme = createTheme({
   palette: {
     mode: 'light',
@@ -164,7 +160,7 @@ export const lightTheme: Theme = createTheme({
     text: {
       primary: '#111827',
       secondary: '#6b7280',
-      disabled: '#7b8899',  // improved contrast from #9ca3af for readable metadata
+      disabled: '#7b8899',
     },
     divider: '#e5e7eb',
   },
@@ -278,7 +274,6 @@ export const lightTheme: Theme = createTheme({
   },
 });
 
-//  Theme Selector 
 export function getTheme(mode: ThemeMode): Theme {
   return mode === 'light' ? lightTheme : darkTheme;
 }

@@ -247,7 +247,7 @@ export default function UserTaskConfig({
           </Typography>
           {resMap.map((row, idx) => (
             <Box
-              key={idx}
+              key={row.fieldId}
               sx={{
                 border: "1px solid",
                 borderColor: "divider",

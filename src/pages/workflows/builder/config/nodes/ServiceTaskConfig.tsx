@@ -48,7 +48,6 @@ export default function ServiceTaskConfig({
   const [bodyJson, setBodyJson] = useState(() => bodyToJson(body));
   useEffect(() => {
     setBodyJson(bodyToJson(body));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [node.id]);
 
   const [bodyError, setBodyError] = useState("");

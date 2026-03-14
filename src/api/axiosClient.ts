@@ -4,19 +4,22 @@ import type {
   AxiosRequestConfig,
   InternalAxiosRequestConfig,
 } from "axios";
+import { TOKEN_KEYS } from "../constants/tokens";
 
 interface QueueItem {
   resolve: (token: string) => void;
   reject: (error: unknown) => void;
 }
 
+const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:3000/api/v1";
+
 const axiosClient: AxiosInstance = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || "http://localhost:3000/api/v1",
+  baseURL: BASE_URL,
   headers: { "Content-Type": "application/json" },
 });
 
 axiosClient.interceptors.request.use((config: InternalAxiosRequestConfig) => {
-  const token = localStorage.getItem("awe_access_token");
+  const token = localStorage.getItem(TOKEN_KEYS.ACCESS);
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
@@ -35,9 +38,7 @@ function processQueue(error: unknown, token: string | null = null): void {
 }
 
 function clearAndRedirect(): void {
-  ["awe_access_token", "awe_refresh_token", "awe_user"].forEach((k) =>
-    localStorage.removeItem(k),
-  );
+  Object.values(TOKEN_KEYS).forEach((k) => localStorage.removeItem(k));
   window.location.href = "/login";
 }
 
@@ -67,7 +68,7 @@ axiosClient.interceptors.response.use(
       originalRequest._retry = true;
       isRefreshing = true;
 
-      const refreshToken = localStorage.getItem("awe_refresh_token");
+      const refreshToken = localStorage.getItem(TOKEN_KEYS.REFRESH);
 
       if (!refreshToken || refreshToken === "undefined") {
         clearAndRedirect();
@@ -75,18 +76,15 @@ axiosClient.interceptors.response.use(
       }
 
       try {
-        const { data } = await axios.post(
-          `${
-            import.meta.env.VITE_API_URL || "http://localhost:3000/api/v1"
-          }/auth/refresh`,
-          { refreshToken },
-        );
+        const { data } = await axios.post(`${BASE_URL}/auth/refresh`, {
+          refreshToken,
+        });
         const newToken: string = data.data?.accessToken || data.accessToken;
         const newRefreshToken: string =
           data.data?.refreshToken || data.refreshToken;
-        localStorage.setItem("awe_access_token", newToken);
+        localStorage.setItem(TOKEN_KEYS.ACCESS, newToken);
         if (newRefreshToken) {
-          localStorage.setItem("awe_refresh_token", newRefreshToken);
+          localStorage.setItem(TOKEN_KEYS.REFRESH, newRefreshToken);
         }
         axiosClient.defaults.headers.common.Authorization = `Bearer ${newToken}`;
         if (originalRequest.headers) {

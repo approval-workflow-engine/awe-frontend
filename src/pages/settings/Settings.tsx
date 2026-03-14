@@ -14,6 +14,7 @@ import CloseIcon from '@mui/icons-material/Close';
 import { createApiKey, getApiKeys, revokeApiKey } from '../../api/authApi';
 import { useApiCall } from '../../hooks/useApiCall';
 import { useApp } from '../../context/useApp';
+import PageHeader from '../../components/common/PageHeader';
 import type { ApiKey } from '../../types';
 
 
@@ -174,14 +175,7 @@ export default function Settings() {
 
   return (
     <Box>
-      <Box mb={3}>
-        <Typography sx={{ fontFamily: "'Syne', sans-serif", fontWeight: 700, fontSize: 22, color: 'text.primary' }}>
-          Settings
-        </Typography>
-        <Typography sx={{ fontSize: 13, color: 'text.secondary' }}>
-          System configuration and API access
-        </Typography>
-      </Box>
+      <PageHeader title="Settings" subtitle="System configuration and API access" />
 
       <Paper sx={{ mb: 2.5, overflow: 'hidden' }}>
         <Box sx={{ px: 2.5, py: 2, borderBottom: '1px solid', borderColor: 'divider' }}>
