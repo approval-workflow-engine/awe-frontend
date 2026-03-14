@@ -5,7 +5,6 @@ import {
   Typography,
   IconButton,
   Button,
-  Chip,
   CircularProgress,
   Popover,
   List,
@@ -393,12 +392,19 @@ export default function WorkflowBuilder() {
     nodes.find((n) => n.id === selectedItem?.id && n.type === "script_task") ??
     null;
 
-  const statusChipSx = {
-    draft: { bg: "rgba(168,85,247,0.15)", color: "#a855f7" },
-    valid: { bg: "rgba(6,182,212,0.15)", color: "#06b6d4" },
-    published: { bg: "rgba(245,158,11,0.15)", color: "#f59e0b" },
-    active: { bg: "rgba(34,197,94,0.15)", color: "#22c55e" },
-  }[versionStatus] ?? { bg: "rgba(139,145,168,0.15)", color: "#8b91a8" };
+  const statusColor = {
+    draft: "#a855f7",
+    valid: "#06b6d4",
+    published: "#f59e0b",
+    active: "#22c55e",
+  }[versionStatus] ?? "#8b91a8";
+
+  const statusBg = {
+    draft: "rgba(168,85,247,0.12)",
+    valid: "rgba(6,182,212,0.12)",
+    published: "rgba(245,158,11,0.12)",
+    active: "rgba(34,197,94,0.12)",
+  }[versionStatus] ?? "rgba(139,145,168,0.12)";
 
   return (
     <Box
@@ -442,59 +448,121 @@ export default function WorkflowBuilder() {
           {workflowName || "Builder"}
         </Typography>
 
-        <Chip
-          label={versionLabel}
-          size="small"
-          sx={{
-            fontFamily: "'JetBrains Mono', monospace",
-            fontSize: 10,
-            height: 20,
-            backgroundColor: "rgba(79,110,247,0.15)",
-            color: "#4f6ef7",
-            borderRadius: "99px",
-          }}
+        <Divider
+          orientation="vertical"
+          flexItem
+          sx={{ my: "auto", height: 16, borderColor: "divider" }}
         />
 
-        {loadedVersionNumber && (
-          <Chip
-            label={isReadOnly ? `${statusLabel} · Read Only` : statusLabel}
-            size="small"
-            icon={
-              isReadOnly ? (
-                <VisibilityIcon
-                  sx={{
-                    fontSize: "12px !important",
-                    color: `${statusChipSx.color} !important`,
-                  }}
-                />
-              ) : undefined
-            }
+        <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
+          <Typography
             sx={{
+              fontSize: 12,
               fontFamily: "'JetBrains Mono', monospace",
-              fontSize: 10,
-              height: 20,
-              backgroundColor: statusChipSx.bg,
-              color: statusChipSx.color,
-              borderRadius: "99px",
-              "& .MuiChip-icon": { ml: "6px" },
+              color: "text.secondary",
+              fontWeight: 500,
             }}
-          />
-        )}
+          >
+            {versionLabel}
+          </Typography>
 
-        {isDirty && !isReadOnly && (
-          <Chip
-            label="Unsaved Changes"
-            size="small"
-            sx={{
-              fontFamily: "'JetBrains Mono', monospace",
-              fontSize: 10,
-              height: 20,
-              backgroundColor: "rgba(245,158,11,0.15)",
-              color: "#f59e0b",
-              borderRadius: "99px",
-            }}
-          />
-        )}
+          {loadedVersionNumber && (
+            <Box
+              sx={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 0.5,
+                px: 0.75,
+                py: "2px",
+                borderRadius: "4px",
+                backgroundColor: statusBg,
+              }}
+            >
+              <Box
+                sx={{
+                  width: 5,
+                  height: 5,
+                  borderRadius: "50%",
+                  backgroundColor: statusColor,
+                  flexShrink: 0,
+                }}
+              />
+              <Typography
+                sx={{
+                  fontSize: 11,
+                  color: statusColor,
+                  fontWeight: 600,
+                  lineHeight: 1.2,
+                  userSelect: "none",
+                }}
+              >
+                {statusLabel}
+              </Typography>
+            </Box>
+          )}
+
+          {isReadOnly && (
+            <Box
+              sx={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 0.375,
+                px: 0.75,
+                py: "2px",
+                borderRadius: "4px",
+                backgroundColor: "action.hover",
+              }}
+            >
+              <VisibilityIcon sx={{ fontSize: 10, color: "text.disabled" }} />
+              <Typography
+                sx={{
+                  fontSize: 11,
+                  color: "text.disabled",
+                  fontWeight: 500,
+                  lineHeight: 1.2,
+                  userSelect: "none",
+                }}
+              >
+                Read Only
+              </Typography>
+            </Box>
+          )}
+
+          {isDirty && !isReadOnly && (
+            <Box
+              sx={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 0.5,
+                px: 0.75,
+                py: "2px",
+                borderRadius: "4px",
+                backgroundColor: "rgba(245,158,11,0.12)",
+              }}
+            >
+              <Box
+                sx={{
+                  width: 5,
+                  height: 5,
+                  borderRadius: "50%",
+                  backgroundColor: "#f59e0b",
+                  flexShrink: 0,
+                }}
+              />
+              <Typography
+                sx={{
+                  fontSize: 11,
+                  color: "#f59e0b",
+                  fontWeight: 600,
+                  lineHeight: 1.2,
+                  userSelect: "none",
+                }}
+              >
+                Unsaved
+              </Typography>
+            </Box>
+          )}
+        </Box>
 
         <Box sx={{ flex: 1 }} />
 
