@@ -61,19 +61,18 @@ export function getAvailableContext(
   if (startNode) {
     const idm =
       (startNode.config.inputDataMap as Array<{
-        contextVariable?: ContextVariable;
-        type?: string;
+        contextVariableName?: string;
+        dataType?: string;
       }>) ?? [];
     idm.forEach((m) => {
       if (
-        m.contextVariable?.name &&
-        !vars.some((v) => v.name === m.contextVariable!.name)
+        m.contextVariableName &&
+        !vars.some((v) => v.name === m.contextVariableName)
       ) {
         vars.push({
-          name: m.contextVariable.name,
-          type: m.type ?? DataType.STRING,
+          name: m.contextVariableName,
+          type: m.dataType ?? DataType.STRING,
           sourceNode: "Start",
-          scope: m.contextVariable.scope,
         });
       }
     });
