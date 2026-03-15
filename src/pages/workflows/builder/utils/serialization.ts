@@ -192,10 +192,6 @@ export function definitionToCanvas(
         config: JSON.parse(JSON.stringify(n.config || n.configuration || {})),
         x: n.position?.x ?? n.x_coordinate ?? 100,
         y: n.position?.y ?? n.y_coordinate ?? 100,
-        position: {
-            x: n.position?.x ?? n.x_coordinate ?? 100,
-            y: n.position?.y ?? n.y_coordinate ?? 100
-        }
     }));
 
     const cEdges: CanvasEdge[] = rawEdges.map((e: any) => ({

@@ -72,7 +72,7 @@ function EdgePath({ edge, nodes, isSelected, onClick }: EdgePathProps) {
         }
         strokeWidth={isSelected ? 2 : 1.5}
         strokeDasharray={edge.isDefault ? "6,4" : undefined}
-        markerEnd="url(#arrowhead)"
+        markerEnd={isSelected ? "url(#arrowhead-selected)" : "url(#arrowhead)"}
       />
       {(edge.condition || portLabel) && (
         <text
@@ -355,6 +355,7 @@ export default function CanvasPanel({
     origY: number;
   } | null>(null);
   const [connError, setConnError] = useState("");
+  const connErrorTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [dragMousePos, setDragMousePos] = useState<{
     x: number;
     y: number;
@@ -367,6 +368,12 @@ export default function CanvasPanel({
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
   }, [onCancelConnect]);
+
+  useEffect(() => {
+    return () => {
+      if (connErrorTimerRef.current) clearTimeout(connErrorTimerRef.current);
+    };
+  }, []);
 
   const handleNodeMouseDown = useCallback(
     (e: React.MouseEvent, nodeId: string, nodeX: number, nodeY: number) => {
@@ -478,7 +485,8 @@ export default function CanvasPanel({
       if (isGateway) {
         if (edges.some((e) => e.source === nodeId && e.sourcePort === portId)) {
           setConnError("This branch already has a connection.");
-          setTimeout(() => setConnError(""), 3000);
+          if (connErrorTimerRef.current) clearTimeout(connErrorTimerRef.current);
+          connErrorTimerRef.current = setTimeout(() => setConnError(""), 3000);
           return;
         }
       } else {
@@ -486,7 +494,8 @@ export default function CanvasPanel({
           setConnError(
             "This node already has an outgoing connection. Use a Gateway node to create multiple branches.",
           );
-          setTimeout(() => setConnError(""), 3000);
+          if (connErrorTimerRef.current) clearTimeout(connErrorTimerRef.current);
+          connErrorTimerRef.current = setTimeout(() => setConnError(""), 3000);
           return;
         }
       }
@@ -594,6 +603,16 @@ export default function CanvasPanel({
               orient="auto"
             >
               <path d="M0,0 L0,6 L8,3 z" fill={theme.palette.divider} />
+            </marker>
+            <marker
+              id="arrowhead-selected"
+              markerWidth="8"
+              markerHeight="8"
+              refX="6"
+              refY="3"
+              orient="auto"
+            >
+              <path d="M0,0 L0,6 L8,3 z" fill="#4f6ef7" />
             </marker>
           </defs>
           {edges.map((edge) => (
