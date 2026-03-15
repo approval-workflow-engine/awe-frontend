@@ -26,6 +26,7 @@ import AccountTreeIcon from "@mui/icons-material/AccountTree";
 import HistoryIcon from "@mui/icons-material/History";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
+import RefreshIcon from "@mui/icons-material/Refresh";
 import {
   getWorkflows,
   createWorkflow,
@@ -202,18 +203,26 @@ export default function WorkflowsPage() {
         onSearchChange={setSearchQuery}
         searchPlaceholder="Search workflows…"
         action={
-          <Button
-            variant="contained"
-            startIcon={<AddIcon />}
-            onClick={() => {
-              setNewForm({ name: "", description: "" });
-              setNewError("");
-              setNewOpen(true);
-            }}
-            sx={{ borderRadius: "8px", fontWeight: 600, height: 36, whiteSpace: "nowrap" }}
-          >
-            New Workflow
-          </Button>
+          <Box display="flex" alignItems="center" gap={1}>
+            <Tooltip title="Reload">
+              <IconButton size="small" onClick={fetchWorkflows} disabled={listLoading}
+                sx={{ color: "text.secondary" }}>
+                <RefreshIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+            <Button
+              variant="contained"
+              startIcon={<AddIcon />}
+              onClick={() => {
+                setNewForm({ name: "", description: "" });
+                setNewError("");
+                setNewOpen(true);
+              }}
+              sx={{ borderRadius: "8px", fontWeight: 600, height: 36, whiteSpace: "nowrap" }}
+            >
+              New Workflow
+            </Button>
+          </Box>
         }
       />
 

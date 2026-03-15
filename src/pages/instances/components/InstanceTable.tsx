@@ -7,6 +7,7 @@ import {
   TableRow,
   Typography,
   Box,
+  Skeleton,
 } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import StatusChip from '../../../components/common/StatusChip';
@@ -28,20 +29,11 @@ function formatDate(s: string | null) {
 
 interface Props {
   instances: BackendInstance[];
+  loading?: boolean;
 }
 
-export default function InstanceTable({ instances }: Props) {
+export default function InstanceTable({ instances, loading }: Props) {
   const navigate = useNavigate();
-
-  if (instances.length === 0) {
-    return (
-      <Box sx={{ py: 8, textAlign: 'center' }}>
-        <Typography color="text.secondary" fontSize={14}>
-          No instances found. Create one to get started.
-        </Typography>
-      </Box>
-    );
-  }
 
   return (
     <TableContainer>
@@ -58,42 +50,62 @@ export default function InstanceTable({ instances }: Props) {
           </TableRow>
         </TableHead>
         <TableBody>
-          {instances.map((inst) => (
-            <TableRow
-              key={inst.id}
-              hover
-              onClick={() => navigate(`/instances/${inst.id}`)}
-              sx={{ cursor: 'pointer', '& td': { fontSize: 13, py: 1.25 } }}
-            >
-              <TableCell>
-                <Typography sx={{ fontFamily: MONO, fontSize: 12 }}>
-                  {truncate(inst.id, 12)}
-                </Typography>
-              </TableCell>
-              <TableCell>
-                {inst.workflow_name ? (
-                  <Typography fontSize={13}>{inst.workflow_name}</Typography>
-                ) : (
-                  <Typography sx={{ fontFamily: MONO, fontSize: 11, color: 'text.secondary' }}>
-                    {truncate(inst.workflow_version_id, 12)}
+          {loading ? (
+            [0, 1, 2, 3].map((i) => (
+              <TableRow key={i}>
+                <TableCell colSpan={5}>
+                  <Skeleton variant="rounded" height={36} />
+                </TableCell>
+              </TableRow>
+            ))
+          ) : instances.length === 0 ? (
+            <TableRow>
+              <TableCell colSpan={5}>
+                <Box sx={{ py: 6, textAlign: 'center' }}>
+                  <Typography color="text.secondary" fontSize={13}>
+                    No instances found. Create one to get started.
                   </Typography>
-                )}
-              </TableCell>
-              <TableCell>
-                <Typography fontSize={13}>
-                  {inst.version_number != null ? `v${inst.version_number}` : '—'}
-                </Typography>
-              </TableCell>
-              <TableCell>
-                <StatusChip status={inst.status} />
-              </TableCell>
-              <TableCell>
-                <Typography fontSize={12} color="text.secondary">
-                  {formatDate(inst.started_on)}
-                </Typography>
+                </Box>
               </TableCell>
             </TableRow>
-          ))}
+          ) : (
+            instances.map((inst) => (
+              <TableRow
+                key={inst.id}
+                hover
+                onClick={() => navigate(`/instances/${inst.id}`)}
+                sx={{ cursor: 'pointer', '& td': { fontSize: 13, py: 1.25 } }}
+              >
+                <TableCell>
+                  <Typography sx={{ fontFamily: MONO, fontSize: 12 }}>
+                    {truncate(inst.id, 12)}
+                  </Typography>
+                </TableCell>
+                <TableCell>
+                  {inst.workflow_name ? (
+                    <Typography fontSize={13}>{inst.workflow_name}</Typography>
+                  ) : (
+                    <Typography sx={{ fontFamily: MONO, fontSize: 11, color: 'text.secondary' }}>
+                      {truncate(inst.workflow_version_id, 12)}
+                    </Typography>
+                  )}
+                </TableCell>
+                <TableCell>
+                  <Typography fontSize={13}>
+                    {inst.version_number != null ? `v${inst.version_number}` : '—'}
+                  </Typography>
+                </TableCell>
+                <TableCell>
+                  <StatusChip status={inst.status} />
+                </TableCell>
+                <TableCell>
+                  <Typography fontSize={12} color="text.secondary">
+                    {formatDate(inst.started_on)}
+                  </Typography>
+                </TableCell>
+              </TableRow>
+            ))
+          )}
         </TableBody>
       </Table>
     </TableContainer>
