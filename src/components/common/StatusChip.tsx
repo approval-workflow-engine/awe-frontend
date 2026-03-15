@@ -2,8 +2,9 @@ import { Box, Typography } from '@mui/material';
 
 export type ChipStatus =
   | 'active' | 'inactive' | 'deprecated'
-  | 'draft' | 'published'
+  | 'draft' | 'published' | 'valid'
   | 'IN_PROGRESS' | 'PAUSED' | 'COMPLETED' | 'FAILED' | 'TERMINATED'
+  | 'in_progress' | 'paused' | 'completed' | 'failed' | 'terminated'
   | string;
 
 interface StatusDef {
@@ -22,16 +23,20 @@ const STATUS_MAP: Record<string, StatusDef> = {
   published: { color: '#f59e0b', label: 'Committed' },
 
   IN_PROGRESS: { color: '#06b6d4', label: 'In Progress', pulse: true },
-  PAUSED: { color: '#f59e0b', label: 'Paused' },
-  COMPLETED: { color: '#22c55e', label: 'Completed' },
-  FAILED: { color: '#ef4444', label: 'Failed' },
-  TERMINATED: { color: '#8b91a8', label: 'Terminated' },
+  PAUSED:      { color: '#f59e0b', label: 'Paused' },
+  COMPLETED:   { color: '#22c55e', label: 'Completed' },
+  FAILED:      { color: '#ef4444', label: 'Failed' },
+  TERMINATED:  { color: '#8b91a8', label: 'Terminated' },
+
+  in_progress: { color: '#06b6d4', label: 'In Progress', pulse: true },
+  paused:      { color: '#f59e0b', label: 'Paused' },
+  completed:   { color: '#22c55e', label: 'Completed' },
+  failed:      { color: '#ef4444', label: 'Failed' },
+  terminated:  { color: '#8b91a8', label: 'Terminated' },
 };
 
 const getStatusDef = (status: string): StatusDef =>
-  STATUS_MAP[status] ??
-  STATUS_MAP[status?.toLowerCase?.()] ??
-  { color: '#8b91a8', label: status || 'Unknown' };
+  STATUS_MAP[status] ?? { color: '#8b91a8', label: status || 'Unknown' };
 
 export default function StatusChip({ status, label }: { status: ChipStatus; label?: string }) {
   const def = getStatusDef(status);

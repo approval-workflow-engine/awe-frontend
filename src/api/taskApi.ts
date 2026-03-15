@@ -1,5 +1,5 @@
 import axiosClient from './axiosClient';
-import type { CompleteTaskPayload, PaginationParams } from '../types';
+import type { PaginationParams } from '../types';
 
 export const getTasks = (params?: PaginationParams) =>
   axiosClient.get('/tasks', { params });
@@ -7,5 +7,5 @@ export const getTasks = (params?: PaginationParams) =>
 export const getTask = (id: string) =>
   axiosClient.get(`/tasks/${id}`);
 
-export const completeTask = (id: string, data: CompleteTaskPayload) =>
-  axiosClient.post(`/tasks/${id}/complete`, data);
+export const completeTask = (id: string, userInput: Record<string, unknown>) =>
+  axiosClient.post(`/tasks/${id}/complete`, { userInput });

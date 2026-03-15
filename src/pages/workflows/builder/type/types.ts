@@ -31,7 +31,7 @@ export type DataType = (typeof DataType)[keyof typeof DataType];
 
 export interface ContextVariable {
     name: string;
-    scope: "global" | "next";
+    scope: "global";
 }
 
 export interface CanvasNode {

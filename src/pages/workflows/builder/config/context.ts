@@ -10,24 +10,21 @@ export interface AvailableCtxVar {
   name: string;
   type: string;
   sourceNode: string;
-  scope?: "global" | "next";
 }
 
 function getAncestorIds(
   nodeId: string,
   edges: CanvasEdge[],
-): { all: Set<string>; direct: Set<string> } {
+): Set<string> {
   const all = new Set<string>();
-  const direct = new Set<string>();
 
   edges
     .filter((e) => e.target === nodeId)
     .forEach((e) => {
-      direct.add(e.source);
       all.add(e.source);
     });
 
-  const queue = [...direct];
+  const queue = [...all];
   while (queue.length > 0) {
     const current = queue.shift()!;
     for (const e of edges) {
@@ -38,7 +35,7 @@ function getAncestorIds(
     }
   }
 
-  return { all, direct };
+  return all;
 }
 
 export function getAvailableContext(
@@ -47,10 +44,7 @@ export function getAvailableContext(
   edges: CanvasEdge[],
   inputs: WorkflowInput[],
 ): AvailableCtxVar[] {
-  const { all: ancestorIds, direct: directParentIds } = getAncestorIds(
-    nodeId,
-    edges,
-  );
+  const ancestorIds = getAncestorIds(nodeId, edges);
   const vars: AvailableCtxVar[] = [];
 
   inputs.forEach((i) => {
@@ -81,7 +75,6 @@ export function getAvailableContext(
   nodes
     .filter((n) => ancestorIds.has(n.id))
     .forEach((n) => {
-      const isDirect = directParentIds.has(n.id);
       const rm =
         (n.config.responseMap as Array<{
           contextVariable?: ContextVariable;
@@ -90,12 +83,10 @@ export function getAvailableContext(
       rm.forEach((row) => {
         const cv = row.contextVariable;
         if (!cv?.name) return;
-        if (cv.scope === "next" && !isDirect) return;
         vars.push({
           name: cv.name,
           type: row.type ?? DataType.STRING,
           sourceNode: n.label,
-          scope: cv.scope,
         });
       });
     });

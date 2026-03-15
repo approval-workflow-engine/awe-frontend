@@ -70,8 +70,6 @@ export default function EndConfig({
     );
   };
 
-  const endCtx = availableContext.filter((v) => v.scope !== "next");
-
   return (
     <Box display="flex" flexDirection="column" gap={1.5}>
       <Box
@@ -175,7 +173,6 @@ export default function EndConfig({
                           contextVariable: { ...v, scope: "global" },
                         })
                       }
-                      hideNext
                     />
                   </Box>
                   <Tooltip
@@ -222,7 +219,7 @@ export default function EndConfig({
                   value={row.valueExpression}
                   onChange={(v) => updateRow(idx, { valueExpression: v })}
                   placeholder="context.result"
-                  availableContext={endCtx}
+                  availableContext={availableContext}
                 />
               </Box>
               {expanded.has(idx) && (
@@ -241,7 +238,7 @@ export default function EndConfig({
                       updateRow(idx, { validationExpression: v })
                     }
                     placeholder="value !== null"
-                    availableContext={endCtx}
+                    availableContext={availableContext}
                     hint="Must return true for the output to be accepted"
                   />
                 </Box>

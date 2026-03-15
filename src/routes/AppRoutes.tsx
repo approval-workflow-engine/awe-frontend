@@ -9,7 +9,9 @@ import WorkflowVersionsPage from "../pages/workflows/WorkflowVersionsPage";
 import WorkflowBuilder from "../pages/workflows/WorkflowBuilder";
 import Settings from "../pages/settings/Settings";
 import InstancesPage from "../pages/instances/InstancesPage";
+import InstanceDetailPage from "../pages/instances/InstanceDetailPage";
 import TasksPage from "../pages/tasks/TasksPage";
+import TaskReviewPage from "../pages/tasks/TaskReviewPage";
 import AuditPage from "../pages/audit/AuditPage";
 
 function ProtectedLayout() {
@@ -52,7 +54,9 @@ const router = createBrowserRouter([
       { path: "/workflows", element: <WorkflowsPage /> },
       { path: "/workflows/:workflowId/versions", element: <WorkflowVersionsPage /> },
       { path: "/instances", element: <InstancesPage /> },
+      { path: "/instances/:id", element: <InstanceDetailPage /> },
       { path: "/tasks", element: <TasksPage /> },
+      { path: "/tasks/:id", element: <TaskReviewPage /> },
       { path: "/audit", element: <AuditPage /> },
       { path: "/settings", element: <Settings /> },
     ],
