@@ -8,7 +8,7 @@ import AssignmentIcon from '@mui/icons-material/Assignment';
 import axiosClient from '../../api/axiosClient';
 import StatusChip from '../../components/common/StatusChip';
 import PageHeader from '../../components/common/PageHeader';
-import type { Instance, Task } from '../../types';
+import type { BackendInstance, BackendTask } from '../../types';
 
 interface StatCardDef {
   key: string;
@@ -80,8 +80,8 @@ export default function Dashboard() {
   const [stats, setStats] = useState<Record<string, number | null>>({
     workflows: null, instances: null, running: null, pending: null,
   });
-  const [instances, setInstances] = useState<Instance[] | null>(null);
-  const [tasks, setTasks] = useState<Task[] | null>(null);
+  const [instances, setInstances] = useState<BackendInstance[] | null>(null);
+  const [tasks, setTasks] = useState<BackendTask[] | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -89,12 +89,12 @@ export default function Dashboard() {
       try {
         const [wfRes, instRes, runningRes, pendingRes, recentInstRes, recentTaskRes] =
           await Promise.allSettled([
-            axiosClient.get('/workflows', { params: { page: 1, limit: 1 } }),
-            axiosClient.get('/instances', { params: { page: 1, limit: 1 } }),
-            axiosClient.get('/instances', { params: { status: 'IN_PROGRESS', page: 1, limit: 1 } }),
-            axiosClient.get('/tasks', { params: { status: 'IN_PROGRESS', page: 1, limit: 1 } }),
+            axiosClient.get('/workflows', { params: { page: 1, limit: 9999 } }),
+            axiosClient.get('/instances', { params: { page: 1, limit: 9999 } }),
+            axiosClient.get('/instances', { params: { status: 'in_progress', page: 1, limit: 9999 } }),
+            axiosClient.get('/tasks', { params: { page: 1, limit: 9999 } }),
             axiosClient.get('/instances', { params: { page: 1, limit: 5 } }),
-            axiosClient.get('/tasks', { params: { status: 'IN_PROGRESS', page: 1, limit: 5 } }),
+            axiosClient.get('/tasks', { params: { page: 1, limit: 5 } }),
           ]);
 
         if (cancelled) return;
@@ -102,17 +102,19 @@ export default function Dashboard() {
         const getTotal = (res: PromiseSettledResult<{ data: unknown }>): number | null => {
           if (res.status === 'rejected') return 0;
           const body = (res.value as { data: Record<string, unknown> }).data as Record<string, unknown>;
-          const nested = body?.data as Record<string, unknown> | undefined;
-          const candidates = [
-            nested?.pagination,
-            body?.pagination,
-            body?.meta,
-            nested,
-            body,
-          ] as Array<Record<string, unknown> | undefined>;
-          for (const obj of candidates) {
+          const inner = body?.data as Record<string, unknown> | undefined;
+
+          // Check pagination metadata first (for endpoints that support it)
+          for (const obj of [inner?.pagination, body?.pagination, body?.meta] as Array<Record<string, unknown> | undefined>) {
             const t = obj?.total ?? obj?.count ?? obj?.totalCount;
             if (typeof t === 'number') return t;
+          }
+
+          // Fallback: count the returned array (works when endpoint has no pagination metadata)
+          if (inner && typeof inner === 'object') {
+            for (const val of Object.values(inner)) {
+              if (Array.isArray(val)) return val.length;
+            }
           }
           return null;
         };
@@ -127,7 +129,7 @@ export default function Dashboard() {
         if (recentInstRes.status === 'fulfilled') {
           const body = (recentInstRes.value as { data: Record<string, unknown> }).data as Record<string, unknown>;
           const inner = body?.data as Record<string, unknown> | undefined;
-          const arr = (inner?.instances ?? (Array.isArray(inner) ? inner : [])) as Instance[];
+          const arr = (inner?.instances ?? (Array.isArray(inner) ? inner : [])) as BackendInstance[];
           setInstances(Array.isArray(arr) ? arr : []);
         } else {
           setInstances([]);
@@ -136,7 +138,7 @@ export default function Dashboard() {
         if (recentTaskRes.status === 'fulfilled') {
           const body = (recentTaskRes.value as { data: Record<string, unknown> }).data as Record<string, unknown>;
           const inner = body?.data as Record<string, unknown> | undefined;
-          const arr = (inner?.tasks ?? (Array.isArray(inner) ? inner : [])) as Task[];
+          const arr = (inner?.tasks ?? (Array.isArray(inner) ? inner : [])) as BackendTask[];
           setTasks(Array.isArray(arr) ? arr : []);
         } else {
           setTasks([]);
@@ -202,10 +204,10 @@ export default function Dashboard() {
                   >
                     <Box minWidth={0} flex={1} mr={1}>
                       <Typography sx={{ fontSize: 13, color: 'text.primary', fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                        {inst.workflowName || inst.workflow?.name || 'Unnamed'}
+                        {inst.workflow_name || 'Unnamed'}
                       </Typography>
                       <Typography sx={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 11, color: 'text.disabled' }}>
-                        {formatDate(inst.startedAt || inst.createdAt)}
+                        {formatDate(inst.started_on ?? inst.created_on)}
                       </Typography>
                     </Box>
                     <StatusChip status={inst.status} />
@@ -257,14 +259,14 @@ export default function Dashboard() {
                   >
                     <Box minWidth={0} flex={1} mr={1}>
                       <Typography sx={{ fontSize: 13, color: 'text.primary', fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                        {task.title || task.nodeId || 'Untitled Task'}
+                        {task.node_configuration?.title || 'Untitled Task'}
                       </Typography>
                       <Typography sx={{ fontSize: 11, color: 'text.secondary', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                        {task.assignee || task.assigneeEmail || '-'}
+                        {task.workflow_name}
                       </Typography>
                     </Box>
                     <Typography sx={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 11, color: 'text.disabled', flexShrink: 0 }}>
-                      {formatDate(task.createdAt)}
+                      {formatDate(task.created_on)}
                     </Typography>
                   </Box>
                 ))

@@ -247,3 +247,64 @@ export interface PaginationParams {
 
 export type ThemeMode = 'dark' | 'light';
 
+export type BackendInstanceStatus =
+  | 'in_progress'
+  | 'paused'
+  | 'completed'
+  | 'failed'
+  | 'terminated';
+
+export interface BackendInstance {
+  id: string;
+  workflow_version_id: string;
+  workflow_name?: string;
+  version_number?: number | null;
+  status: BackendInstanceStatus;
+  auto_advance: boolean;
+  current_variables: Record<string, unknown> | null;
+  input_variables: Record<string, unknown> | null;
+  output_variables: Record<string, unknown> | null;
+  started_on: string | null;
+  ended_on: string | null;
+  created_by: string;
+  created_on: string;
+}
+
+export interface UserTaskDisplayField {
+  label: string;
+  valueExpression: string;
+}
+
+export interface UserTaskResponseField {
+  fieldId: string;
+  label: string;
+  type: string;
+  uiType?: 'text' | 'textarea' | 'number' | 'dropdown' | 'checkbox' | 'date-picker';
+  required?: boolean;
+  default?: unknown;
+  options?: Array<{ label?: string; valueExpression: string }>;
+  contextVariable?: { name: string; scope: "global" };
+  validationExpression?: string;
+}
+
+export interface UserTaskNodeConfiguration {
+  title?: string;
+  description?: string;
+  assignee?: string;
+  requestMap: UserTaskDisplayField[];
+  responseMap: UserTaskResponseField[];
+}
+
+export interface BackendTask {
+  id: string;
+  instance_id: string;
+  node_id: string;
+  status: string;
+  created_on: string;
+  workflow_name: string;
+  node_configuration: UserTaskNodeConfiguration;
+}
+
+export interface BackendTaskDetail extends BackendTask {
+  instance_context: Record<string, unknown> | null;
+}
