@@ -40,7 +40,7 @@ interface UseBuilderActionsReturn {
   setActivateConfirmOpen: React.Dispatch<React.SetStateAction<boolean>>;
   deactivateConfirmOpen: boolean;
   setDeactivateConfirmOpen: React.Dispatch<React.SetStateAction<boolean>>;
-  handleSaveDraft: () => Promise<void>;
+  handleSaveDraft: () => Promise<boolean>;
   handleCommit: () => Promise<void>;
   handleActivate: () => Promise<void>;
   handleDeactivate: () => Promise<void>;
@@ -94,15 +94,15 @@ export function useBuilderActions({
     return vn;
   };
 
-  const handleSaveDraft = async () => {
-    if (!workflowId) return;
+  const handleSaveDraft = async (): Promise<boolean> => {
+    if (!workflowId) return false;
     setSaving(true);
     setValidationResult(null);
     setErrorsPopoverOpen(false);
     const vn = await saveDraft();
     if (vn === null) {
       setSaving(false);
-      return;
+      return false;
     }
     const res = await call(() => validateVersion(workflowId, vn), { showError: false });
     const result = res
@@ -116,6 +116,7 @@ export function useBuilderActions({
     );
     if (!result.valid) setErrorsPopoverOpen(true);
     setSaving(false);
+    return true;
   };
 
   const handleCommit = async () => {

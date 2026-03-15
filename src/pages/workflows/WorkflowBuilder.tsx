@@ -550,7 +550,7 @@ export default function WorkflowBuilder() {
           <Button size="small" onClick={() => blocker.proceed?.()} sx={{ color: "#ef4444" }}>Leave without saving</Button>
           <Button
             variant="contained" size="small" disabled={saving}
-            onClick={async () => { await handleSaveDraft(); blocker.proceed?.(); }}
+            onClick={async () => { const saved = await handleSaveDraft(); if (saved) blocker.proceed?.(); }}
             sx={{ borderRadius: "8px", fontWeight: 600 }}
           >
             {saving ? <CircularProgress size={14} /> : "Save & Leave"}

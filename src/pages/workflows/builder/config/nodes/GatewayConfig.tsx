@@ -123,7 +123,7 @@ export default function GatewayConfig({
               <ExpressionInput
                 value={rule.conditionExpression}
                 onChange={(v) => updateRule(idx, { conditionExpression: v })}
-                placeholder="context.status === 'approved'"
+                placeholder='context.status = "approved"'
                 availableContext={availableContext}
                 hint="Must evaluate to true to take this branch"
               />
