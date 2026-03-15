@@ -3,12 +3,15 @@ import { useParams, useNavigate } from 'react-router-dom';
 import {
   Box,
   Button,
+  IconButton,
   Typography,
   CircularProgress,
   Chip,
   Skeleton,
+  Tooltip,
 } from '@mui/material';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
+import RefreshIcon from '@mui/icons-material/Refresh';
 import PageHeader from '../../components/common/PageHeader';
 import StatusChip from '../../components/common/StatusChip';
 import DetailInfoSection from './components/DetailInfoSection';
@@ -48,17 +51,25 @@ export default function InstanceDetailPage() {
         onBack={() => navigate('/instances')}
         chip={instance ? <StatusChip status={instance.status} /> : undefined}
         action={
-          canResume ? (
-            <Button
-              variant="contained"
-              size="small"
-              startIcon={loading ? <CircularProgress size={14} /> : <PlayArrowIcon />}
-              onClick={handleResume}
-              disabled={loading}
-            >
-              Resume Instance
-            </Button>
-          ) : undefined
+          <Box display="flex" alignItems="center" gap={1}>
+            <Tooltip title="Reload">
+              <IconButton size="small" onClick={() => id && fetch(id)} disabled={loading}
+                sx={{ color: 'text.secondary' }}>
+                <RefreshIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+            {canResume && (
+              <Button
+                variant="contained"
+                size="small"
+                startIcon={loading ? <CircularProgress size={14} /> : <PlayArrowIcon />}
+                onClick={handleResume}
+                disabled={loading}
+              >
+                Resume Instance
+              </Button>
+            )}
+          </Box>
         }
       />
 

@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
-import { Box, Paper, LinearProgress } from '@mui/material';
+import { Box, IconButton, Paper, Tooltip } from '@mui/material';
+import RefreshIcon from '@mui/icons-material/Refresh';
 import PageHeader from '../../components/common/PageHeader';
 import TaskTable from './components/TaskTable';
 import { useTasks } from './hooks/useTasks';
@@ -14,10 +15,17 @@ export default function TasksPage() {
       <PageHeader
         title="Pending Tasks"
         subtitle="Review and complete tasks waiting for manual approval"
+        action={
+          <Tooltip title="Reload">
+            <IconButton size="small" onClick={() => fetch()} disabled={loading}
+              sx={{ color: 'text.secondary' }}>
+              <RefreshIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
+        }
       />
       <Paper variant="outlined" sx={{ overflow: 'hidden' }}>
-        {loading && <LinearProgress />}
-        <TaskTable tasks={tasks} />
+        <TaskTable tasks={tasks} loading={loading} />
       </Paper>
     </Box>
   );

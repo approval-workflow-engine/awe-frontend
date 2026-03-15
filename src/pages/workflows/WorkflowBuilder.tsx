@@ -65,6 +65,7 @@ export default function WorkflowBuilder() {
   const [versionStatus, setVersionStatus] = useState<string>("draft");
   const [codeEditorOpenState, setCodeEditorOpen] = useState(false);
   const [clearConfirmOpen, setClearConfirmOpen] = useState(false);
+  const [canvasLoading, setCanvasLoading] = useState(() => !!versionNumber);
 
   const {
     nodes, setNodes, edges, setEdges, inputs, setInputs,
@@ -139,6 +140,7 @@ export default function WorkflowBuilder() {
       }
 
       setMarkDirtyEnabled(true);
+      setCanvasLoading(false);
     })();
   }, [workflowId, versionNumber, call, setMarkDirtyEnabled, setWorkflowName, setNodes, setEdges, setInputs, setLoadedVersionNumber, setSavedVersionNumber, setVersionStatus]);
 
@@ -401,48 +403,56 @@ export default function WorkflowBuilder() {
             <ContextVarsPanel nodes={nodes} inputs={inputs} />
           </Box>
 
-          <CanvasPanel
-            nodes={nodes}
-            edges={edges}
-            selectedItem={selectedItem}
-            connectingFrom={isReadOnly ? null : connectingFrom}
-            errorNodeIds={errorNodeIds}
-            onUpdateNode={isReadOnly ? () => undefined : handleUpdateNode}
-            onAddNode={isReadOnly ? () => undefined : handleAddNode}
-            onAddEdge={isReadOnly ? () => undefined : handleAddEdge}
-            onSelectItem={setSelectedItem}
-            onStartConnect={(nodeId, portId) => {
-              if (isReadOnly) return;
-              setSelectedItem(null);
-              setConnectingFrom({ nodeId, portId });
-            }}
-            onCancelConnect={() => setConnectingFrom(null)}
-          />
+          {canvasLoading ? (
+            <Box sx={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <CircularProgress size={32} />
+            </Box>
+          ) : (
+            <>
+              <CanvasPanel
+                nodes={nodes}
+                edges={edges}
+                selectedItem={selectedItem}
+                connectingFrom={isReadOnly ? null : connectingFrom}
+                errorNodeIds={errorNodeIds}
+                onUpdateNode={isReadOnly ? () => undefined : handleUpdateNode}
+                onAddNode={isReadOnly ? () => undefined : handleAddNode}
+                onAddEdge={isReadOnly ? () => undefined : handleAddEdge}
+                onSelectItem={setSelectedItem}
+                onStartConnect={(nodeId, portId) => {
+                  if (isReadOnly) return;
+                  setSelectedItem(null);
+                  setConnectingFrom({ nodeId, portId });
+                }}
+                onCancelConnect={() => setConnectingFrom(null)}
+              />
 
-          {selectedItem && (
-            <ConfigPanel
-              selectedItem={selectedItem}
-              nodes={nodes}
-              edges={edges}
-              inputs={inputs}
-              nodeErrors={
-                selectedItem.type === "node"
-                  ? (validationResult?.errors.filter((e) => e.nodeId === selectedItem.id) ?? [])
-                  : undefined
-              }
-              onClose={() => setSelectedItem(null)}
-              onUpdateNode={isReadOnly ? () => undefined : handleUpdateNode}
-              onUpdateEdge={isReadOnly ? () => undefined : handleUpdateEdge}
-              onDeleteEdge={isReadOnly ? () => undefined : handleDeleteEdge}
-              onChangeInputs={(newInputs) => {
-                if (isReadOnly) return;
-                setInputs(newInputs);
-                markDirtyAndClearValidation();
-              }}
-              onOpenCodeEditor={() => {
-                if (!isReadOnly) setCodeEditorOpen(true);
-              }}
-            />
+              {selectedItem && (
+                <ConfigPanel
+                  selectedItem={selectedItem}
+                  nodes={nodes}
+                  edges={edges}
+                  inputs={inputs}
+                  nodeErrors={
+                    selectedItem.type === "node"
+                      ? (validationResult?.errors.filter((e) => e.nodeId === selectedItem.id) ?? [])
+                      : undefined
+                  }
+                  onClose={() => setSelectedItem(null)}
+                  onUpdateNode={isReadOnly ? () => undefined : handleUpdateNode}
+                  onUpdateEdge={isReadOnly ? () => undefined : handleUpdateEdge}
+                  onDeleteEdge={isReadOnly ? () => undefined : handleDeleteEdge}
+                  onChangeInputs={(newInputs) => {
+                    if (isReadOnly) return;
+                    setInputs(newInputs);
+                    markDirtyAndClearValidation();
+                  }}
+                  onOpenCodeEditor={() => {
+                    if (!isReadOnly) setCodeEditorOpen(true);
+                  }}
+                />
+              )}
+            </>
           )}
         </Box>
 

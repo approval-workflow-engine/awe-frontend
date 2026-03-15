@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Box, Button, Paper, LinearProgress } from '@mui/material';
+import { Box, Button, IconButton, Paper, Tooltip } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
+import RefreshIcon from '@mui/icons-material/Refresh';
 import PageHeader from '../../components/common/PageHeader';
 import InstanceTable from './components/InstanceTable';
 import CreateInstanceDialog from './components/CreateInstanceDialog';
@@ -25,20 +26,27 @@ export default function InstancesPage() {
         title="Instances"
         subtitle="Monitor all running and completed workflow instances"
         action={
-          <Button
-            variant="contained"
-            size="small"
-            startIcon={<AddIcon />}
-            onClick={() => setDialogOpen(true)}
-          >
-            Create Instance
-          </Button>
+          <Box display="flex" alignItems="center" gap={1}>
+            <Tooltip title="Reload">
+              <IconButton size="small" onClick={() => fetch()} disabled={loading}
+                sx={{ color: 'text.secondary' }}>
+                <RefreshIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+            <Button
+              variant="contained"
+              size="small"
+              startIcon={<AddIcon />}
+              onClick={() => setDialogOpen(true)}
+            >
+              Create Instance
+            </Button>
+          </Box>
         }
       />
 
       <Paper variant="outlined" sx={{ overflow: 'hidden' }}>
-        {loading && <LinearProgress />}
-        <InstanceTable instances={instances} />
+        <InstanceTable instances={instances} loading={loading} />
       </Paper>
 
       <CreateInstanceDialog
