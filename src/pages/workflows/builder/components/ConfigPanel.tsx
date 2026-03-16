@@ -152,7 +152,6 @@ export default function ConfigPanel({
             node={node}
             onUpdateConfig={updateConfig}
             onChangeInputs={onChangeInputs}
-            availableContext={availableContext}
           />
         );
       case "end":

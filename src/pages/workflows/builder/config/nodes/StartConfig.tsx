@@ -13,13 +13,11 @@ import {
 } from "@mui/material";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
-import ExpressionInput from "../shared/ExpressionInput";
 import DataTypeSelect from "../shared/DataTypeSelect";
 import AddRowButton from "../shared/AddRowButton";
 import { CollapsibleSection } from "../shared/CollapsibleSection";
 import { EXPR_FONT } from "../constants";
 import { generateId } from "../../utils/nodeHelpers";
-import type { AvailableCtxVar } from "../context";
 import type {
   CanvasNode,
   WorkflowInput,
@@ -45,7 +43,6 @@ interface Props {
   node: CanvasNode;
   onUpdateConfig: (c: Record<string, unknown>) => void;
   onChangeInputs: (v: WorkflowInput[]) => void;
-  availableContext: AvailableCtxVar[];
 }
 
 const VALID_IDENT = /^[a-zA-Z_][a-zA-Z0-9_.]*$/;
@@ -72,7 +69,6 @@ export default function StartConfig({
   node,
   onUpdateConfig,
   onChangeInputs,
-  availableContext,
 }: Props) {
   const rows: InputDataMapRow[] =
     (node.config.inputDataMap as InputDataMapRow[]) ?? [];
@@ -207,7 +203,6 @@ export default function StartConfig({
               fetchable={f}
               onUpdate={(patch) => updateFetchable(fIdx, patch)}
               onRemove={() => removeFetchable(fIdx)}
-              availableContext={availableContext}
             />
           ))}
           <AddRowButton label="Add Fetch Source" onClick={addFetchSource} />
@@ -320,14 +315,12 @@ interface FetchSourceCardProps {
   fetchable: FetchableConfig;
   onUpdate: (patch: Partial<FetchableConfig>) => void;
   onRemove: () => void;
-  availableContext: AvailableCtxVar[];
 }
 
 function FetchSourceCard({
   fetchable,
   onUpdate,
   onRemove,
-  availableContext,
 }: FetchSourceCardProps) {
   const headers = fetchable.headers ?? [];
 
@@ -379,13 +372,29 @@ function FetchSourceCard({
         </IconButton>
       </Box>
 
-      <ExpressionInput
-        label="URL"
-        value={fetchable.urlExpression}
-        onChange={(v) => onUpdate({ urlExpression: v })}
-        placeholder="https://api.example.com/endpoint"
-        availableContext={availableContext}
-      />
+      <Box>
+        <Typography
+          sx={{ fontSize: 10, color: "text.secondary", mb: 0.25, fontWeight: 500 }}
+        >
+          URL
+        </Typography>
+        <TextField
+          size="small"
+          fullWidth
+          value={fetchable.urlExpression}
+          onChange={(e) => onUpdate({ urlExpression: e.target.value })}
+          placeholder="https://api.example.com/endpoint"
+          inputProps={{
+            style: { fontSize: 11, fontFamily: EXPR_FONT, padding: "5px 8px" },
+          }}
+          sx={ROW_FIELD_SX}
+        />
+        <Typography
+          sx={{ fontSize: 9, color: "text.secondary", opacity: 0.75, mt: 0.25, lineHeight: 1.4 }}
+        >
+          Use {"{"}context.varName{"}"} for dynamic path parameters
+        </Typography>
+      </Box>
 
       <CollapsibleSection title="Headers" count={headers.length}>
         <Box display="flex" flexDirection="column" gap={0.5} mt={0.25}>
