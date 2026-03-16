@@ -92,7 +92,7 @@ export default function InstanceTable({ instances, loading }: Props) {
                 </TableCell>
                 <TableCell>
                   <Typography fontSize={13}>
-                    {inst.version_number != null ? `v${inst.version_number}` : '—'}
+                    {inst.version_number != null ? `v${inst.version_number}` : '-'}
                   </Typography>
                 </TableCell>
                 <TableCell>
