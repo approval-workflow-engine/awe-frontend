@@ -1,7 +1,8 @@
 import { useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Box, Typography, Skeleton } from '@mui/material';
+import { Box, Typography, Skeleton, Paper } from '@mui/material';
 import PageHeader from '../../components/common/PageHeader';
+import StatusChip from '../../components/common/StatusChip';
 import TaskInfoSection from './components/TaskInfoSection';
 import TaskInputForm from './components/TaskInputForm';
 import { useTask } from './hooks/useTask';
@@ -29,6 +30,7 @@ export default function TaskReviewPage() {
         title={title}
         subtitle={task?.workflow_name}
         onBack={() => navigate('/tasks')}
+        chip={task ? <StatusChip status={task.status} /> : undefined}
       />
 
       {loading && !task && (
@@ -55,11 +57,12 @@ export default function TaskReviewPage() {
       )}
 
       {task && task.status !== 'in_progress' && (
-        <Box sx={{ py: 8, textAlign: 'center' }}>
-          <Typography color="text.secondary" fontSize={14}>
-            This task has already been completed.
+        <Paper variant="outlined" sx={{ p: 4, textAlign: 'center' }}>
+          <StatusChip status={task.status} />
+          <Typography color="text.secondary" fontSize={13} mt={1.5}>
+            This task is no longer available for review.
           </Typography>
-        </Box>
+        </Paper>
       )}
 
       {task && task.status === 'in_progress' && (
