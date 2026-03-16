@@ -272,7 +272,7 @@ export interface BackendInstance {
 
 export interface UserTaskDisplayField {
   label: string;
-  valueExpression: string;
+  value: unknown;
 }
 
 export interface UserTaskResponseField {
@@ -305,6 +305,4 @@ export interface BackendTask {
   node_configuration: UserTaskNodeConfiguration;
 }
 
-export interface BackendTaskDetail extends BackendTask {
-  instance_context: Record<string, unknown> | null;
-}
+export interface BackendTaskDetail extends BackendTask {}

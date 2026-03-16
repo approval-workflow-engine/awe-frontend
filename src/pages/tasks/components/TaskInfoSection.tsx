@@ -1,29 +1,32 @@
 import type { ReactNode } from 'react';
-import { Box, Typography, Paper, Chip } from '@mui/material';
-import AssignmentIcon from '@mui/icons-material/Assignment';
+import { Box, Typography, Paper } from '@mui/material';
+import StatusChip from '../../../components/common/StatusChip';
 import type { BackendTaskDetail } from '../../../types';
 
-function resolveExpression(expr: string, ctx: Record<string, unknown>): string {
-  if (expr.startsWith('context.')) {
-    const path = expr.slice('context.'.length).split('.');
-    const val = path.reduce<unknown>((acc, key) => {
-      if (acc == null || typeof acc !== 'object') return undefined;
-      return (acc as Record<string, unknown>)[key];
-    }, ctx);
-    return val !== undefined && val !== null ? String(val) : '—';
-  }
-  return expr;
-}
+const MONO = "'JetBrains Mono', monospace";
 
 function InfoRow({ label, value }: { label: string; value: ReactNode }) {
   return (
-    <Box display="flex" alignItems="flex-start" gap={2} py={0.75}>
-      <Typography sx={{ fontSize: 12, color: 'text.secondary', minWidth: 140, flexShrink: 0 }}>
+    <Box
+      display="flex"
+      alignItems="flex-start"
+      gap={2}
+      py={0.875}
+      sx={{ borderBottom: '1px solid', borderColor: 'divider' }}
+    >
+      <Typography sx={{ fontSize: 12, color: 'text.secondary', minWidth: 120, flexShrink: 0, pt: 0.125 }}>
         {label}
       </Typography>
       <Box flex={1}>{value}</Box>
     </Box>
   );
+}
+
+function formatValue(value: unknown): string {
+  if (value === null || value === undefined) return '—';
+  if (typeof value === 'boolean') return value ? 'Yes' : 'No';
+  if (typeof value === 'object') return JSON.stringify(value);
+  return String(value);
 }
 
 interface Props {
@@ -32,62 +35,66 @@ interface Props {
 
 export default function TaskInfoSection({ task }: Props) {
   const config = task.node_configuration;
-  const ctx = task.instance_context ?? {};
   const hasDisplayData = config.requestMap && config.requestMap.length > 0;
 
   return (
-    <Paper variant="outlined" sx={{ p: 3 }}>
-      <Box display="flex" alignItems="center" gap={1} mb={2}>
-        <AssignmentIcon sx={{ fontSize: 18, color: 'text.secondary' }} />
-        <Typography fontWeight={700} fontSize={15}>
-          {config.title || 'Task Details'}
-        </Typography>
-      </Box>
-
+    <Paper variant="outlined" sx={{ p: 2.5 }}>
       {config.description && (
-        <Typography fontSize={13} color="text.secondary" mb={2.5} sx={{ lineHeight: 1.6 }}>
+        <Typography
+          fontSize={13}
+          color="text.secondary"
+          mb={2}
+          sx={{ lineHeight: 1.65, borderBottom: '1px solid', borderColor: 'divider', pb: 2 }}
+        >
           {config.description}
         </Typography>
       )}
 
-      <Box sx={{ '& > *:not(:last-child)': { borderBottom: '1px solid', borderColor: 'divider' } }}>
+      <Box>
         <InfoRow
           label="Workflow"
           value={<Typography fontSize={13}>{task.workflow_name}</Typography>}
         />
         <InfoRow
-          label="Instance ID"
+          label="Instance"
           value={
-            <Typography sx={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12 }}>
+            <Typography sx={{ fontFamily: MONO, fontSize: 12 }}>
               {task.instance_id}
             </Typography>
           }
+        />
+        <InfoRow
+          label="Status"
+          value={<StatusChip status={task.status} />}
         />
         <InfoRow
           label="Created"
           value={
             <Typography fontSize={13}>
               {new Date(task.created_on).toLocaleString(undefined, {
-                dateStyle: 'medium', timeStyle: 'short',
+                dateStyle: 'medium',
+                timeStyle: 'short',
               })}
             </Typography>
           }
         />
-        <InfoRow
-          label="Status"
-          value={
-            <Chip
-              label={task.status.replace(/_/g, ' ')}
-              size="small"
-              sx={{ textTransform: 'capitalize', height: 22, fontSize: 11 }}
-            />
-          }
-        />
+        {config.assignee && (
+          <InfoRow
+            label="Assignee"
+            value={<Typography fontSize={13}>{config.assignee}</Typography>}
+          />
+        )}
       </Box>
 
       {hasDisplayData && (
         <Box mt={2.5}>
-          <Typography fontSize={12} fontWeight={700} color="text.secondary" mb={1.5} sx={{ textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+          <Typography
+            fontSize={11}
+            fontWeight={700}
+            color="text.secondary"
+            mb={1.25}
+            sx={{ textTransform: 'uppercase', letterSpacing: '0.07em' }}
+          >
             Display Data
           </Typography>
           <Box
@@ -99,27 +106,29 @@ export default function TaskInfoSection({ task }: Props) {
             }}
           >
             {config.requestMap.map((field, i) => (
-              <Box
-                key={i}
-                display="flex"
-                alignItems="flex-start"
-                gap={2}
-                px={2}
-                py={1}
-                sx={{
-                  borderBottom: i < config.requestMap.length - 1 ? '1px solid' : 'none',
-                  borderColor: 'divider',
-                  backgroundColor: i % 2 === 0 ? 'transparent' : 'action.hover',
-                }}
-              >
-                <Typography sx={{ fontSize: 12, color: 'text.secondary', minWidth: 140, flexShrink: 0, pt: 0.25 }}>
-                  {field.label}
-                </Typography>
-                <Typography fontSize={13} sx={{ fontFamily: "'JetBrains Mono', monospace", wordBreak: 'break-all' }}>
-                  {resolveExpression(field.valueExpression, ctx)}
-                </Typography>
-              </Box>
-            ))}
+                <Box
+                  key={i}
+                  display="flex"
+                  alignItems="flex-start"
+                  gap={2}
+                  px={1.75}
+                  py={0.875}
+                  sx={{
+                    backgroundColor: i % 2 === 0 ? 'transparent' : 'action.hover',
+                    borderBottom: i < config.requestMap.length - 1 ? '1px solid' : 'none',
+                    borderColor: 'divider',
+                  }}
+                >
+                  <Typography
+                    sx={{ fontSize: 12, color: 'text.secondary', minWidth: 120, flexShrink: 0, pt: 0.25 }}
+                  >
+                    {field.label}
+                  </Typography>
+                  <Typography fontSize={13} sx={{ fontFamily: MONO, wordBreak: 'break-all' }}>
+                    {formatValue(field.value)}
+                  </Typography>
+                </Box>
+              ))}
           </Box>
         </Box>
       )}
