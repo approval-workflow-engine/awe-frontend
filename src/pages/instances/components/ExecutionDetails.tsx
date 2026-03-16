@@ -27,7 +27,7 @@ export default function ExecutionDetails({ logs }: Props) {
           }}
         >
           <Typography color="text.secondary" fontSize={13}>
-            Execution history 
+            No execution history available.
           </Typography>
         </Box>
       ) : (
@@ -62,7 +62,12 @@ export default function ExecutionDetails({ logs }: Props) {
                     fontFamily: "'JetBrains Mono', monospace",
                     fontSize: 11,
                     fontWeight: 600,
-                    color: log.status === 'completed' ? '#22c55e' : log.status === 'failed' ? '#ef4444' : '#06b6d4',
+                    color:
+                      log.status === 'completed'
+                        ? '#22c55e'
+                        : log.status === 'failed'
+                        ? '#ef4444'
+                        : '#06b6d4',
                   }}
                 >
                   {log.status}

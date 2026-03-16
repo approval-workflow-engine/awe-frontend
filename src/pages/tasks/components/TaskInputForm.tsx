@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Box, Typography, Paper, Button, CircularProgress } from '@mui/material';
+import { Box, Typography, Paper, Button, CircularProgress, FormHelperText } from '@mui/material';
 import DynamicInput from './DynamicInput';
 import type { UserTaskResponseField } from '../../../types';
 
@@ -17,11 +17,48 @@ function initValues(fields: UserTaskResponseField[]): Record<string, unknown> {
   return init;
 }
 
+function validateValues(
+  fields: UserTaskResponseField[],
+  values: Record<string, unknown>,
+): Record<string, string> {
+  const errors: Record<string, string> = {};
+  for (const f of fields) {
+    const val = values[f.fieldId];
+    const isEmpty =
+      val === '' ||
+      val === null ||
+      val === undefined ||
+      (typeof val === 'number' && isNaN(val));
+    if (isEmpty && f.type !== 'boolean') {
+      errors[f.fieldId] = `${f.label} is required`;
+    }
+  }
+  return errors;
+}
+
 export default function TaskInputForm({ fields, loading, onSubmit }: Props) {
   const [values, setValues] = useState<Record<string, unknown>>(() => initValues(fields));
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
-  const setValue = (fieldId: string, value: unknown) =>
+  const setValue = (fieldId: string, value: unknown) => {
     setValues((prev) => ({ ...prev, [fieldId]: value }));
+    if (fieldErrors[fieldId]) {
+      setFieldErrors((prev) => {
+        const next = { ...prev };
+        delete next[fieldId];
+        return next;
+      });
+    }
+  };
+
+  const handleSubmit = () => {
+    const errors = validateValues(fields, values);
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors);
+      return;
+    }
+    onSubmit(values);
+  };
 
   if (fields.length === 0) return null;
 
@@ -42,12 +79,23 @@ export default function TaskInputForm({ fields, loading, onSubmit }: Props) {
           <Box key={field.fieldId}>
             <Typography fontSize={13} fontWeight={500} mb={0.75}>
               {field.label}
+              {field.type !== 'boolean' && (
+                <Typography component="span" fontSize={13} color="error.main" ml={0.25}>
+                  *
+                </Typography>
+              )}
             </Typography>
             <DynamicInput
               field={field}
               value={values[field.fieldId]}
               onChange={(val) => setValue(field.fieldId, val)}
+              error={!!fieldErrors[field.fieldId]}
             />
+            {fieldErrors[field.fieldId] && (
+              <FormHelperText error sx={{ mt: 0.5, ml: 0 }}>
+                {fieldErrors[field.fieldId]}
+              </FormHelperText>
+            )}
           </Box>
         ))}
       </Box>
@@ -56,7 +104,7 @@ export default function TaskInputForm({ fields, loading, onSubmit }: Props) {
         <Button
           variant="contained"
           size="small"
-          onClick={() => onSubmit(values)}
+          onClick={handleSubmit}
           disabled={loading}
           startIcon={loading ? <CircularProgress size={13} /> : undefined}
           sx={{ borderRadius: '8px', fontWeight: 600, height: 32 }}

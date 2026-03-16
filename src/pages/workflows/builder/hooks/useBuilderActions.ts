@@ -75,7 +75,6 @@ export function useBuilderActions({
   const saveDraft = async (): Promise<number | null> => {
     if (!workflowId) return null;
     const payload = canvasToVersionPayload(nodes, edges);
-    console.log(payload)
     const res = await call(
       () =>
         savedVersionNumber !== null

@@ -1,23 +1,29 @@
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Box, Button, IconButton, Paper, Tooltip } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import RefreshIcon from '@mui/icons-material/Refresh';
+import { useState } from 'react';
 import PageHeader from '../../components/common/PageHeader';
 import InstanceTable from './components/InstanceTable';
 import CreateInstanceDialog from './components/CreateInstanceDialog';
 import { useInstances } from './hooks/useInstances';
+import { usePolling } from '../../hooks/usePolling';
 import type { BackendInstance } from '../../types';
+
+const POLL_INTERVAL_MS = 5000;
 
 export default function InstancesPage() {
   const navigate = useNavigate();
-  const { instances, loading, fetch } = useInstances();
+  const { instances, loading, fetch, silentFetch } = useInstances();
   const [dialogOpen, setDialogOpen] = useState(false);
 
   useEffect(() => { fetch(); }, [fetch]);
 
+  usePolling(() => { silentFetch(); }, POLL_INTERVAL_MS, true);
+
   const handleCreated = (instance: BackendInstance) => {
-    navigate(`/instances/${instance.id}`);
+    navigate(`/instances/${instance.id}`, { state: { instance } });
   };
 
   return (

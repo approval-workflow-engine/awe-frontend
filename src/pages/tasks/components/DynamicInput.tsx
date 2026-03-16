@@ -51,18 +51,36 @@ export default function DynamicInput({ field, value, onChange, error }: Props) {
     );
   }
 
+  if (uiType === 'number') {
+    return (
+      <TextField
+        fullWidth
+        size="small"
+        type="number"
+        value={value === '' || value === null || value === undefined ? '' : String(value)}
+        onChange={(e) => {
+          const raw = e.target.value;
+          if (raw === '') {
+            onChange('');
+          } else {
+            const num = Number(raw);
+            onChange(isNaN(num) ? '' : num);
+          }
+        }}
+        error={error}
+      />
+    );
+  }
+
   return (
     <TextField
       fullWidth
       size="small"
-      type={uiType === 'number' ? 'number' : 'text'}
+      type="text"
       multiline={uiType === 'textarea'}
       minRows={uiType === 'textarea' ? 3 : undefined}
-      value={typeof value === 'string' || typeof value === 'number' ? value : ''}
-      onChange={(e) => {
-        const raw = e.target.value;
-        onChange(uiType === 'number' ? (raw === '' ? '' : Number(raw)) : raw);
-      }}
+      value={typeof value === 'string' ? value : ''}
+      onChange={(e) => onChange(e.target.value)}
       error={error}
     />
   );

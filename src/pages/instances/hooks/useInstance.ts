@@ -3,6 +3,8 @@ import { useApiCall } from '../../../hooks/useApiCall';
 import { getInstance, resumeInstance as resumeApi } from '../../../api/instanceApi';
 import type { BackendInstance } from '../../../types';
 
+const TERMINAL_STATUSES = new Set(['completed', 'failed', 'terminated']);
+
 export function useInstance() {
   const { loading, error, call } = useApiCall();
   const [instance, setInstance] = useState<BackendInstance | null>(null);
@@ -10,6 +12,16 @@ export function useInstance() {
   const fetch = useCallback(
     async (id: string) => {
       const res = await call(() => getInstance(id));
+      const inst = (res as { instance: BackendInstance } | null)?.instance ?? null;
+      setInstance(inst);
+      return inst;
+    },
+    [call],
+  );
+
+  const silentFetch = useCallback(
+    async (id: string) => {
+      const res = await call(() => getInstance(id), { silent: true });
       const inst = (res as { instance: BackendInstance } | null)?.instance ?? null;
       setInstance(inst);
       return inst;
@@ -27,5 +39,10 @@ export function useInstance() {
     [call],
   );
 
-  return { instance, loading, error, fetch, resume };
+  const isTerminal = useCallback(
+    (status: string | undefined) => (status ? TERMINAL_STATUSES.has(status) : false),
+    [],
+  );
+
+  return { instance, loading, error, fetch, silentFetch, resume, isTerminal };
 }

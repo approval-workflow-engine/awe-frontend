@@ -307,4 +307,4 @@ export interface BackendTask {
   node_configuration: UserTaskNodeConfiguration;
 }
 
-export interface BackendTaskDetail extends BackendTask {}
+export type BackendTaskDetail = BackendTask;

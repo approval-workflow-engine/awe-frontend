@@ -199,7 +199,7 @@ export default function WorkflowVersionsPage() {
       day: "2-digit",
       month: "short",
       year: "numeric",
-      timeZone: "Asia/Kolkata",
+
     });
   };
 
@@ -424,7 +424,7 @@ export default function WorkflowVersionsPage() {
                             </IconButton>
                           </Tooltip>
 
-                          {(isDraft || isValid) && (
+                          {isValid && (
                             <Tooltip title="Commit (lock for activation)">
                               <IconButton
                                 size="small"

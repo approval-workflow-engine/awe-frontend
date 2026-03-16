@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState, type ElementType } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Box, Grid, Paper, Typography, Button, Skeleton } from '@mui/material';
 import AccountTreeIcon from '@mui/icons-material/AccountTree';
@@ -13,7 +13,7 @@ import type { BackendInstance, BackendTask } from '../../types';
 interface StatCardDef {
   key: string;
   label: string;
-  icon: React.ElementType;
+  icon: ElementType;
   color: string;
 }
 
@@ -52,7 +52,7 @@ function StatCard({ card, value }: StatCardProps) {
       <Box display="flex" alignItems="flex-start" justifyContent="space-between">
         <Box>
           {value === null ? (
-          <Skeleton variant="text" width={60} height={40} />
+            <Skeleton variant="text" width={60} height={40} />
           ) : (
             <Typography sx={{ fontFamily: "'Syne', sans-serif", fontWeight: 700, fontSize: 32, color: 'text.primary', lineHeight: 1 }}>
               {value}
@@ -74,6 +74,15 @@ function StatCard({ card, value }: StatCardProps) {
   );
 }
 
+function unwrap(res: PromiseSettledResult<{ data: unknown }>): Record<string, unknown> {
+  if (res.status === 'rejected') return {};
+  const body = (res.value as { data: unknown }).data as Record<string, unknown>;
+  if (body && typeof body.success === 'boolean' && 'data' in body) {
+    return (body.data as Record<string, unknown>) ?? {};
+  }
+  return body ?? {};
+}
+
 export default function Dashboard() {
   const navigate = useNavigate();
 
@@ -87,62 +96,39 @@ export default function Dashboard() {
     let cancelled = false;
     (async () => {
       try {
-        const [wfRes, instRes, runningRes, pendingRes, recentInstRes, recentTaskRes] =
-          await Promise.allSettled([
-            axiosClient.get('/workflows', { params: { page: 1, limit: 1 } }),
-            axiosClient.get('/instances', { params: { page: 1, limit: 1 } }),
-            axiosClient.get('/instances', { params: { status: 'IN_PROGRESS', page: 1, limit: 1 } }),
-            axiosClient.get('/tasks', { params: { status: 'IN_PROGRESS', page: 1, limit: 1 } }),
-            axiosClient.get('/instances', { params: { page: 1, limit: 5 } }),
-            axiosClient.get('/tasks', { params: { status: 'IN_PROGRESS', page: 1, limit: 5 } }),
-          ]);
+        const [wfRes, instRes, taskRes] = await Promise.allSettled([
+          axiosClient.get('/workflows'),
+          axiosClient.get('/instances'),
+          axiosClient.get('/tasks'),
+        ]);
 
         if (cancelled) return;
 
-        const getTotal = (res: PromiseSettledResult<{ data: unknown }>): number | null => {
-          if (res.status === 'rejected') return 0;
-          const body = (res.value as { data: Record<string, unknown> }).data as Record<string, unknown>;
-          const nested = body?.data as Record<string, unknown> | undefined;
-          const candidates = [
-            nested?.pagination,
-            body?.pagination,
-            body?.meta,
-            nested,
-            body,
-          ] as Array<Record<string, unknown> | undefined>;
-          for (const obj of candidates) {
-            const t = obj?.total ?? obj?.count ?? obj?.totalCount;
-            if (typeof t === 'number') return t;
-          }
-          return null;
-        };
+        const wfData = unwrap(wfRes);
+        const instData = unwrap(instRes);
+        const taskData = unwrap(taskRes);
+
+        const allWorkflows = (wfData.workflows as unknown[]) ?? [];
+        const allInstances = (instData.instances as BackendInstance[]) ?? [];
+        const allTasks = (taskData.tasks as BackendTask[]) ?? [];
+
+        const runningCount = allInstances.filter(
+          (inst) => inst.status === 'in_progress',
+        ).length;
 
         setStats({
-          workflows: getTotal(wfRes),
-          instances: getTotal(instRes),
-          running:   getTotal(runningRes),
-          pending:   getTotal(pendingRes),
+          workflows: allWorkflows.length,
+          instances: allInstances.length,
+          running: runningCount,
+          pending: allTasks.length,
         });
 
-        if (recentInstRes.status === 'fulfilled') {
-          const body = (recentInstRes.value as { data: Record<string, unknown> }).data as Record<string, unknown>;
-          const inner = body?.data as Record<string, unknown> | undefined;
-          const arr = (inner?.instances ?? (Array.isArray(inner) ? inner : [])) as BackendInstance[];
-          setInstances(Array.isArray(arr) ? arr : []);
-        } else {
-          setInstances([]);
-        }
-
-        if (recentTaskRes.status === 'fulfilled') {
-          const body = (recentTaskRes.value as { data: Record<string, unknown> }).data as Record<string, unknown>;
-          const inner = body?.data as Record<string, unknown> | undefined;
-          const arr = (inner?.tasks ?? (Array.isArray(inner) ? inner : [])) as BackendTask[];
-          setTasks(Array.isArray(arr) ? arr : []);
-        } else {
-          setTasks([]);
-        }
+        setInstances(allInstances.slice(0, 5));
+        setTasks(allTasks.slice(0, 5));
       } catch {
-        //
+        setStats({ workflows: 0, instances: 0, running: 0, pending: 0 });
+        setInstances([]);
+        setTasks([]);
       }
     })();
     return () => { cancelled = true; };
@@ -187,10 +173,10 @@ export default function Dashboard() {
                   <Typography sx={{ fontSize: 13, color: 'text.secondary' }}>No instances yet</Typography>
                 </Box>
               ) : (
-                instances.slice(0, 5).map(inst => (
+                instances.map(inst => (
                   <Box
                     key={inst.id}
-                    onClick={() => navigate(`/instances/${inst.id}`)}
+                    onClick={() => navigate(`/instances/${inst.id}`, { state: { instance: inst } })}
                     sx={{
                       px: 2.5, py: 1.5,
                       borderBottom: '1px solid', borderColor: 'divider',
@@ -237,7 +223,7 @@ export default function Dashboard() {
                     <Skeleton variant="text" width={70} height={14} />
                   </Box>
                 ))
-              ) : tasks.slice(0, 5).length === 0 ? (
+              ) : tasks.length === 0 ? (
                 <Box sx={{ px: 2.5, py: 4, textAlign: 'center' }}>
                   <Typography sx={{ fontSize: 13, color: 'text.secondary' }}>No pending tasks</Typography>
                 </Box>
