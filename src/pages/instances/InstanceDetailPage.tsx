@@ -13,7 +13,7 @@ import {
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import PageHeader from '../../components/common/PageHeader';
-import StatusChip from '../../components/common/StatusChip';
+// import StatusChip from '../../components/common/StatusChip';
 import DetailInfoSection from './components/DetailInfoSection';
 import ExecutionDetails from './components/ExecutionDetails';
 import { useInstance } from './hooks/useInstance';
@@ -39,17 +39,15 @@ export default function InstanceDetailPage() {
   };
 
   const workflowLabel = instance
-    ? instance.workflow_name
-      ? `${instance.workflow_name}${instance.version_number != null ? ` · v${instance.version_number}` : ''}`
-      : `Version: ${instance.workflow_version_id.slice(-12)}`
-    : 'Instance Details';
+  ? `${instance.workflow_name} — Version ${instance.version_number}`
+  : 'Instance Details';
 
   return (
     <Box>
       <PageHeader
         title={workflowLabel}
         onBack={() => navigate('/instances')}
-        chip={instance ? <StatusChip status={instance.status} /> : undefined}
+        // chip={instance ? <StatusChip status={instance.status} /> : undefined}
         action={
           <Box display="flex" alignItems="center" gap={1}>
             <Tooltip title="Reload">
