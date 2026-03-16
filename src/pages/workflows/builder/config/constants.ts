@@ -16,15 +16,6 @@ export const METHOD_COLORS: Record<string, string> = {
   DELETE: "#ef4444",
 };
 
-export const UI_TYPES = [
-  "text",
-  "textarea",
-  "number",
-  "dropdown",
-  "checkbox",
-  "date-picker",
-] as const;
-
 export const DATA_TYPE_COLORS: Record<string, string> = {
   [DataType.STRING]: "#86efac",
   [DataType.NUMBER]: "#93c5fd",

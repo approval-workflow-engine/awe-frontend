@@ -1,21 +1,3 @@
-import { DataType } from "../type/types";
-
-export const DATA_TYPE_TO_UI_TYPE: Record<string, string> = {
-  [DataType.STRING]: "text",
-  [DataType.NUMBER]: "number",
-  [DataType.BOOLEAN]: "checkbox",
-  [DataType.DATE]: "date-picker",
-  [DataType.DATETIME]: "date-picker",
-  [DataType.TIME]: "date-picker",
-  [DataType.LIST]: "dropdown",
-  [DataType.OBJECT]: "textarea",
-  [DataType.NULL]: "text",
-};
-
-export function getDefaultUiType(type: string): string {
-  return DATA_TYPE_TO_UI_TYPE[type] ?? "text";
-}
-
 export function flattenJsonToBody(
   obj: unknown,
   prefix = "",

@@ -1,13 +1,9 @@
-import { useState } from "react";
-import { Box, Typography, IconButton, Tooltip } from "@mui/material";
+import { Box, Typography, IconButton } from "@mui/material";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
-import KeyboardArrowRightIcon from "@mui/icons-material/KeyboardArrowRight";
-import ExpressionInput from "./ExpressionInput";
 import ContextVariableSelector from "./ContextVariableSelector";
 import DataTypeSelect from "./DataTypeSelect";
 import JsonPathInput from "./JsonPathInput";
 import AddRowButton from "./AddRowButton";
-import type { AvailableCtxVar } from "../context";
 import type { ContextVariable } from "../../type/types";
 import { DataType } from "../../type/types";
 
@@ -15,13 +11,11 @@ export interface ResponseMapRow {
   jsonPath: string;
   type: string;
   contextVariable?: ContextVariable;
-  validationExpression?: string;
 }
 
 interface Props {
   rows: ResponseMapRow[];
   onChange: (rows: ResponseMapRow[]) => void;
-  availableContext: AvailableCtxVar[];
   hint?: string;
 }
 
@@ -30,30 +24,12 @@ const EMPTY_CV: ContextVariable = { name: "", scope: "global" };
 export default function ResponseMapSection({
   rows,
   onChange,
-  availableContext,
   hint,
 }: Props) {
   const update = (idx: number, patch: Partial<ResponseMapRow>) =>
     onChange(rows.map((r, i) => (i === idx ? { ...r, ...patch } : r)));
-  const [expanded, setExpanded] = useState<Set<number>>(new Set());
-  const toggleExpand = (idx: number) =>
-    setExpanded((s) => {
-      const n = new Set(s);
-      if (n.has(idx)) n.delete(idx);
-      else n.add(idx);
-      return n;
-    });
-  const remove = (idx: number) => {
-    setExpanded((s) => {
-      const n = new Set<number>();
-      s.forEach((i) => {
-        if (i < idx) n.add(i);
-        else if (i > idx) n.add(i - 1);
-      });
-      return n;
-    });
+  const remove = (idx: number) =>
     onChange(rows.filter((_, i) => i !== idx));
-  };
 
   return (
     <Box display="flex" flexDirection="column" gap={0.75}>
@@ -77,89 +53,52 @@ export default function ResponseMapSection({
           }}
         >
           <Box
-            display="flex"
-            gap={0.5}
-            alignItems="center"
-            sx={{ px: 0.75, py: 0.5, backgroundColor: "action.hover" }}
+            sx={{
+              px: 0.75,
+              py: 0.5,
+              backgroundColor: "action.hover",
+              display: "flex",
+              flexDirection: "column",
+              gap: 0.5,
+            }}
           >
-            <Box sx={{ flex: 1, minWidth: 0 }}>
-              <JsonPathInput
-                value={row.jsonPath}
-                onChange={(v) => update(idx, { jsonPath: v })}
-                placeholder="result.field"
+            <Box display="flex" gap={0.5} alignItems="center">
+              <Box sx={{ flex: 1, minWidth: 0 }}>
+                <JsonPathInput
+                  value={row.jsonPath}
+                  onChange={(v) => update(idx, { jsonPath: v })}
+                  placeholder="result.field"
+                />
+              </Box>
+              <DataTypeSelect
+                value={row.type || DataType.STRING}
+                onChange={(v) => update(idx, { type: v })}
               />
-            </Box>
-            <DataTypeSelect
-              value={row.type || DataType.STRING}
-              onChange={(v) => update(idx, { type: v })}
-            />
-            <Tooltip
-              title={
-                expanded.has(idx) ? "Collapse" : "Context variable & validation"
-              }
-            >
               <IconButton
+                className="delete-btn"
                 size="small"
-                onClick={() => toggleExpand(idx)}
+                onClick={() => remove(idx)}
                 sx={{
                   p: 0.25,
                   color: "text.disabled",
-                  "&:hover": { color: "text.primary" },
+                  "&:hover": { color: "#ef4444" },
                 }}
               >
-                <KeyboardArrowRightIcon
-                  sx={{
-                    fontSize: 13,
-                    transform: expanded.has(idx) ? "rotate(90deg)" : "none",
-                    transition: "transform 0.15s",
-                  }}
-                />
+                <DeleteOutlineIcon sx={{ fontSize: 13 }} />
               </IconButton>
-            </Tooltip>
-            <IconButton
-              className="delete-btn"
-              size="small"
-              onClick={() => remove(idx)}
-              sx={{
-                p: 0.25,
-                color: "text.disabled",
-                "&:hover": { color: "#ef4444" },
-              }}
-            >
-              <DeleteOutlineIcon sx={{ fontSize: 13 }} />
-            </IconButton>
-          </Box>
-          {expanded.has(idx) && (
-            <Box
-              sx={{
-                px: 0.75,
-                py: 0.75,
-                display: "flex",
-                flexDirection: "column",
-                gap: 0.75,
-              }}
-            >
-              <Box>
-                <Typography
-                  sx={{ fontSize: 9, color: "text.secondary", mb: 0.25 }}
-                >
-                  Store as
-                </Typography>
-                <ContextVariableSelector
-                  value={row.contextVariable ?? EMPTY_CV}
-                  onChange={(v) => update(idx, { contextVariable: v })}
-                />
-              </Box>
-              <ExpressionInput
-                label="Validation"
-                value={row.validationExpression ?? ""}
-                onChange={(v) => update(idx, { validationExpression: v })}
-                placeholder="value !== null"
-                availableContext={availableContext}
-                hint="Must return true to accept the value"
+            </Box>
+            <Box>
+              <Typography
+                sx={{ fontSize: 9, color: "text.secondary", mb: 0.25 }}
+              >
+                Store as
+              </Typography>
+              <ContextVariableSelector
+                value={row.contextVariable ?? EMPTY_CV}
+                onChange={(v) => update(idx, { contextVariable: v })}
               />
             </Box>
-          )}
+          </Box>
         </Box>
       ))}
       <AddRowButton

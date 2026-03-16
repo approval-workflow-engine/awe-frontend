@@ -89,12 +89,12 @@ export default function Dashboard() {
       try {
         const [wfRes, instRes, runningRes, pendingRes, recentInstRes, recentTaskRes] =
           await Promise.allSettled([
-            axiosClient.get('/workflows', { params: { page: 1, limit: 9999 } }),
-            axiosClient.get('/instances', { params: { page: 1, limit: 9999 } }),
-            axiosClient.get('/instances', { params: { status: 'in_progress', page: 1, limit: 9999 } }),
-            axiosClient.get('/tasks', { params: { page: 1, limit: 9999 } }),
+            axiosClient.get('/workflows', { params: { page: 1, limit: 1 } }),
+            axiosClient.get('/instances', { params: { page: 1, limit: 1 } }),
+            axiosClient.get('/instances', { params: { status: 'IN_PROGRESS', page: 1, limit: 1 } }),
+            axiosClient.get('/tasks', { params: { status: 'IN_PROGRESS', page: 1, limit: 1 } }),
             axiosClient.get('/instances', { params: { page: 1, limit: 5 } }),
-            axiosClient.get('/tasks', { params: { page: 1, limit: 5 } }),
+            axiosClient.get('/tasks', { params: { status: 'IN_PROGRESS', page: 1, limit: 5 } }),
           ]);
 
         if (cancelled) return;
@@ -102,19 +102,17 @@ export default function Dashboard() {
         const getTotal = (res: PromiseSettledResult<{ data: unknown }>): number | null => {
           if (res.status === 'rejected') return 0;
           const body = (res.value as { data: Record<string, unknown> }).data as Record<string, unknown>;
-          const inner = body?.data as Record<string, unknown> | undefined;
-
-          // Check pagination metadata first (for endpoints that support it)
-          for (const obj of [inner?.pagination, body?.pagination, body?.meta] as Array<Record<string, unknown> | undefined>) {
+          const nested = body?.data as Record<string, unknown> | undefined;
+          const candidates = [
+            nested?.pagination,
+            body?.pagination,
+            body?.meta,
+            nested,
+            body,
+          ] as Array<Record<string, unknown> | undefined>;
+          for (const obj of candidates) {
             const t = obj?.total ?? obj?.count ?? obj?.totalCount;
             if (typeof t === 'number') return t;
-          }
-
-          // Fallback: count the returned array (works when endpoint has no pagination metadata)
-          if (inner && typeof inner === 'object') {
-            for (const val of Object.values(inner)) {
-              if (Array.isArray(val)) return val.length;
-            }
           }
           return null;
         };
@@ -207,7 +205,7 @@ export default function Dashboard() {
                         {inst.workflow_name || 'Unnamed'}
                       </Typography>
                       <Typography sx={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 11, color: 'text.disabled' }}>
-                        {formatDate(inst.started_on ?? inst.created_on)}
+                        {formatDate(inst.started_on || inst.created_on)}
                       </Typography>
                     </Box>
                     <StatusChip status={inst.status} />
@@ -259,10 +257,10 @@ export default function Dashboard() {
                   >
                     <Box minWidth={0} flex={1} mr={1}>
                       <Typography sx={{ fontSize: 13, color: 'text.primary', fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                        {task.node_configuration?.title || 'Untitled Task'}
+                        {task.node_configuration?.title || task.node_id || 'Untitled Task'}
                       </Typography>
                       <Typography sx={{ fontSize: 11, color: 'text.secondary', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                        {task.workflow_name}
+                        {task.node_configuration?.assignee || '-'}
                       </Typography>
                     </Box>
                     <Typography sx={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 11, color: 'text.disabled', flexShrink: 0 }}>

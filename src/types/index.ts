@@ -279,12 +279,8 @@ export interface UserTaskResponseField {
   fieldId: string;
   label: string;
   type: string;
-  uiType?: 'text' | 'textarea' | 'number' | 'dropdown' | 'checkbox' | 'date-picker';
-  required?: boolean;
-  default?: unknown;
   options?: Array<{ label?: string; valueExpression: string }>;
   contextVariable?: { name: string; scope: "global" };
-  validationExpression?: string;
 }
 
 export interface UserTaskNodeConfiguration {
