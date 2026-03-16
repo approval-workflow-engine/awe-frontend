@@ -146,7 +146,7 @@ export default function WorkflowVersionsPage() {
   const normalizeStatus = (v: WorkflowVersion) =>
     v.status?.toLowerCase?.() || "draft";
 
-  const hasDraft = versions.some((v) => normalizeStatus(v) === "draft");
+  const hasDraft = versions.some((v) => normalizeStatus(v) === "draft" || normalizeStatus(v) === "valid");
 
   const openAction = (version: WorkflowVersion, action: LifecycleAction) => {
     setActionTarget({ version, action });
@@ -244,7 +244,7 @@ export default function WorkflowVersionsPage() {
         onSearchChange={setSearchQuery}
         searchPlaceholder="Search versions…"
         action={
-          <Tooltip title={hasDraft ? "A draft version already exists. Complete or discard it before creating a new one." : ""}>
+          <Tooltip title={hasDraft ? "A draft version already exists. Complete it before creating a new one." : ""}>
             <span>
               <Button
                 variant="contained"
