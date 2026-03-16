@@ -39,7 +39,7 @@ export default function InstanceDetailPage() {
   };
 
   const workflowLabel = instance
-  ? `${instance.workflow_name} — Version ${instance.version_number}`
+  ? `${instance.workflow_name} - Version ${instance.version_number}`
   : 'Instance Details';
 
   return (
