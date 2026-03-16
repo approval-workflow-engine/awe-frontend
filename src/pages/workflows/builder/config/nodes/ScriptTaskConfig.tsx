@@ -394,7 +394,6 @@ export default function ScriptTaskConfig({
         <ResponseMapSection
           rows={(c.responseMap as ResponseMapRow[]) ?? []}
           onChange={(v) => set("responseMap", v)}
-          availableContext={availableContext}
           hint="JSON path extracts values from the object returned by your function"
         />
       </CollapsibleSection>

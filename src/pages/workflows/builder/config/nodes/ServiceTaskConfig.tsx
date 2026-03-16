@@ -275,7 +275,6 @@ export default function ServiceTaskConfig({
         <ResponseMapSection
           rows={(c.responseMap as ResponseMapRow[]) ?? []}
           onChange={(v) => set("responseMap", v)}
-          availableContext={availableContext}
           hint="Extract values from the API response"
         />
       </CollapsibleSection>

@@ -8,8 +8,19 @@ interface Props {
   error?: boolean;
 }
 
+function deriveUiType(field: UserTaskResponseField): string {
+  if (field.options && field.options.length > 0) return 'dropdown';
+  switch (field.type) {
+    case 'boolean': return 'checkbox';
+    case 'number': return 'number';
+    case 'object': return 'textarea';
+    default: return 'text';
+  }
+}
+
 export default function DynamicInput({ field, value, onChange, error }: Props) {
-  const { uiType, label, required, options } = field;
+  const { label, options } = field;
+  const uiType = deriveUiType(field);
 
   if (uiType === 'checkbox') {
     return (
@@ -24,10 +35,10 @@ export default function DynamicInput({ field, value, onChange, error }: Props) {
   if (uiType === 'dropdown' && options && options.length > 0) {
     return (
       <FormControl fullWidth size="small" error={error}>
-        <InputLabel>{label}{required ? ' *' : ''}</InputLabel>
+        <InputLabel>{label}</InputLabel>
         <Select
           value={typeof value === 'string' ? value : ''}
-          label={`${label}${required ? ' *' : ''}`}
+          label={label}
           onChange={(e) => onChange(e.target.value)}
         >
           {options.map((opt, i) => (
@@ -40,16 +51,11 @@ export default function DynamicInput({ field, value, onChange, error }: Props) {
     );
   }
 
-  const inputTypes: Record<string, string> = {
-    number: 'number',
-    'date-picker': 'date',
-  };
-
   return (
     <TextField
       fullWidth
       size="small"
-      type={inputTypes[uiType ?? 'text'] ?? 'text'}
+      type={uiType === 'number' ? 'number' : 'text'}
       multiline={uiType === 'textarea'}
       minRows={uiType === 'textarea' ? 3 : undefined}
       value={typeof value === 'string' || typeof value === 'number' ? value : ''}
@@ -58,7 +64,6 @@ export default function DynamicInput({ field, value, onChange, error }: Props) {
         onChange(uiType === 'number' ? (raw === '' ? '' : Number(raw)) : raw);
       }}
       error={error}
-      slotProps={uiType === 'date-picker' ? { htmlInput: { max: '9999-12-31' } } : undefined}
     />
   );
 }

@@ -4,7 +4,6 @@ import {
   Typography,
   IconButton,
   TextField,
-  Switch,
   Divider,
   ToggleButton,
   ToggleButtonGroup,
@@ -32,7 +31,7 @@ interface FetchableConfig {
   label?: string;
   method: "GET";
   urlExpression: string;
-  headers: Array<{ key: string; valueExpression: string }>;
+  headers: Array<{ key: string; value: string }>;
 }
 
 interface InputDataMapRow {
@@ -40,9 +39,6 @@ interface InputDataMapRow {
   dataType: string;
   contextVariableName: string;
   fetchableId?: string;
-  persist: boolean;
-  default?: unknown;
-  required?: boolean;
 }
 
 interface Props {
@@ -69,6 +65,7 @@ export const ROW_FIELD_SX = {
   },
 } as const;
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const ROW_INPUT_PROPS = { style: { padding: "4px 8px", fontSize: 11 } };
 
 export default function StartConfig({
@@ -101,7 +98,7 @@ export default function StartConfig({
             type: VALID_TYPES.includes(r.dataType as WorkflowInput["type"])
               ? (r.dataType as WorkflowInput["type"])
               : "string",
-            required: r.required ?? false,
+            required: true,
           })),
       );
     },
@@ -142,8 +139,6 @@ export default function StartConfig({
           jsonPath: "",
           dataType: DataType.STRING,
           contextVariableName: "",
-          persist: false,
-          required: false,
         },
       ],
       fetchables,
@@ -159,7 +154,6 @@ export default function StartConfig({
           dataType: DataType.STRING,
           contextVariableName: "",
           fetchableId: fetchables[0]?.id ?? "",
-          persist: false,
         },
       ],
       fetchables,
@@ -423,11 +417,11 @@ function FetchSourceCard({
               <TextField
                 size="small"
                 placeholder="Value"
-                value={h.valueExpression}
+                value={h.value}
                 onChange={(e) =>
                   onUpdate({
                     headers: headers.map((hh, i) =>
-                      i === hIdx ? { ...hh, valueExpression: e.target.value } : hh,
+                      i === hIdx ? { ...hh, value: e.target.value } : hh,
                     ),
                   })
                 }
@@ -449,7 +443,7 @@ function FetchSourceCard({
           <AddRowButton
             label="Add Header"
             onClick={() =>
-              onUpdate({ headers: [...headers, { key: "", valueExpression: "" }] })
+              onUpdate({ headers: [...headers, { key: "", value: "" }] })
             }
           />
         </Box>
@@ -547,54 +541,6 @@ function DirectInputCard({ row, onUpdate, onRemove }: DirectInputCardProps) {
           value={row.dataType || DataType.STRING}
           onChange={(v) => onUpdate({ dataType: v })}
         />
-
-        <Box
-          display="flex"
-          alignItems="center"
-          justifyContent="space-between"
-        >
-          <Typography sx={{ fontSize: 11, color: "text.secondary" }}>
-            Required
-          </Typography>
-          <Switch
-            size="small"
-            checked={row.required ?? false}
-            onChange={(e) => onUpdate({ required: e.target.checked })}
-          />
-        </Box>
-
-        <Box
-          display="flex"
-          alignItems="center"
-          justifyContent="space-between"
-        >
-          <Typography sx={{ fontSize: 11, color: "text.secondary" }}>
-            Persist
-          </Typography>
-          <Switch
-            size="small"
-            checked={row.persist ?? false}
-            onChange={(e) => onUpdate({ persist: e.target.checked })}
-          />
-        </Box>
-
-        {!row.required && (
-          <TextField
-            size="small"
-            label="Default value"
-            value={(row.default as string) ?? ""}
-            onChange={(e) => onUpdate({ default: e.target.value })}
-            sx={{
-              "& .MuiOutlinedInput-root": {
-                borderRadius: "6px",
-                fontSize: 11,
-                "& fieldset": { borderColor: "divider" },
-              },
-              "& .MuiInputLabel-root": { fontSize: 11 },
-            }}
-            inputProps={ROW_INPUT_PROPS}
-          />
-        )}
       </Box>
     </Box>
   );
