@@ -31,7 +31,7 @@ interface FetchableConfig {
   label?: string;
   method: "GET";
   urlExpression: string;
-  headers: Array<{ key: string; value: string }>;
+  headers: Array<{ key: string; valueExpression: string }>;
 }
 
 interface InputDataMapRow {
@@ -416,12 +416,12 @@ function FetchSourceCard({
               />
               <TextField
                 size="small"
-                placeholder="Value"
-                value={h.value}
+                placeholder="Value expression"
+                value={h.valueExpression}
                 onChange={(e) =>
                   onUpdate({
                     headers: headers.map((hh, i) =>
-                      i === hIdx ? { ...hh, value: e.target.value } : hh,
+                      i === hIdx ? { ...hh, valueExpression: e.target.value } : hh,
                     ),
                   })
                 }
@@ -443,7 +443,7 @@ function FetchSourceCard({
           <AddRowButton
             label="Add Header"
             onClick={() =>
-              onUpdate({ headers: [...headers, { key: "", value: "" }] })
+              onUpdate({ headers: [...headers, { key: "", valueExpression: "" }] })
             }
           />
         </Box>
