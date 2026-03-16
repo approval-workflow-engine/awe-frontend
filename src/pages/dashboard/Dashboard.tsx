@@ -189,7 +189,7 @@ export default function Dashboard() {
                   <Typography sx={{ fontSize: 13, color: 'text.secondary' }}>No instances yet</Typography>
                 </Box>
               ) : (
-                instances.map(inst => (
+                instances.slice(0, 5).map(inst => (
                   <Box
                     key={inst.id}
                     onClick={() => navigate(`/instances/${inst.id}`)}
@@ -239,7 +239,7 @@ export default function Dashboard() {
                     <Skeleton variant="text" width={70} height={14} />
                   </Box>
                 ))
-              ) : tasks.length === 0 ? (
+              ) : tasks.slice(0, 5).length === 0 ? (
                 <Box sx={{ px: 2.5, py: 4, textAlign: 'center' }}>
                   <Typography sx={{ fontSize: 13, color: 'text.secondary' }}>No pending tasks</Typography>
                 </Box>
