@@ -73,7 +73,7 @@ export default function InstanceTable({ instances, loading }: Props) {
               <TableRow
                 key={inst.id}
                 hover
-                onClick={() => navigate(`/instances/${inst.id}`)}
+                onClick={() => navigate(`/instances/${inst.id}`, { state: { instance: inst } })}
                 sx={{ cursor: 'pointer', '& td': { fontSize: 13, py: 1.25 } }}
               >
                 <TableCell>
@@ -92,7 +92,7 @@ export default function InstanceTable({ instances, loading }: Props) {
                 </TableCell>
                 <TableCell>
                   <Typography fontSize={13}>
-                    {inst.version_number != null ? `v${inst.version_number}` : '—'}
+                    {inst.version_number != null ? `v${inst.version_number}` : '-'}
                   </Typography>
                 </TableCell>
                 <TableCell>

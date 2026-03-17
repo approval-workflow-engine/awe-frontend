@@ -15,5 +15,13 @@ export function useInstances() {
     [call],
   );
 
-  return { instances, loading, error, fetch };
+  const silentFetch = useCallback(
+    async (params?: PaginationParams) => {
+      const res = await call(() => getInstances(params), { silent: true });
+      setInstances((res as { instances: BackendInstance[] } | null)?.instances ?? []);
+    },
+    [call],
+  );
+
+  return { instances, loading, error, fetch, silentFetch };
 }

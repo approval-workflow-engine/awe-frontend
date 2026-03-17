@@ -63,12 +63,13 @@ export interface Workflow {
   name: string;
   description?: string;
   latestVersion?: number | null;
+  status?: string | null;
   versions?: WorkflowVersion[];
   createdAt: string;
   updatedAt?: string;
 }
 
-export type VersionStatus = 'draft' | 'published' | 'active' | 'valid';
+export type VersionStatus = "draft" | "published" | "active" | "valid";
 
 export interface WorkflowVersion {
   id: string;
@@ -114,7 +115,7 @@ export interface WorkflowEdge {
 
 export interface WorkflowInput {
   name: string;
-  type: 'string' | 'number' | 'boolean' | 'object';
+  type: "string" | "number" | "boolean" | "object";
   required: boolean;
 }
 
@@ -151,7 +152,12 @@ export interface ValidationResult {
   status?: string;
 }
 
-export type InstanceStatus = 'IN_PROGRESS' | 'PAUSED' | 'COMPLETED' | 'FAILED' | 'TERMINATED';
+export type InstanceStatus =
+  | "IN_PROGRESS"
+  | "PAUSED"
+  | "COMPLETED"
+  | "FAILED"
+  | "TERMINATED";
 
 export interface Instance {
   id: string;
@@ -180,7 +186,7 @@ export interface ExecutionLog {
   createdAt?: string;
 }
 
-export type TaskStatus = 'IN_PROGRESS' | 'COMPLETED' | 'REJECTED';
+export type TaskStatus = "IN_PROGRESS" | "COMPLETED" | "REJECTED";
 
 export interface Task {
   id: string;
@@ -204,7 +210,7 @@ export interface SchemaField {
 }
 
 export interface CompleteTaskPayload {
-  decision: 'approve' | 'reject';
+  decision: "approve" | "reject";
   comment?: string;
   completedBy?: string;
   responseData?: Record<string, string>;
@@ -245,14 +251,14 @@ export interface PaginationParams {
   entityType?: string;
 }
 
-export type ThemeMode = 'dark' | 'light';
+export type ThemeMode = "dark" | "light";
 
 export type BackendInstanceStatus =
-  | 'in_progress'
-  | 'paused'
-  | 'completed'
-  | 'failed'
-  | 'terminated';
+  | "in_progress"
+  | "paused"
+  | "completed"
+  | "failed"
+  | "terminated";
 
 export interface BackendInstance {
   id: string;
@@ -301,4 +307,4 @@ export interface BackendTask {
   node_configuration: UserTaskNodeConfiguration;
 }
 
-export interface BackendTaskDetail extends BackendTask {}
+export type BackendTaskDetail = BackendTask;

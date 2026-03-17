@@ -50,6 +50,10 @@ function serializeConfiguration(apiType: string, config: Record<string, any>): R
                 fetchables: (Array.isArray(config.fetchables) ? config.fetchables : []).map((f: any) => ({
                     ...f,
                     urlExpression: typeof f.urlExpression === "string" ? templateUrlToFeel(f.urlExpression) : f.urlExpression,
+                    headers: Array.isArray(f.headers) ? f.headers.map((h: any) => ({
+                        key: h.key ?? "",
+                        valueExpression: h.valueExpression ?? h.value ?? "",
+                    })) : [],
                 })),
             };
 
@@ -227,6 +231,10 @@ export function definitionToCanvas(
         node.config.fetchables = (node.config.fetchables as any[]).map((f: any) => ({
             ...f,
             urlExpression: typeof f.urlExpression === "string" ? feelUrlToTemplate(f.urlExpression) : f.urlExpression,
+            headers: Array.isArray(f.headers) ? f.headers.map((h: any) => ({
+                key: h.key ?? "",
+                valueExpression: h.valueExpression ?? h.value ?? "",
+            })) : [],
         }));
     });
 

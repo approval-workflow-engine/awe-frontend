@@ -7,9 +7,9 @@ import {
   Typography,
   InputAdornment,
   IconButton,
+  CircularProgress,
   Link as MuiLink,
 } from "@mui/material";
-import { CircularProgress } from "@mui/material";
 import VisibilityIcon from "@mui/icons-material/Visibility";
 import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
 import { Link as RouterLink, useNavigate } from "react-router-dom";
@@ -162,23 +162,25 @@ export default function RegisterPage() {
             onChange={handleChange}
             autoComplete="new-password"
             required
-            InputProps={{
-              endAdornment: (
-                <InputAdornment position="end">
-                  <IconButton
-                    onClick={() => setShowPw((p) => !p)}
-                    edge="end"
-                    size="small"
-                    sx={{ color: "text.disabled" }}
-                  >
-                    {showPw ? (
-                      <VisibilityOffIcon fontSize="small" />
-                    ) : (
-                      <VisibilityIcon fontSize="small" />
-                    )}
-                  </IconButton>
-                </InputAdornment>
-              ),
+            slotProps={{
+              input: {
+                endAdornment: (
+                  <InputAdornment position="end">
+                    <IconButton
+                      onClick={() => setShowPw((p) => !p)}
+                      edge="end"
+                      size="small"
+                      sx={{ color: "text.disabled" }}
+                    >
+                      {showPw ? (
+                        <VisibilityOffIcon fontSize="small" />
+                      ) : (
+                        <VisibilityIcon fontSize="small" />
+                      )}
+                    </IconButton>
+                  </InputAdornment>
+                ),
+              },
             }}
           />
 

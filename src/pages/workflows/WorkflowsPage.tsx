@@ -178,7 +178,7 @@ export default function WorkflowsPage() {
       day: "2-digit",
       month: "short",
       year: "numeric",
-      timeZone: "Asia/Kolkata",
+
     });
   };
 
@@ -205,8 +205,12 @@ export default function WorkflowsPage() {
         action={
           <Box display="flex" alignItems="center" gap={1}>
             <Tooltip title="Reload">
-              <IconButton size="small" onClick={fetchWorkflows} disabled={listLoading}
-                sx={{ color: "text.secondary" }}>
+              <IconButton
+                size="small"
+                onClick={fetchWorkflows}
+                disabled={listLoading}
+                sx={{ color: "text.secondary" }}
+              >
                 <RefreshIcon fontSize="small" />
               </IconButton>
             </Tooltip>
@@ -218,7 +222,12 @@ export default function WorkflowsPage() {
                 setNewError("");
                 setNewOpen(true);
               }}
-              sx={{ borderRadius: "8px", fontWeight: 600, height: 36, whiteSpace: "nowrap" }}
+              sx={{
+                borderRadius: "8px",
+                fontWeight: 600,
+                height: 36,
+                whiteSpace: "nowrap",
+              }}
             >
               New Workflow
             </Button>
@@ -365,6 +374,23 @@ export default function WorkflowsPage() {
                         justifyContent="flex-end"
                         gap={0.25}
                       >
+                        <Tooltip title="Create New Draft">
+                          <IconButton
+                            size="small"
+                            onClick={() =>
+                              navigate(`/workflows/${wf.id}/builder`)
+                            }
+                           disabled={wf.status === "valid" || wf.status === "draft"}
+                            sx={{
+
+                              color: "text.disabled",
+                              "&:hover": { color: "primary.main" },
+                            }}
+                          >
+                            <AddIcon fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+
                         <Tooltip title="Open Latest Version">
                           <IconButton
                             size="small"
@@ -610,7 +636,7 @@ export default function WorkflowsPage() {
               fontSize: 12,
               color: "text.secondary",
               mb: 2,
-              lineHeight: 1.6,  
+              lineHeight: 1.6,
             }}
           >
             This action is permanent and cannot be undone. Type{" "}

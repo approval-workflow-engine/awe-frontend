@@ -9,6 +9,7 @@ interface ApiCallOptions {
   successMsg?: string;
   errorMsg?: string;
   showError?: boolean;
+  silent?: boolean;
 }
 
 interface UseApiCallReturn {
@@ -36,9 +37,12 @@ export function useApiCall(): UseApiCallReturn {
         successMsg,
         errorMsg,
         showError = true,
+        silent = false,
       } = options;
-      setLoading(true);
-      setError(null);
+      if (!silent) {
+        setLoading(true);
+        setError(null);
+      }
       try {
         const response = await apiFn();
         const raw = response.data as { success?: boolean; data?: unknown };
@@ -51,22 +55,24 @@ export function useApiCall(): UseApiCallReturn {
             ? (raw.data as T)
             : response.data;
         if (successMsg) enqueueSnackbar(successMsg, { variant: "success" });
-        setError(null);
+        if (!silent) setError(null);
         if (onSuccess) onSuccess(payload);
         return payload as T;
       } catch (err: unknown) {
         const message = extractApiError(err);
-        setError(message);
-        if (showError) {
-          enqueueSnackbar(errorMsg || message, { variant: "error" });
+        if (!silent) {
+          setError(message);
+          if (showError) {
+            enqueueSnackbar(errorMsg || message, { variant: "error" });
+          }
         }
         if (onError) onError(err);
         return null;
       } finally {
-        setLoading(false);
+        if (!silent) setLoading(false);
       }
     },
-    [enqueueSnackbar, setError],
+    [enqueueSnackbar],
   );
 
   return { loading, error, call };

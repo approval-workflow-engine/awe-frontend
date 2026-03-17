@@ -79,7 +79,13 @@ export default function CreateInstanceDialog({ open, onClose, onCreated }: Props
 
     const instance = (res as { instance: BackendInstance } | null)?.instance;
     if (instance) {
-      onCreated(instance);
+      const selectedWorkflow = workflows.find((w) => w.id === workflowId);
+      const enriched: BackendInstance = {
+        ...instance,
+        workflow_name: selectedWorkflow?.name,
+        version_number: selectedWorkflow?.latestVersion ?? null,
+      };
+      onCreated(enriched);
       handleClose();
     }
   };

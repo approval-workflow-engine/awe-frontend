@@ -5,8 +5,6 @@ import {
 import { useNavigate } from 'react-router-dom';
 import type { BackendTask } from '../../../types';
 
-const MONO = "'JetBrains Mono', monospace";
-
 function formatDate(s: string) {
   return new Date(s).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
 }
@@ -56,17 +54,9 @@ export default function TaskTable({ tasks, loading }: Props) {
                   <Typography fontSize={13} fontWeight={500}>
                     {task.node_configuration?.title || 'Untitled Task'}
                   </Typography>
-                  {task.node_configuration?.description && (
-                    <Typography fontSize={12} color="text.secondary" sx={{ mt: 0.25 }}>
-                      {task.node_configuration.description}
-                    </Typography>
-                  )}
                 </TableCell>
                 <TableCell>
                   <Typography fontSize={13}>{task.workflow_name}</Typography>
-                  <Typography sx={{ fontFamily: MONO, fontSize: 11, color: 'text.secondary', mt: 0.25 }}>
-                    {task.instance_id.slice(0, 8)}…
-                  </Typography>
                 </TableCell>
                 <TableCell>
                   <Typography fontSize={12} color="text.secondary">
