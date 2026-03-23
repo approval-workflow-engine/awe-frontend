@@ -46,9 +46,17 @@ function serializeConfiguration(apiType: string, config: Record<string, any>): R
         case "start":
             return {
                 ...config,
-                inputDataMap: Array.isArray(config.inputDataMap) ? config.inputDataMap : [],
+                inputDataMap: Array.isArray(config.inputDataMap)
+                    ? config.inputDataMap.map((r: any) => ({
+                        jsonPath: r.jsonPath ?? "",
+                        dataType: r.dataType ?? r.type ?? "string",
+                        contextVariableName: r.contextVariableName ?? r.contextVariable?.name ?? "",
+                        fetchableId: r.fetchableId,
+                    }))
+                    : [],
                 fetchables: (Array.isArray(config.fetchables) ? config.fetchables : []).map((f: any) => ({
                     ...f,
+                    method: "GET" as const,
                     urlExpression: typeof f.urlExpression === "string" ? templateUrlToFeel(f.urlExpression) : f.urlExpression,
                     headers: Array.isArray(f.headers) ? f.headers.map((h: any) => ({
                         key: h.key ?? "",
@@ -61,37 +69,89 @@ function serializeConfiguration(apiType: string, config: Record<string, any>): R
             return {
                 ...config,
                 success: typeof config.success === "boolean" ? config.success : true,
-                resultMap: Array.isArray(config.resultMap) ? config.resultMap : [],
+                resultMap: Array.isArray(config.resultMap)
+                    ? config.resultMap.map((r: any) => ({
+                        variableName: r.variableName ?? r.contextVariable?.name ?? "",
+                        valueExpression: r.valueExpression ?? "",
+                    }))
+                    : [],
+                message: typeof config.message === "string" ? config.message : undefined,
             };
 
         case "script": {
             return {
-                ...config,
                 runtime: "python3" as const,
+                maxAttempts: typeof config.maxAttempts === "number" ? config.maxAttempts : 1,
                 sourceCode: typeof config.sourceCode === "string" ? config.sourceCode : "",
                 entryFunctionName: typeof config.entryFunctionName === "string" ? config.entryFunctionName : "main",
-                parameterMap: Array.isArray(config.parameterMap) ? config.parameterMap : [],
-                responseMap: Array.isArray(config.responseMap) ? config.responseMap : [],
+                parameterMap: Array.isArray(config.parameterMap)
+                    ? config.parameterMap.map((p: any) => ({
+                        name: p.name ?? "",
+                        valueExpression: p.valueExpression ?? "",
+                    }))
+                    : [],
+                responseMap: Array.isArray(config.responseMap)
+                    ? config.responseMap.map((r: any) => ({
+                        jsonPath: r.jsonPath ?? "",
+                        type: r.type ?? r.dataType ?? "string",
+                        contextVariableName: r.contextVariableName ?? r.contextVariable?.name ?? "",
+                    }))
+                    : [],
             };
         }
 
         case "service": {
             const svc: Record<string, any> = {
-                ...config,
                 method: VALID_HTTP_METHODS.includes(config.method) ? config.method : "GET",
                 urlExpression: templateUrlToFeel(typeof config.urlExpression === "string" ? config.urlExpression : ""),
-                responseMap: Array.isArray(config.responseMap) ? config.responseMap : [],
+                responseMap: Array.isArray(config.responseMap)
+                    ? config.responseMap.map((r: any) => ({
+                        jsonPath: r.jsonPath ?? "",
+                        type: r.type ?? r.dataType ?? "string",
+                        contextVariableName: r.contextVariableName ?? r.contextVariable?.name ?? "",
+                    }))
+                    : [],
             };
-            if ("headers" in config) svc.headers = Array.isArray(config.headers) ? config.headers : [];
-            if ("body" in config) svc.body = Array.isArray(config.body) ? config.body : [];
+            if (typeof config.maxAttempts === "number") svc.maxAttempts = config.maxAttempts;
+            if (typeof config.timeoutMs === "number") svc.timeoutMs = config.timeoutMs;
+            if (typeof config.retryDelayMs === "number") svc.retryDelayMs = config.retryDelayMs;
+            if ("headers" in config) svc.headers = Array.isArray(config.headers)
+                ? config.headers.map((h: any) => ({ key: h.key ?? "", valueExpression: h.valueExpression ?? h.value ?? "" }))
+                : [];
+            if ("body" in config) svc.body = Array.isArray(config.body)
+                ? config.body.map((b: any) => ({ jsonPath: b.jsonPath ?? "", valueExpression: b.valueExpression ?? "" }))
+                : [];
             return svc;
         }
 
         case "user":
             return {
                 ...config,
-                requestMap: Array.isArray(config.requestMap) ? config.requestMap : [],
-                responseMap: Array.isArray(config.responseMap) ? config.responseMap : [],
+                title: config.title ?? "",
+                description: config.description ?? "",
+                assignee: config.assignee ?? "",
+                maxAttempts: typeof config.maxAttempts === "number" ? config.maxAttempts : 1,
+                requestMap: Array.isArray(config.requestMap)
+                    ? config.requestMap.map((r: any) => ({
+                        label: r.label ?? "",
+                        valueExpression: r.valueExpression ?? "",
+                    }))
+                    : [],
+                responseMap: Array.isArray(config.responseMap)
+                    ? config.responseMap.map((r: any) => ({
+                        fieldId: r.fieldId ?? "",
+                        label: r.label ?? "",
+                        contextVariableName: r.contextVariableName ?? r.contextVariable?.name ?? "",
+                        type: r.type ?? r.dataType ?? "string",
+                        uiType: r.uiType,
+                        options: Array.isArray(r.options)
+                            ? r.options.map((o: any) => ({
+                                label: o.label,
+                                valueExpression: o.valueExpression ?? o.value ?? "",
+                            }))
+                            : undefined,
+                    }))
+                    : [],
             };
 
         case "decision":
@@ -121,6 +181,7 @@ export function canvasToDefinition(
             config: JSON.parse(JSON.stringify(n.config)),
         };
         if (n.label) res.label = n.label;
+        if (n.description) res.description = n.description;
         res.position = { x: n.x, y: n.y };
         return res;
     });
@@ -172,16 +233,20 @@ export function canvasToVersionPayload(
                 id: n.nodeId || n.id,
                 type: apiType,
                 label: n.name || n.label || "",
+                description: n.description || null,
                 configuration: serializeConfiguration(apiType, rawConfig),
                 position: n.position || { x: n.x_coordinate || 0, y: n.y_coordinate || 0 },
             };
         }),
-        edges: edges.map(e => ({
-            id: e.id,
-            sourceNodeId: e.source,
-            targetNodeId: e.target,
-            ruleId: e.isDefault ? "default" : (e.sourcePort || null),
-        })),
+        edges: edges
+            .filter(e => e.source && e.target)
+            .map(e => ({
+                id: e.id,
+                label: e.condition || null,
+                sourceNodeId: e.source,
+                targetNodeId: e.target,
+                ruleId: e.isDefault ? "default" : (e.sourcePort || null),
+            })),
     };
 }
 
@@ -196,6 +261,7 @@ export function definitionToCanvas(
         id: n.nodeId || n.id || n.client_id || generateId("node"),
         type: n.type,
         label: n.name || n.label || "",
+        description: n.description || undefined,
         config: JSON.parse(JSON.stringify(n.config || n.configuration || {})),
         x: n.position?.x ?? n.x_coordinate ?? 100,
         y: n.position?.y ?? n.y_coordinate ?? 100,
@@ -235,6 +301,42 @@ export function definitionToCanvas(
                 key: h.key ?? "",
                 valueExpression: h.valueExpression ?? h.value ?? "",
             })) : [],
+        }));
+    });
+
+    // Deserialize End node resultMap: variableName → contextVariable
+    cNodes.forEach((node) => {
+        if (node.type !== "end") return;
+        if (!Array.isArray(node.config.resultMap)) return;
+        node.config.resultMap = (node.config.resultMap as any[]).map((r: any) => ({
+            contextVariable: r.contextVariable ?? { name: r.variableName ?? "", scope: "global" },
+            valueExpression: r.valueExpression ?? "",
+            validationExpression: r.validationExpression,
+        }));
+    });
+
+    // Deserialize User node responseMap: contextVariableName → contextVariable
+    cNodes.forEach((node) => {
+        if (node.type !== "user_task") return;
+        if (!Array.isArray(node.config.responseMap)) return;
+        node.config.responseMap = (node.config.responseMap as any[]).map((r: any) => ({
+            fieldId: r.fieldId ?? "",
+            label: r.label ?? "",
+            contextVariable: r.contextVariable ?? { name: r.contextVariableName ?? "", scope: "global" },
+            type: r.type ?? "string",
+            uiType: r.uiType,
+            options: r.options,
+        }));
+    });
+
+    // Deserialize Service/Script node responseMap: contextVariableName → contextVariable
+    cNodes.forEach((node) => {
+        if (node.type !== "service_task" && node.type !== "script_task") return;
+        if (!Array.isArray(node.config.responseMap)) return;
+        node.config.responseMap = (node.config.responseMap as any[]).map((r: any) => ({
+            jsonPath: r.jsonPath ?? "",
+            type: r.type ?? "string",
+            contextVariable: r.contextVariable ?? { name: r.contextVariableName ?? "", scope: "global" },
         }));
     });
 

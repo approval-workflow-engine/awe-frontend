@@ -38,6 +38,7 @@ export interface CanvasNode {
     id: string;
     type: string;
     label: string;
+    description?: string;
     config: Record<string, unknown>;
     x: number;
     y: number;
