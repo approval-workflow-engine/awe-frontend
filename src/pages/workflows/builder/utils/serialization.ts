@@ -7,20 +7,34 @@ const VALID_HTTP_METHODS = ["GET", "POST", "PUT", "PATCH", "DELETE"] as const;
 
 function templateUrlToFeel(url: string): string {
     if (!url) return '""';
-    if (!url.includes('{')) return `"${url}"`;
+    const trimmed = url.trim();
+    if (!trimmed) return '""';
+    let normalized = trimmed;
+    if (
+        (normalized.startsWith('"') && normalized.endsWith('"')) ||
+        (normalized.startsWith("'") && normalized.endsWith("'"))
+    ) {
+        normalized = normalized.slice(1, -1).trim();
+    }
+    const looksLikeFeel =
+        normalized.includes(" + ") ||
+        normalized.startsWith("string(") ||
+        (normalized.includes("context.") && normalized.includes("\""));
+    if (looksLikeFeel) return normalized;
+    if (!normalized.includes('{')) return `"${normalized}"`;
     const parts: string[] = [];
     let lastIndex = 0;
     const regex = /\{([^}]+)\}/g;
     let match: RegExpExecArray | null;
-    while ((match = regex.exec(url)) !== null) {
-        const staticPart = url.slice(lastIndex, match.index);
+    while ((match = regex.exec(normalized)) !== null) {
+        const staticPart = normalized.slice(lastIndex, match.index);
         if (staticPart) parts.push(`"${staticPart}"`);
         parts.push(`string(${match[1]})`);
         lastIndex = regex.lastIndex;
     }
-    const trailing = url.slice(lastIndex);
+    const trailing = normalized.slice(lastIndex);
     if (trailing) parts.push(`"${trailing}"`);
-    return parts.join(' + ');
+    return parts.join(" + ");
 }
 
 function feelUrlToTemplate(feel: string): string {
