@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import {
   Box,
@@ -17,7 +17,9 @@ import DetailInfoSection from './components/DetailInfoSection';
 import ExecutionDetails from './components/ExecutionDetails';
 import { useInstance } from './hooks/useInstance';
 import { usePolling } from '../../hooks/usePolling';
-import type { BackendInstance } from '../../types';
+import { useApiCall } from '../../hooks/useApiCall';
+import { getInstanceExecutions } from '../../api/instanceApi';
+import type { BackendInstance, ExecutionLog } from '../../types';
 
 const MONO = "'JetBrains Mono', monospace";
 const POLL_INTERVAL_MS = 3000;
@@ -28,6 +30,9 @@ export default function InstanceDetailPage() {
   const location = useLocation();
   const { instance, loading, fetch, silentFetch, resume, isTerminal } = useInstance();
   const pollEnabled = useRef(false);
+  const { call } = useApiCall();
+  const [executionLogs, setExecutionLogs] = useState<ExecutionLog[]>([]);
+  const [logsLoading, setLogsLoading] = useState(false);
 
   const navInstance =
     (location.state as { instance?: BackendInstance } | null)?.instance ?? null;
@@ -40,8 +45,28 @@ export default function InstanceDetailPage() {
       }
     : navInstance;
 
+  const fetchExecutionLogs = async (instanceId: string, silent = false) => {
+    if (!silent) setLogsLoading(true);
+    try {
+      const response = await call(() => getInstanceExecutions(instanceId), {
+        silent: true,
+        showError: false,
+      });
+      if (response?.executions) {
+        setExecutionLogs(response.executions);
+      }
+    } catch (error) {
+      console.error('Failed to fetch execution logs:', error);
+    } finally {
+      if (!silent) setLogsLoading(false);
+    }
+  };
+
   useEffect(() => {
-    if (id) fetch(id);
+    if (id) {
+      fetch(id);
+      fetchExecutionLogs(id);
+    }
   }, [id, fetch]);
 
   useEffect(() => {
@@ -50,7 +75,10 @@ export default function InstanceDetailPage() {
 
   usePolling(
     () => {
-      if (id && pollEnabled.current) silentFetch(id);
+      if (id && pollEnabled.current) {
+        silentFetch(id);
+        fetchExecutionLogs(id, true);
+      }
     },
     POLL_INTERVAL_MS,
     true,
@@ -63,6 +91,14 @@ export default function InstanceDetailPage() {
     if (!id) return;
     await resume(id);
     await fetch(id);
+    await fetchExecutionLogs(id);
+  };
+
+  const handleReload = () => {
+    if (id) {
+      fetch(id);
+      fetchExecutionLogs(id);
+    }
   };
 
   const workflowLabel = displayInstance?.workflow_name
@@ -79,7 +115,7 @@ export default function InstanceDetailPage() {
             <Tooltip title="Reload">
               <IconButton
                 size="small"
-                onClick={() => id && fetch(id)}
+                onClick={handleReload}
                 disabled={loading}
                 sx={{ color: 'text.secondary' }}
               >
@@ -140,7 +176,7 @@ export default function InstanceDetailPage() {
           )}
 
           <DetailInfoSection instance={displayInstance} />
-          <ExecutionDetails />
+          <ExecutionDetails logs={executionLogs} loading={logsLoading} />
         </Box>
       )}
     </Box>

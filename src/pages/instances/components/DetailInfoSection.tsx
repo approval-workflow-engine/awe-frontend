@@ -93,7 +93,7 @@ export default function DetailInfoSection({ instance }: Props) {
           label="Version ID"
           value={<MonoText>{instance.workflow_version_id}</MonoText>}
         />
-        <InfoRow label="Status" value={<StatusChip status={instance.status} />} />
+        <InfoRow label="Instance Status" value={<StatusChip status={instance.status} />} />
         <InfoRow
           label="Auto Advance"
           value={<MonoText>{instance.auto_advance ? 'Yes' : 'No'}</MonoText>}

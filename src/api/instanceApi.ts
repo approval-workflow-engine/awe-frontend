@@ -13,5 +13,8 @@ export const getInstances = (params?: PaginationParams) =>
 export const getInstance = (id: string) =>
   axiosClient.get(`/instances/${id}`);
 
+export const getInstanceExecutions = (id: string) =>
+  axiosClient.get(`/instances/${id}/executions`);
+
 export const resumeInstance = (id: string) =>
   axiosClient.post(`/instances/${id}/advance`);

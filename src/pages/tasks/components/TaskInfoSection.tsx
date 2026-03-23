@@ -64,8 +64,8 @@ export default function TaskInfoSection({ task }: Props) {
           }
         />
         <InfoRow
-          label="Status"
-          value={<StatusChip status={task.status} />}
+          label="Task Status"
+          value={<StatusChip status={task.status} />} 
         />
         <InfoRow
           label="Created"

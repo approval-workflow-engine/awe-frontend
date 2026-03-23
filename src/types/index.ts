@@ -176,14 +176,19 @@ export interface Instance {
 }
 
 export interface ExecutionLog {
-  nodeId?: string;
-  node_id?: string;
-  nodeType?: string;
-  type?: string;
+  id: string;
+  task_id: string;
   status: string;
-  duration?: number;
-  executedAt?: string;
-  createdAt?: string;
+  input_variables: Record<string, unknown> | null;
+  output_variables: Record<string, unknown> | null;
+  started_on: string | null;
+  ended_on: string | null;
+  created_on: string;
+  node_id: string;
+  node_client_id: string;
+  node_type: string;
+  node_name: string | null;
+  node_configuration: unknown;
 }
 
 export type TaskStatus = "IN_PROGRESS" | "COMPLETED" | "REJECTED";
