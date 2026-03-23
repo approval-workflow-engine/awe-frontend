@@ -9,10 +9,14 @@ interface Props {
   onSubmit: (values: Record<string, unknown>) => void;
 }
 
+function getFieldType(field: UserTaskResponseField): string {
+  return String(field.dataType ?? field.type ?? 'string').toLowerCase();
+}
+
 function initValues(fields: UserTaskResponseField[]): Record<string, unknown> {
   const init: Record<string, unknown> = {};
   for (const f of fields) {
-    init[f.fieldId] = f.type === 'boolean' ? false : '';
+    init[f.fieldId] = getFieldType(f) === 'boolean' ? false : '';
   }
   return init;
 }
@@ -24,12 +28,13 @@ function validateValues(
   const errors: Record<string, string> = {};
   for (const f of fields) {
     const val = values[f.fieldId];
+    const fieldType = getFieldType(f);
     const isEmpty =
       val === '' ||
       val === null ||
       val === undefined ||
       (typeof val === 'number' && isNaN(val));
-    if (isEmpty && f.type !== 'boolean') {
+    if (isEmpty && fieldType !== 'boolean') {
       errors[f.fieldId] = `${f.label} is required`;
     }
   }
@@ -79,7 +84,7 @@ export default function TaskInputForm({ fields, loading, onSubmit }: Props) {
           <Box key={field.fieldId}>
             <Typography fontSize={13} fontWeight={500} mb={0.75}>
               {field.label}
-              {field.type !== 'boolean' && (
+              {getFieldType(field) !== 'boolean' && (
                 <Typography component="span" fontSize={13} color="error.main" ml={0.25}>
                   *
                 </Typography>

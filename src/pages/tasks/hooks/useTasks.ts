@@ -9,12 +9,14 @@ export function useTasks() {
 
   const fetch = useCallback(async () => {
     const res = await call(() => getTasks({ status: 'in_progress' }));
-    setTasks((res as { tasks: BackendTask[] } | null)?.tasks ?? []);
+    const payload = res as { tasks?: BackendTask[] } | BackendTask[] | null;
+    setTasks(Array.isArray(payload) ? payload : payload?.tasks ?? []);
   }, [call]);
 
   const silentFetch = useCallback(async () => {
     const res = await call(() => getTasks({ status: 'in_progress' }), { silent: true });
-    setTasks((res as { tasks: BackendTask[] } | null)?.tasks ?? []);
+    const payload = res as { tasks?: BackendTask[] } | BackendTask[] | null;
+    setTasks(Array.isArray(payload) ? payload : payload?.tasks ?? []);
   }, [call]);
 
   return { tasks, loading, error, fetch, silentFetch };

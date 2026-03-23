@@ -9,8 +9,10 @@ interface Props {
 }
 
 function deriveUiType(field: UserTaskResponseField): string {
+  if (field.uiType) return field.uiType;
   if (field.options && field.options.length > 0) return 'dropdown';
-  switch (field.type) {
+  const fieldType = String(field.dataType ?? field.type ?? 'string').toLowerCase();
+  switch (fieldType) {
     case 'boolean': return 'checkbox';
     case 'number': return 'number';
     case 'object': return 'textarea';
@@ -42,12 +44,25 @@ export default function DynamicInput({ field, value, onChange, error }: Props) {
           onChange={(e) => onChange(e.target.value)}
         >
           {options.map((opt, i) => (
-            <MenuItem key={i} value={opt.valueExpression}>
-              {opt.label ?? opt.valueExpression}
+            <MenuItem key={i} value={opt.valueExpression ?? opt.value ?? ''}>
+              {opt.label ?? opt.valueExpression ?? opt.value ?? ''}
             </MenuItem>
           ))}
         </Select>
       </FormControl>
+    );
+  }
+
+  if (uiType === 'date-picker') {
+    return (
+      <TextField
+        fullWidth
+        size="small"
+        type="date"
+        value={typeof value === 'string' ? value : ''}
+        onChange={(e) => onChange(e.target.value)}
+        error={error}
+      />
     );
   }
 
