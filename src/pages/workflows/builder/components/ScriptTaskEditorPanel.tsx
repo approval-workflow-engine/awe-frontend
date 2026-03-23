@@ -23,12 +23,14 @@ interface ScriptTaskEditorPanelProps {
   node: CanvasNode;
   onUpdateConfig: (config: Record<string, unknown>) => void;
   onClose: () => void;
+  isReadOnly?: boolean;
 }
 
 export default function ScriptTaskEditorPanel({
   node,
   onUpdateConfig,
   onClose,
+  isReadOnly = false,
 }: ScriptTaskEditorPanelProps) {
   const theme = useTheme();
   const [panelHeight, setPanelHeight] = useState(300);
@@ -162,22 +164,39 @@ export default function ScriptTaskEditorPanel({
           {node.label}
         </Typography>
 
-        <Button
-          size="small"
-          startIcon={<CheckCircleOutlineIcon sx={{ fontSize: 13 }} />}
-          onClick={() => setValidateSnack(true)}
-          sx={{
-            fontSize: 11,
-            height: 26,
-            borderRadius: "6px",
-            color: "text.secondary",
-            borderColor: "divider",
-            "&:hover": { borderColor: "text.secondary", color: "text.primary" },
-          }}
-          variant="outlined"
-        >
-          Validate
-        </Button>
+        {!isReadOnly && (
+          <Button
+            size="small"
+            startIcon={<CheckCircleOutlineIcon sx={{ fontSize: 13 }} />}
+            onClick={() => setValidateSnack(true)}
+            sx={{
+              fontSize: 11,
+              height: 26,
+              borderRadius: "6px",
+              color: "text.secondary",
+              borderColor: "divider",
+              "&:hover": { borderColor: "text.secondary", color: "text.primary" },
+            }}
+            variant="outlined"
+          >
+            Validate
+          </Button>
+        )}
+
+        {isReadOnly && (
+          <Chip
+            label="Read Only"
+            size="small"
+            sx={{
+              fontSize: 10,
+              height: 22,
+              fontFamily: "'JetBrains Mono', monospace",
+              backgroundColor: "rgba(156,163,175,0.1)",
+              color: "#6b7280",
+              border: "1px solid rgba(156,163,175,0.25)",
+            }}
+          />
+        )}
 
         <IconButton
           size="small"
@@ -281,6 +300,7 @@ export default function ScriptTaskEditorPanel({
             automaticLayout: true,
             padding: { top: 0, bottom: 8 },
             tabSize: 4,
+            readOnly: isReadOnly,
           }}
         />
       </Box>

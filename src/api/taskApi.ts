@@ -8,4 +8,4 @@ export const getTask = (id: string) =>
   axiosClient.get(`/tasks/${id}`);
 
 export const completeTask = (id: string, userInput: Record<string, unknown>) =>
-  axiosClient.post(`/tasks/${id}/complete`, { userInput });
+  axiosClient.post(`/tasks/${id}/complete`, userInput);

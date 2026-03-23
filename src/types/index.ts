@@ -95,6 +95,7 @@ export interface WorkflowNode {
   nodeId?: string;
   type: string;
   label?: string;
+  description?: string;
   config?: NodeConfig;
   position?: { x: number; y: number };
   x?: number;
@@ -108,6 +109,7 @@ export interface WorkflowEdge {
   target?: string;
   sourceNodeId?: string;
   targetNodeId?: string;
+  ruleId?: string | null;
   condition?: string;
   conditionExpression?: string;
   isDefault?: boolean;
@@ -265,6 +267,15 @@ export type BackendInstanceStatus =
   | "failed"
   | "terminated";
 
+export interface BackendInstanceCurrentTask {
+  id: string;
+  node_id: string;
+  type: string;
+  name: string | null;
+  status: string;
+  started_at: string;
+}
+
 export interface BackendInstance {
   id: string;
   workflow_version_id: string;
@@ -279,6 +290,7 @@ export interface BackendInstance {
   ended_on: string | null;
   created_by: string;
   created_on: string;
+  current_task?: BackendInstanceCurrentTask | null;
 }
 
 export interface UserTaskDisplayField {

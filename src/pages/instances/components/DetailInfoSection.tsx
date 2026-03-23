@@ -108,6 +108,24 @@ export default function DetailInfoSection({ instance }: Props) {
             value={<Typography fontSize={13}>{formatDate(instance.ended_on)}</Typography>}
           />
         )}
+        {instance.current_task && (
+          <InfoRow
+            label="Current Task"
+            value={
+              <Box>
+                <Box display="flex" alignItems="center" gap={1}>
+                  <Typography fontSize={13} fontWeight={500}>
+                    {instance.current_task.name || `${instance.current_task.type} Node`}
+                  </Typography>
+                  <StatusChip status={instance.current_task.status} />
+                </Box>
+                <Typography sx={{ fontFamily: MONO, fontSize: 11, color: 'text.secondary', mt: 0.5 }}>
+                  {instance.current_task.type} • {instance.current_task.node_id}
+                </Typography>
+              </Box>
+            }
+          />
+        )}
       </Box>
 
       <JsonAccordion title="Input Variables" data={instance.input_variables} />

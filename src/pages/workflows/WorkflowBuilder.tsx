@@ -448,7 +448,7 @@ export default function WorkflowBuilder() {
                     markDirtyAndClearValidation();
                   }}
                   onOpenCodeEditor={() => {
-                    if (!isReadOnly) setCodeEditorOpen(true);
+                    setCodeEditorOpen(true);
                   }}
                 />
               )}
@@ -456,11 +456,12 @@ export default function WorkflowBuilder() {
           )}
         </Box>
 
-        {codeEditorOpen && selectedScriptNode && !isReadOnly && (
+        {codeEditorOpen && selectedScriptNode && (
           <ScriptTaskEditorPanel
             node={selectedScriptNode}
             onUpdateConfig={(config) => handleUpdateNode(selectedScriptNode.id, { config })}
             onClose={() => setCodeEditorOpen(false)}
+            isReadOnly={isReadOnly}
           />
         )}
       </Box>
