@@ -231,16 +231,7 @@ export default function UserTaskConfig({
                     size="small"
                     placeholder="Field label"
                     value={row.label}
-                    onChange={(e) => {
-                      const slug = e.target.value
-                        .toLowerCase()
-                        .replace(/\s+/g, "_")
-                        .replace(/[^a-z0-9_]/g, "");
-                      updateRes(idx, {
-                        label: e.target.value,
-                        fieldId: row.fieldId || slug || generateId("field"),
-                      });
-                    }}
+                    onChange={(e) => updateRes(idx, { label: e.target.value })}
                     sx={{
                       flex: 1,
                       "& .MuiOutlinedInput-root": {

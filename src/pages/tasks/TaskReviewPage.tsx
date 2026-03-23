@@ -22,7 +22,8 @@ export default function TaskReviewPage() {
     if (result !== null) navigate('/tasks');
   };
 
-  const title = task?.node_configuration.title || 'Task Review';
+  const title = task?.node_configuration?.title || task?.title || 'Task Review';
+  const responseFields = task?.node_configuration?.responseMap ?? [];
 
   return (
     <Box>
@@ -70,7 +71,7 @@ export default function TaskReviewPage() {
           <TaskInfoSection task={task} />
           <TaskInputForm
             key={task.id}
-            fields={task.node_configuration.responseMap}
+            fields={responseFields}
             loading={loading}
             onSubmit={handleSubmit}
           />

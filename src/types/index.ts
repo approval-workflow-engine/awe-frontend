@@ -301,8 +301,16 @@ export interface UserTaskDisplayField {
 export interface UserTaskResponseField {
   fieldId: string;
   label: string;
-  type: string;
-  options?: Array<{ label?: string; valueExpression: string }>;
+  type?: string;
+  dataType?: string;
+  uiType?:
+    | "text"
+    | "textarea"
+    | "number"
+    | "dropdown"
+    | "checkbox"
+    | "date-picker";
+  options?: Array<{ label?: string; valueExpression?: string; value?: string }>;
   contextVariable?: { name: string; scope: "global" };
 }
 
@@ -316,12 +324,14 @@ export interface UserTaskNodeConfiguration {
 
 export interface BackendTask {
   id: string;
+  title?: string;
+  assignee?: string;
   instance_id: string;
   node_id: string;
   status: string;
   created_on: string;
   workflow_name: string;
-  node_configuration: UserTaskNodeConfiguration;
+  node_configuration: UserTaskNodeConfiguration | null;
 }
 
 export type BackendTaskDetail = BackendTask;

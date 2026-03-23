@@ -52,7 +52,7 @@ export default function TaskTable({ tasks, loading }: Props) {
               <TableRow key={task.id} sx={{ '& td': { fontSize: 13, py: 1.25 } }}>
                 <TableCell>
                   <Typography fontSize={13} fontWeight={500}>
-                    {task.node_configuration?.title || 'Untitled Task'}
+                    {task.title || task.node_configuration?.title || 'Untitled Task'}
                   </Typography>
                 </TableCell>
                 <TableCell>

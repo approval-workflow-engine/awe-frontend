@@ -9,7 +9,11 @@ export function useTask() {
 
   const fetch = useCallback(async (id: string) => {
     const res = await call(() => getTask(id));
-    const t = (res as { task: BackendTaskDetail } | null)?.task ?? null;
+    const t =
+      (res as { task?: BackendTaskDetail } | null)?.task ??
+      ((res as BackendTaskDetail | null)?.id
+        ? (res as BackendTaskDetail)
+        : null);
     setTask(t);
     return t;
   }, [call]);

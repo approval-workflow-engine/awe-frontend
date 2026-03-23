@@ -34,8 +34,21 @@ interface Props {
 }
 
 export default function TaskInfoSection({ task }: Props) {
-  const config = task.node_configuration;
-  const hasDisplayData = config.requestMap && config.requestMap.length > 0;
+  const config = task.node_configuration ?? {
+    title: task.title,
+    description: undefined,
+    assignee: task.assignee,
+    requestMap: [],
+    responseMap: [],
+  };
+
+  const displayRows: Array<{ label: string; value: unknown }> = Array.isArray(config.requestMap)
+    ? config.requestMap
+    : config.requestMap && typeof config.requestMap === 'object'
+      ? Object.entries(config.requestMap as Record<string, unknown>).map(([label, value]) => ({ label, value }))
+      : [];
+
+  const hasDisplayData = displayRows.length > 0;
 
   return (
     <Paper variant="outlined" sx={{ p: 2.5 }}>
@@ -105,7 +118,7 @@ export default function TaskInfoSection({ task }: Props) {
               overflow: 'hidden',
             }}
           >
-            {config.requestMap.map((field, i) => (
+            {displayRows.map((field, i) => (
                 <Box
                   key={i}
                   display="flex"
@@ -115,7 +128,7 @@ export default function TaskInfoSection({ task }: Props) {
                   py={0.875}
                   sx={{
                     backgroundColor: i % 2 === 0 ? 'transparent' : 'action.hover',
-                    borderBottom: i < config.requestMap.length - 1 ? '1px solid' : 'none',
+                    borderBottom: i < displayRows.length - 1 ? '1px solid' : 'none',
                     borderColor: 'divider',
                   }}
                 >
