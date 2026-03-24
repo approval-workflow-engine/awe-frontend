@@ -10,11 +10,16 @@ function templateUrlToFeel(url: string): string {
     const trimmed = url.trim();
     if (!trimmed) return '""';
     let normalized = trimmed;
-    if (
-        (normalized.startsWith('"') && normalized.endsWith('"')) ||
-        (normalized.startsWith("'") && normalized.endsWith("'"))
-    ) {
-        normalized = normalized.slice(1, -1).trim();
+    let stripped = true;
+    while (stripped) {
+        stripped = false;
+        if (
+            (normalized.startsWith('"') && normalized.endsWith('"')) ||
+            (normalized.startsWith("'") && normalized.endsWith("'"))
+        ) {
+            normalized = normalized.slice(1, -1).trim();
+            stripped = true;
+        }
     }
     const looksLikeFeel =
         normalized.includes(" + ") ||
