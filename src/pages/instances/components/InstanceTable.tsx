@@ -11,7 +11,8 @@ import {
 } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import StatusChip from '../../../components/common/StatusChip';
-import type { BackendInstance } from '../../../types';
+import type { InstanceListItem } from '../../../api/schemas/instance';
+import { formatDate } from '../../../utils/formatUtils';
 
 const MONO = "'JetBrains Mono', monospace";
 
@@ -19,16 +20,12 @@ function truncate(s: string, n = 8) {
   return s.length > n ? `${s.slice(0, n)}…` : s;
 }
 
-function formatDate(s: string | null) {
-  if (!s) return '—';
-  return new Date(s).toLocaleString(undefined, {
-    dateStyle: 'medium',
-    timeStyle: 'short',
-  });
+function formatSafeDate(s: string | null) {
+  return s ? formatDate(s) : '—';
 }
 
 interface Props {
-  instances: BackendInstance[];
+  instances: InstanceListItem[];
   loading?: boolean;
 }
 
@@ -100,7 +97,7 @@ export default function InstanceTable({ instances, loading }: Props) {
                 </TableCell>
                 <TableCell>
                   <Typography fontSize={12} color="text.secondary">
-                    {formatDate(inst.started_on)}
+                    {formatSafeDate(inst.started_on)}
                   </Typography>
                 </TableCell>
               </TableRow>

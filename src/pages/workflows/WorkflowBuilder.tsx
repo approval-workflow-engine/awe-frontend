@@ -415,6 +415,7 @@ export default function WorkflowBuilder() {
                 selectedItem={selectedItem}
                 connectingFrom={isReadOnly ? null : connectingFrom}
                 errorNodeIds={errorNodeIds}
+                readOnlyMode={isReadOnly}
                 onUpdateNode={isReadOnly ? () => undefined : handleUpdateNode}
                 onAddNode={isReadOnly ? () => undefined : handleAddNode}
                 onAddEdge={isReadOnly ? () => undefined : handleAddEdge}

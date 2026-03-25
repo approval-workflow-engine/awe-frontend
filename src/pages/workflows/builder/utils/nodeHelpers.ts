@@ -63,7 +63,7 @@ export function portYFraction(portIndex: number, totalPorts: number): number {
   return (portIndex + 1) / (totalPorts + 1);
 }
 
-export function estimateCardHeight(_node: CanvasNode): number {
+export function estimateCardHeight(): number {
   return NODE_MIN_HEIGHT;
 }
 
@@ -80,4 +80,46 @@ export function buildStartNode(): CanvasNode {
     x: 80,
     y: 200,
   };
+}
+
+export function calculateNodePosition(
+  originalX: number,
+  originalY: number,
+  deltaX: number,
+  deltaY: number
+): { x: number; y: number } {
+  return {
+    x: Math.max(0, originalX + deltaX),
+    y: Math.max(0, originalY + deltaY)
+  };
+}
+
+export function mergeNodePositions(
+  nodes: CanvasNode[],
+  positionOverrides: Record<string, { x: number; y: number }>
+): CanvasNode[] {
+  return nodes.map(node => {
+    const override = positionOverrides[node.id];
+    return override ? { ...node, x: override.x, y: override.y } : node;
+  });
+}
+
+export function cleanupStaleEntries<T>(
+  entries: Record<string, T>,
+  validIds: Set<string>
+): Record<string, T> {
+  const cleaned: Record<string, T> = {};
+  for (const [id, value] of Object.entries(entries)) {
+    if (validIds.has(id)) {
+      cleaned[id] = value;
+    }
+  }
+  return cleaned;
+}
+
+export function withReadOnlyGuard<T extends unknown[]>(
+  fn: (...args: T) => void,
+  readOnlyMode: boolean
+): (...args: T) => void {
+  return readOnlyMode ? () => undefined : fn;
 }

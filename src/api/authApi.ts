@@ -1,17 +1,26 @@
-import axiosClient from './axiosClient';
-import type { LoginPayload, RegisterPayload } from '../types';
+import { apiClient } from './client';
+import {
+  LoginRequestSchema,
+  LoginResponseSchema,
+  RegisterRequestSchema,
+  RegisterResponseSchema,
+  ApiKeysResponseSchema,
+  CreateApiKeyRequestSchema,
+  ApiKeySchema,
+  RevokeApiKeyResponseSchema
+} from './schemas/auth';
 
-export const registerSystem = (data: RegisterPayload) =>
-  axiosClient.post('/systems/register', data);
+export const registerSystem = (data: { name: string; orgName: string; contactEmail: string; password: string; description?: string }) =>
+  apiClient.post('/systems/register', data, RegisterResponseSchema, RegisterRequestSchema);
 
-export const loginSystem = (data: LoginPayload) =>
-  axiosClient.post('/auth/login', data);
+export const loginSystem = (data: { email: string; password: string }) =>
+  apiClient.post('/auth/login', data, LoginResponseSchema, LoginRequestSchema);
 
 export const getApiKeys = () =>
-  axiosClient.get('/systems/api-keys');
+  apiClient.get('/systems/api-keys', ApiKeysResponseSchema);
 
 export const createApiKey = (data: { label?: string }) =>
-  axiosClient.post('/systems/api-keys', data);
+  apiClient.post('/systems/api-keys', data, ApiKeySchema, CreateApiKeyRequestSchema);
 
 export const revokeApiKey = (keyId: string) =>
-  axiosClient.patch(`/systems/api-keys/${keyId}/revoke`);
+  apiClient.patch(`/systems/api-keys/${keyId}/revoke`, {}, RevokeApiKeyResponseSchema);

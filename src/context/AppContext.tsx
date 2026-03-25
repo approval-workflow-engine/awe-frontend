@@ -39,6 +39,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         await axiosClient.post('/auth/logout', { refreshToken });
       }
     } catch {
+      //
     } finally {
       Object.values(TOKEN_KEYS).forEach(k => localStorage.removeItem(k));
       setUser(null);

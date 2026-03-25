@@ -3,14 +3,14 @@ import {
   TableHead, TableRow, Typography, Box, Button, Skeleton,
 } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
-import type { BackendTask } from '../../../types';
+import type { PendingUserTask } from '../../../api/schemas/task';
 
 function formatDate(s: string) {
   return new Date(s).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
 }
 
 interface Props {
-  tasks: BackendTask[];
+  tasks: PendingUserTask[];
   loading?: boolean;
 }
 
@@ -52,15 +52,15 @@ export default function TaskTable({ tasks, loading }: Props) {
               <TableRow key={task.id} sx={{ '& td': { fontSize: 13, py: 1.25 } }}>
                 <TableCell>
                   <Typography fontSize={13} fontWeight={500}>
-                    {task.title || task.node_configuration?.title || 'Untitled Task'}
+                    {task.title || 'Untitled Task'}
                   </Typography>
                 </TableCell>
                 <TableCell>
-                  <Typography fontSize={13}>{task.workflow_name}</Typography>
+                  <Typography fontSize={13}>{task.workflow.name}</Typography>
                 </TableCell>
                 <TableCell>
                   <Typography fontSize={12} color="text.secondary">
-                    {formatDate(task.created_on)}
+                    {formatDate(task.createdAt)}
                   </Typography>
                 </TableCell>
                 <TableCell align="right" sx={{ pr: 2 }}>

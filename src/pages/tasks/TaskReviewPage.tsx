@@ -6,6 +6,7 @@ import StatusChip from '../../components/common/StatusChip';
 import TaskInfoSection from './components/TaskInfoSection';
 import TaskInputForm from './components/TaskInputForm';
 import { useTask } from './hooks/useTask';
+import { TASK_STATUS, UI_TEXT } from '../../constants/status';
 
 export default function TaskReviewPage() {
   const { id } = useParams<{ id: string }>();
@@ -22,14 +23,14 @@ export default function TaskReviewPage() {
     if (result !== null) navigate('/tasks');
   };
 
-  const title = task?.node_configuration?.title || task?.title || 'Task Review';
-  const responseFields = task?.node_configuration?.responseMap ?? [];
+  const title = task?.title || UI_TEXT.TASK_REVIEW;
+  const responseFields = task?.responseData ?? [];
 
   return (
     <Box>
       <PageHeader
         title={title}
-        subtitle={task?.workflow_name}
+        subtitle={task?.workflow ? `Workflow: ${task.workflow.name || task.workflow}` : undefined}
         onBack={() => navigate('/tasks')}
         chip={task ? <StatusChip status={task.status} /> : undefined}
       />
@@ -57,7 +58,7 @@ export default function TaskReviewPage() {
         </Box>
       )}
 
-      {task && task.status !== 'in_progress' && (
+      {task && task.status !== TASK_STATUS.IN_PROGRESS && (
         <Paper variant="outlined" sx={{ p: 4, textAlign: 'center' }}>
           <StatusChip status={task.status} />
           <Typography color="text.secondary" fontSize={13} mt={1.5}>
@@ -66,7 +67,7 @@ export default function TaskReviewPage() {
         </Paper>
       )}
 
-      {task && task.status === 'in_progress' && (
+      {task && task.status === TASK_STATUS.IN_PROGRESS && (
         <Box display="flex" flexDirection="column" gap={2}>
           <TaskInfoSection task={task} />
           <TaskInputForm

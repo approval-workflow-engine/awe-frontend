@@ -9,7 +9,7 @@ import InstanceTable from './components/InstanceTable';
 import CreateInstanceDialog from './components/CreateInstanceDialog';
 import { useInstances } from './hooks/useInstances';
 import { usePolling } from '../../hooks/usePolling';
-import type { BackendInstance } from '../../types';
+import type { InstanceListItem } from '../../api/schemas/instance';
 
 const POLL_INTERVAL_MS = 5000;
 
@@ -22,7 +22,7 @@ export default function InstancesPage() {
 
   usePolling(() => { silentFetch(); }, POLL_INTERVAL_MS, true);
 
-  const handleCreated = (instance: BackendInstance) => {
+  const handleCreated = (instance: InstanceListItem) => {
     navigate(`/instances/${instance.id}`, { state: { instance } });
   };
 

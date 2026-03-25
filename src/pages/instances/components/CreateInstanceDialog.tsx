@@ -21,14 +21,15 @@ import {
 import { useApiCall } from '../../../hooks/useApiCall';
 import { getWorkflows } from '../../../api/workflowApi';
 import { createInstance } from '../../../api/instanceApi';
-import type { Workflow, BackendInstance } from '../../../types';
+import type { Workflow } from '../../../types';
+import type { InstanceListItem } from '../../../api/schemas/instance';
 
 const DEFAULT_JSON = '{}';
 
 interface Props {
   open: boolean;
   onClose: () => void;
-  onCreated: (instance: BackendInstance) => void;
+  onCreated: (instance: InstanceListItem) => void;
 }
 
 export default function CreateInstanceDialog({ open, onClose, onCreated }: Props) {
@@ -77,13 +78,26 @@ export default function CreateInstanceDialog({ open, onClose, onCreated }: Props
       { successMsg: 'Instance created successfully' },
     );
 
-    const instance = (res as { instance: BackendInstance } | null)?.instance;
+    const instance = res;
     if (instance) {
       const selectedWorkflow = workflows.find((w) => w.id === workflowId);
-      const enriched: BackendInstance = {
-        ...instance,
-        workflow_name: selectedWorkflow?.name,
-        version_number: selectedWorkflow?.latestVersion ?? null,
+      // Convert create response to InstanceListItem for consistency with list
+      const enriched: InstanceListItem = {
+        id: instance.id,
+        auto_advance: instance.autoAdvance,
+        created_by: 'current_user', // This should come from auth context
+        created_on: instance.startedAt,
+        current_node_id: null,
+        current_variables: null,
+        ended_on: null,
+        input_variables: instance.inputVariables,
+        is_deleted: false,
+        output_variables: null,
+        started_on: instance.startedAt,
+        status: instance.status,
+        workflow_version_id: instance.workflow.id,
+        version_number: instance.workflow.version,
+        workflow_name: selectedWorkflow?.name || 'Unknown',
       };
       onCreated(enriched);
       handleClose();
