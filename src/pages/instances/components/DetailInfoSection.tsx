@@ -1,7 +1,8 @@
 import { Box, Typography, Paper, Accordion, AccordionSummary, AccordionDetails } from '@mui/material';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import StatusChip from '../../../components/common/StatusChip';
-import type { BackendInstance } from '../../../types';
+import type { Instance } from '../../../api/schemas/instance';
+import { formatDate } from '../../../utils/formatUtils';
 
 const MONO = "'JetBrains Mono', monospace";
 
@@ -57,15 +58,11 @@ function JsonAccordion({ title, data }: { title: string; data: Record<string, un
 }
 
 interface Props {
-  instance: BackendInstance;
+  instance: Instance;
 }
 
 export default function DetailInfoSection({ instance }: Props) {
-  const formatDate = (s: string | null) =>
-    s
-      ? new Date(s).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })
-      : '—';
-
+  const formatSafeDate = (s: string | null) => s ? formatDate(s) : '—'; 
   return (
     <Paper variant="outlined" sx={{ p: 3 }}>
       <Typography fontWeight={700} fontSize={15} mb={2}>
@@ -74,53 +71,51 @@ export default function DetailInfoSection({ instance }: Props) {
 
       <Box sx={{ '& > *:not(:last-child)': { borderBottom: '1px solid', borderColor: 'divider' } }}>
         <InfoRow label="Instance ID" value={<MonoText>{instance.id}</MonoText>} />
-        {instance.workflow_name && (
-          <InfoRow
-            label="Workflow"
-            value={
-              <Box display="flex" alignItems="center" gap={1}>
-                <Typography fontSize={13}>{instance.workflow_name}</Typography>
-                {instance.version_number != null && (
-                  <Typography sx={{ fontFamily: MONO, fontSize: 11, color: 'text.secondary' }}>
-                    v{instance.version_number}
-                  </Typography>
-                )}
-              </Box>
-            }
-          />
-        )}
         <InfoRow
-          label="Version ID"
-          value={<MonoText>{instance.workflow_version_id}</MonoText>}
+          label="Workflow"
+          value={
+            <Box display="flex" alignItems="center" gap={1}>
+              <Typography fontSize={13}>
+                {instance.workflow.name}
+              </Typography>
+              <Typography sx={{ fontFamily: MONO, fontSize: 11, color: 'text.secondary' }}>
+                v{instance.workflow.version}
+              </Typography>
+            </Box>
+          }
         />
+        {/* <InfoRow
+          label="Version ID"
+          value={<MonoText>{instance.workflow.id}</MonoText>}
+        /> */}
         <InfoRow label="Instance Status" value={<StatusChip status={instance.status} />} />
         <InfoRow
           label="Auto Advance"
-          value={<MonoText>{instance.auto_advance ? 'Yes' : 'No'}</MonoText>}
+          value={<MonoText>{instance.autoAdvance ? 'Yes' : 'No'}</MonoText>}
         />
         <InfoRow
           label="Started"
-          value={<Typography fontSize={13}>{formatDate(instance.started_on)}</Typography>}
+          value={<Typography fontSize={13}>{formatSafeDate(instance.startedAt)}</Typography>}
         />
-        {instance.ended_on && (
+        {instance.endedAt && (
           <InfoRow
             label="Ended"
-            value={<Typography fontSize={13}>{formatDate(instance.ended_on)}</Typography>}
+            value={<Typography fontSize={13}>{formatSafeDate(instance.endedAt)}</Typography>}
           />
         )}
-        {instance.current_task && (
+        {instance.currentTask && (
           <InfoRow
             label="Current Task"
             value={
               <Box>
                 <Box display="flex" alignItems="center" gap={1}>
                   <Typography fontSize={13} fontWeight={500}>
-                    {instance.current_task.name || `${instance.current_task.type} Node`}
+                    {instance.currentTask.name || `${instance.currentTask.type} Node`}
                   </Typography>
-                  <StatusChip status={instance.current_task.status} />
+                  <StatusChip status={instance.currentTask.status} />
                 </Box>
                 <Typography sx={{ fontFamily: MONO, fontSize: 11, color: 'text.secondary', mt: 0.5 }}>
-                  {instance.current_task.type} • {instance.current_task.node_id}
+                  {instance.currentTask.type} • {instance.currentTask.nodeId}
                 </Typography>
               </Box>
             }
@@ -128,9 +123,9 @@ export default function DetailInfoSection({ instance }: Props) {
         )}
       </Box>
 
-      <JsonAccordion title="Input Variables" data={instance.input_variables} />
-      <JsonAccordion title="Current Variables" data={instance.current_variables} />
-      <JsonAccordion title="Output Variables" data={instance.output_variables} />
+      <JsonAccordion title="Input Variables" data={instance.inputVariables} />
+      <JsonAccordion title="Current Variables" data={instance.currentVariables} />
+      <JsonAccordion title="Output Variables" data={instance.outputVariables} />
     </Paper>
   );
 }

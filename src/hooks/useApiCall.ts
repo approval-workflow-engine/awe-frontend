@@ -16,7 +16,7 @@ interface UseApiCallReturn {
   loading: boolean;
   error: string | null;
   call: <T = unknown>(
-    apiFn: () => Promise<AxiosResponse<T>>,
+    apiFn: () => Promise<AxiosResponse<T>> | Promise<T>,
     options?: ApiCallOptions,
   ) => Promise<T | null>;
 }
@@ -28,7 +28,7 @@ export function useApiCall(): UseApiCallReturn {
 
   const call = useCallback(
     async <T = unknown>(
-      apiFn: () => Promise<AxiosResponse<T>>,
+      apiFn: () => Promise<AxiosResponse<T>> | Promise<T>,
       options: ApiCallOptions = {},
     ): Promise<T | null> => {
       const {
@@ -45,19 +45,29 @@ export function useApiCall(): UseApiCallReturn {
       }
       try {
         const response = await apiFn();
-        const raw = response.data as { success?: boolean; data?: unknown };
 
-        const payload =
-          raw !== null &&
-          typeof raw === "object" &&
-          typeof raw.success === "boolean" &&
-          "data" in raw
-            ? (raw.data as T)
-            : response.data;
+        // Handle new apiClient response (direct data) vs old axiosClient response (AxiosResponse)
+        const isAxiosResponse = response && typeof response === 'object' && 'data' in response;
+
+        let payload: T;
+        if (isAxiosResponse) {
+          const axiosResponse = response as AxiosResponse<T>;
+          const raw = axiosResponse.data as { success?: boolean; data?: unknown };
+
+          payload = (raw !== null &&
+            typeof raw === "object" &&
+            typeof raw.success === "boolean" &&
+            "data" in raw
+              ? (raw.data as T)
+              : axiosResponse.data) as T;
+        } else {
+          payload = response as T;
+        }
+
         if (successMsg) enqueueSnackbar(successMsg, { variant: "success" });
         if (!silent) setError(null);
         if (onSuccess) onSuccess(payload);
-        return payload as T;
+        return payload;
       } catch (err: unknown) {
         const message = extractApiError(err);
         if (!silent) {

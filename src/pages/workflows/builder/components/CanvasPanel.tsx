@@ -1,4 +1,4 @@
-import React, { useRef, useCallback, useEffect, useState } from "react";
+import React, { useRef, useCallback, useEffect, useState, useMemo } from "react";
 import { Box, Typography } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import {
@@ -15,6 +15,8 @@ import {
   getOutputPorts,
   portYFraction,
   estimateCardHeight,
+  calculateNodePosition,
+  cleanupStaleEntries,
 } from "../utils/nodeHelpers";
 import NodeIcon from "../config/shared/NodeIcon";
 
@@ -28,7 +30,7 @@ interface EdgePathProps {
   onClick: (e: React.MouseEvent) => void;
 }
 
-function EdgePath({ edge, nodes, isSelected, onClick }: EdgePathProps) {
+const EdgePath = React.memo(function EdgePath({ edge, nodes, isSelected, onClick }: EdgePathProps) {
   const theme = useTheme();
   const src = nodes.find((n) => n.id === edge.source);
   const tgt = nodes.find((n) => n.id === edge.target);
@@ -43,8 +45,8 @@ function EdgePath({ edge, nodes, isSelected, onClick }: EdgePathProps) {
     const idx = srcPorts.findIndex((p) => p.id === edge.sourcePort);
     portIdx = idx >= 0 ? idx : 0;
   }
-  const srcH = estimateCardHeight(src);
-  const tgtH = estimateCardHeight(tgt);
+  const srcH = estimateCardHeight();
+  const tgtH = estimateCardHeight();
 
   const ex = src.x + NODE_WIDTH;
   const ey = src.y + srcH * portYFraction(portIdx, srcPorts.length);
@@ -92,7 +94,7 @@ function EdgePath({ edge, nodes, isSelected, onClick }: EdgePathProps) {
       )}
     </g>
   );
-}
+});
 
 interface NodeCardProps {
   node: CanvasNode;
@@ -106,7 +108,7 @@ interface NodeCardProps {
   onDragStart: (e: React.MouseEvent) => void;
 }
 
-function NodeCard({
+const NodeCard = React.memo(function NodeCard({
   node,
   isSelected,
   hasError,
@@ -316,7 +318,7 @@ function NodeCard({
       )}
     </Box>
   );
-}
+});
 
 interface CanvasPanelProps {
   nodes: CanvasNode[];
@@ -324,6 +326,7 @@ interface CanvasPanelProps {
   selectedItem: SelectedItem;
   connectingFrom: { nodeId: string; portId: string } | null;
   errorNodeIds?: Set<string>;
+  readOnlyMode?: boolean;
   onUpdateNode: (id: string, updates: Partial<CanvasNode>) => void;
   onAddNode: (node: CanvasNode) => void;
   onAddEdge: (edge: CanvasEdge) => void;
@@ -338,6 +341,7 @@ export default function CanvasPanel({
   selectedItem,
   connectingFrom,
   errorNodeIds,
+  readOnlyMode = false,
   onUpdateNode,
   onAddNode,
   onAddEdge,
@@ -347,6 +351,8 @@ export default function CanvasPanel({
 }: CanvasPanelProps) {
   const theme = useTheme();
   const containerRef = useRef<HTMLDivElement>(null);
+  const [visualNodePositions, setVisualNodePositions] = useState<Record<string, { x: number; y: number }>>({});
+
   const dragRef = useRef<{
     nodeId: string;
     startX: number;
@@ -360,6 +366,27 @@ export default function CanvasPanel({
     x: number;
     y: number;
   } | null>(null);
+
+  const getEffectiveNodes = useMemo(() => {
+    if (!readOnlyMode || Object.keys(visualNodePositions).length === 0) return nodes;
+
+    return nodes.map(node => {
+      const visualPos = visualNodePositions[node.id];
+      return visualPos && (visualPos.x !== node.x || visualPos.y !== node.y)
+        ? { ...node, x: visualPos.x, y: visualPos.y }
+        : node; // Return original object if no change
+    });
+  }, [nodes, visualNodePositions, readOnlyMode]);
+
+  const nodeMap = useMemo(() =>
+    new Map(getEffectiveNodes.map(n => [n.id, n])), [getEffectiveNodes]);
+
+  useEffect(() => {
+    if (readOnlyMode) {
+      const nodeIds = new Set(nodes.map(n => n.id));
+      setVisualNodePositions(prev => cleanupStaleEntries(prev, nodeIds));
+    }
+  }, [nodes, readOnlyMode]);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -376,28 +403,43 @@ export default function CanvasPanel({
   }, []);
 
   const handleNodeMouseDown = useCallback(
-    (e: React.MouseEvent, nodeId: string, nodeX: number, nodeY: number) => {
+    (e: React.MouseEvent, nodeId: string) => {
       if (connectingFrom) return;
       e.preventDefault();
+
+      const node = nodeMap.get(nodeId);
+      if (!node) return;
+
       dragRef.current = {
         nodeId,
         startX: e.clientX,
         startY: e.clientY,
-        origX: nodeX,
-        origY: nodeY,
+        origX: node.x,
+        origY: node.y,
       };
     },
-    [connectingFrom],
+    [connectingFrom, nodeMap],
   );
 
   const handleMouseMove = useCallback(
     (e: React.MouseEvent) => {
       if (dragRef.current) {
         const { nodeId, startX, startY, origX, origY } = dragRef.current;
-        onUpdateNode(nodeId, {
-          x: Math.max(0, origX + e.clientX - startX),
-          y: Math.max(0, origY + e.clientY - startY),
-        });
+        const { x: newX, y: newY } = calculateNodePosition(
+          origX,
+          origY,
+          e.clientX - startX,
+          e.clientY - startY
+        );
+
+        if (readOnlyMode) {
+          setVisualNodePositions(prev => ({
+            ...prev,
+            [nodeId]: { x: newX, y: newY }
+          }));
+        } else {
+          onUpdateNode(nodeId, { x: newX, y: newY });
+        }
       }
 
       if (connectingFrom && containerRef.current) {
@@ -408,7 +450,7 @@ export default function CanvasPanel({
         });
       }
     },
-    [connectingFrom, onUpdateNode],
+    [connectingFrom, onUpdateNode, readOnlyMode],
   );
 
   const handleMouseUp = useCallback(() => {
@@ -420,29 +462,26 @@ export default function CanvasPanel({
   const handleDrop = useCallback(
     (e: React.DragEvent) => {
       e.preventDefault();
+      if (readOnlyMode) return;
+
       const nodeType = e.dataTransfer.getData("builder/node-type");
       if (!nodeType || !containerRef.current) return;
+
       const rect = containerRef.current.getBoundingClientRect();
-      const x =
-        e.clientX -
-        rect.left +
-        containerRef.current.scrollLeft -
-        NODE_WIDTH / 2;
-      const y =
-        e.clientY -
-        rect.top +
-        containerRef.current.scrollTop -
-        NODE_MIN_HEIGHT / 2;
+      const rawX = e.clientX - rect.left + containerRef.current.scrollLeft - NODE_WIDTH / 2;
+      const rawY = e.clientY - rect.top + containerRef.current.scrollTop - NODE_MIN_HEIGHT / 2;
+      const { x, y } = calculateNodePosition(0, 0, rawX, rawY);
+
       onAddNode({
         id: generateId(nodeType),
         type: nodeType,
         label: getNodeTypeLabel(nodeType),
         config: {},
-        x: Math.max(0, x),
-        y: Math.max(0, y),
+        x,
+        y,
       });
     },
-    [onAddNode],
+    [onAddNode, readOnlyMode],
   );
 
   const handleDropConnect = useCallback(
@@ -452,7 +491,7 @@ export default function CanvasPanel({
         return;
       }
 
-      const srcNode = nodes.find((n) => n.id === connectingFrom.nodeId);
+      const srcNode = nodeMap.get(connectingFrom.nodeId);
       const portId = connectingFrom.portId;
 
       let isDefault = false;
@@ -474,12 +513,14 @@ export default function CanvasPanel({
       });
       onCancelConnect();
     },
-    [connectingFrom, nodes, onAddEdge, onCancelConnect],
+    [connectingFrom, onAddEdge, onCancelConnect, nodeMap],
   );
 
   const handleStartConnect = useCallback(
     (nodeId: string, portId: string) => {
-      const sourceNode = nodes.find((n) => n.id === nodeId);
+      if (readOnlyMode) return;
+
+      const sourceNode = nodeMap.get(nodeId);
       const isGateway = sourceNode?.type === "exclusive_gateway";
 
       if (isGateway) {
@@ -502,19 +543,19 @@ export default function CanvasPanel({
       setConnError("");
       onStartConnect(nodeId, portId);
     },
-    [nodes, edges, onStartConnect],
+    [edges, onStartConnect, readOnlyMode, nodeMap],
   );
 
   const previewPath = (() => {
     if (!connectingFrom || !dragMousePos) return null;
-    const srcNode = nodes.find((n) => n.id === connectingFrom.nodeId);
+    const srcNode = nodeMap.get(connectingFrom.nodeId);
     if (!srcNode) return null;
     const ports = getOutputPorts(srcNode);
     const portIdx = Math.max(
       0,
       ports.findIndex((p) => p.id === connectingFrom.portId),
     );
-    const srcH = estimateCardHeight(srcNode);
+    const srcH = estimateCardHeight();
     const ex = srcNode.x + NODE_WIDTH;
     const ey = srcNode.y + srcH * portYFraction(portIdx, ports.length);
     const tx = dragMousePos.x;
@@ -619,7 +660,7 @@ export default function CanvasPanel({
             <EdgePath
               key={edge.id}
               edge={edge}
-              nodes={nodes}
+              nodes={getEffectiveNodes}
               isSelected={
                 selectedItem?.type === "edge" && selectedItem.id === edge.id
               }
@@ -642,7 +683,7 @@ export default function CanvasPanel({
           )}
         </svg>
 
-        {nodes.map((node) => (
+        {getEffectiveNodes.map((node) => (
           <NodeCard
             key={node.id}
             node={node}
@@ -657,7 +698,7 @@ export default function CanvasPanel({
             onSelect={() => onSelectItem({ id: node.id, type: "node" })}
             onStartConnect={(portId) => handleStartConnect(node.id, portId)}
             onDropConnect={() => handleDropConnect(node.id)}
-            onDragStart={(e) => handleNodeMouseDown(e, node.id, node.x, node.y)}
+            onDragStart={(e) => handleNodeMouseDown(e, node.id)}
           />
         ))}
       </Box>

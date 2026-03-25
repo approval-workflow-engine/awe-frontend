@@ -1,21 +1,29 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { useApiCall } from '../../../hooks/useApiCall';
 import { getTask, completeTask as completeApi } from '../../../api/taskApi';
-import type { BackendTaskDetail } from '../../../types';
+import type { TaskDetail } from '../../../api/schemas/task';
 
 export function useTask() {
   const { loading, error, call } = useApiCall();
-  const [task, setTask] = useState<BackendTaskDetail | null>(null);
+  const [task, setTask] = useState<TaskDetail | null>(null);
+  const currentRequestRef = useRef<string | null>(null);
 
   const fetch = useCallback(async (id: string) => {
-    const res = await call(() => getTask(id));
-    const t =
-      (res as { task?: BackendTaskDetail } | null)?.task ??
-      ((res as BackendTaskDetail | null)?.id
-        ? (res as BackendTaskDetail)
-        : null);
-    setTask(t);
-    return t;
+    // Cancel any previous request by marking it obsolete
+    currentRequestRef.current = id;
+
+    // Clear existing task state when fetching new task
+    setTask(null);
+
+    const taskData = await call(() => getTask(id));
+
+    // Only update state if this request is still current
+    if (currentRequestRef.current === id && taskData) {
+      setTask(taskData as TaskDetail);
+      return taskData;
+    }
+
+    return null;
   }, [call]);
 
   const complete = useCallback(async (id: string, userInput: Record<string, unknown>) => {

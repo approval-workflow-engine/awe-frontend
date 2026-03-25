@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import {
   Box,
@@ -19,10 +19,29 @@ import { useInstance } from './hooks/useInstance';
 import { usePolling } from '../../hooks/usePolling';
 import { useApiCall } from '../../hooks/useApiCall';
 import { getInstanceExecutions } from '../../api/instanceApi';
-import type { BackendInstance, ExecutionLog } from '../../types';
+import type { Instance, ExecutionLog, InstanceListItem } from '../../api/schemas/instance';
 
 const MONO = "'JetBrains Mono', monospace";
 const POLL_INTERVAL_MS = 3000;
+
+function toInstanceFromListItem(item: InstanceListItem): Instance {
+  return {
+    id: item.id,
+    inputVariables: item.input_variables,
+    currentVariables: item.current_variables,
+    outputVariables: item.output_variables,
+    status: item.status,
+    startedAt: item.started_on,
+    endedAt: item.ended_on,
+    autoAdvance: item.auto_advance,
+    workflow: {
+      name: item.workflow_name,
+      id: item.workflow_version_id,
+      version: item.version_number ?? 0,
+    },
+    currentTask: null,
+  };
+}
 
 export default function InstanceDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -34,18 +53,18 @@ export default function InstanceDetailPage() {
   const [executionLogs, setExecutionLogs] = useState<ExecutionLog[]>([]);
   const [logsLoading, setLogsLoading] = useState(false);
 
-  const navInstance =
-    (location.state as { instance?: BackendInstance } | null)?.instance ?? null;
+  const stateInstance =
+    (location.state as { instance?: Instance | InstanceListItem } | null)?.instance ?? null;
 
-  const displayInstance: BackendInstance | null = instance
-    ? {
-        ...instance,
-        workflow_name: instance.workflow_name ?? navInstance?.workflow_name,
-        version_number: instance.version_number ?? navInstance?.version_number,
-      }
+  const navInstance = stateInstance
+    ? ('workflow' in stateInstance ? stateInstance : toInstanceFromListItem(stateInstance))
+    : null;
+
+  const displayInstance: Instance | null = instance
+    ? instance
     : navInstance;
 
-  const fetchExecutionLogs = async (instanceId: string, silent = false) => {
+  const fetchExecutionLogs = useCallback(async (instanceId: string, silent = false) => {
     if (!silent) setLogsLoading(true);
     try {
       const response = await call(() => getInstanceExecutions(instanceId), {
@@ -60,14 +79,14 @@ export default function InstanceDetailPage() {
     } finally {
       if (!silent) setLogsLoading(false);
     }
-  };
+  }, [call]);
 
   useEffect(() => {
     if (id) {
       fetch(id);
       fetchExecutionLogs(id);
     }
-  }, [id, fetch]);
+  }, [id, fetch, fetchExecutionLogs]);
 
   useEffect(() => {
     pollEnabled.current = !!instance && !isTerminal(instance.status);
@@ -85,7 +104,7 @@ export default function InstanceDetailPage() {
   );
 
   const canResume =
-    displayInstance?.auto_advance === false && displayInstance?.status === 'paused';
+    displayInstance?.autoAdvance === false && displayInstance?.status === 'paused';
 
   const handleResume = async () => {
     if (!id) return;
@@ -101,8 +120,8 @@ export default function InstanceDetailPage() {
     }
   };
 
-  const workflowLabel = displayInstance?.workflow_name
-    ? `${displayInstance.workflow_name} - Version ${displayInstance.version_number}`
+  const workflowLabel = displayInstance?.workflow
+    ? `Instance - Workflow Version ${displayInstance.workflow.version}`
     : 'Instance Details';
 
   return (
@@ -152,7 +171,7 @@ export default function InstanceDetailPage() {
 
       {displayInstance && (
         <Box display="flex" flexDirection="column" gap={2}>
-          {!displayInstance.auto_advance && displayInstance.status === 'in_progress' && (
+          {!displayInstance.autoAdvance && displayInstance.status === 'in_progress' && (
             <Box
               sx={{
                 px: 2,

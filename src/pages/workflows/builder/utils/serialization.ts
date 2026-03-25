@@ -5,6 +5,11 @@ import { generateId } from "./nodeHelpers";
 
 const VALID_HTTP_METHODS = ["GET", "POST", "PUT", "PATCH", "DELETE"] as const;
 
+function toFeelStringLiteral(value: string): string {
+    const escaped = value.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+    return `"${escaped}"`;
+}
+
 function templateUrlToFeel(url: string): string {
     if (!url) return '""';
     const trimmed = url.trim();
@@ -21,24 +26,30 @@ function templateUrlToFeel(url: string): string {
             stripped = true;
         }
     }
+
+    if (/^https?:\/\/\S+$/i.test(normalized)) {
+        return toFeelStringLiteral(normalized);
+    }
+
     const looksLikeFeel =
         normalized.includes(" + ") ||
         normalized.startsWith("string(") ||
-        (normalized.includes("context.") && normalized.includes("\""));
+        /\bcontext\.[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*\b/.test(normalized) ||
+        (/^[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*$/.test(normalized) && !normalized.includes("://"));
     if (looksLikeFeel) return normalized;
-    if (!normalized.includes('{')) return `"${normalized}"`;
+    if (!normalized.includes('{')) return toFeelStringLiteral(normalized);
     const parts: string[] = [];
     let lastIndex = 0;
     const regex = /\{([^}]+)\}/g;
     let match: RegExpExecArray | null;
     while ((match = regex.exec(normalized)) !== null) {
         const staticPart = normalized.slice(lastIndex, match.index);
-        if (staticPart) parts.push(`"${staticPart}"`);
+        if (staticPart) parts.push(toFeelStringLiteral(staticPart));
         parts.push(`string(${match[1]})`);
         lastIndex = regex.lastIndex;
     }
     const trailing = normalized.slice(lastIndex);
-    if (trailing) parts.push(`"${trailing}"`);
+    if (trailing) parts.push(toFeelStringLiteral(trailing));
     return parts.join(" + ");
 }
 
@@ -272,6 +283,7 @@ export function canvasToVersionPayload(
 export function definitionToCanvas(
     def: unknown
 ): { nodes: CanvasNode[]; edges: CanvasEdge[]; inputs: WorkflowInput[] } {
+    console.log("Deserializing definition:", def)
     const defAny = def as any;
     const rawNodes: any[] = defAny.nodes || defAny.definition?.nodes || [];
     const rawEdges: any[] = defAny.edges || defAny.definition?.edges || [];

@@ -1,11 +1,17 @@
-import axiosClient from './axiosClient';
+import { apiClient } from './client';
+import {
+  PendingTasksResponseSchema,
+  TaskDetailSchema,
+  CompleteTaskResponseSchema,
+  CompleteTaskRequestSchema
+} from './schemas/task';
 import type { PaginationParams } from '../types';
 
 export const getTasks = (params?: PaginationParams) =>
-  axiosClient.get('/tasks', { params });
+  apiClient.get('/tasks', PendingTasksResponseSchema, { params });
 
 export const getTask = (id: string) =>
-  axiosClient.get(`/tasks/${id}`);
+  apiClient.get(`/tasks/${id}`, TaskDetailSchema);
 
 export const completeTask = (id: string, userInput: Record<string, unknown>) =>
-  axiosClient.post(`/tasks/${id}/complete`, userInput);
+  apiClient.post(`/tasks/${id}/complete`, userInput, CompleteTaskResponseSchema, CompleteTaskRequestSchema);
