@@ -323,7 +323,7 @@ export default function ScriptTaskConfig({
               mb: 0.25,
             }}
           >
-            Arguments passed to your entry function
+            Map Python function arguments to FEEL expressions. Param name = argument name in your code (e.g. <code style={{fontFamily:"monospace"}}>id1</code>), Value = FEEL expression that provides the value (e.g. <code style={{fontFamily:"monospace"}}>context.id</code>).
           </Typography>
           {paramMap.map((p, idx) => (
             <Box
@@ -339,21 +339,26 @@ export default function ScriptTaskConfig({
               }}
             >
               <Box display="flex" gap={0.5} alignItems="center" mb={0.5}>
-                <TextField
-                  size="small"
-                  placeholder="Parameter name"
-                  value={p.name}
-                  onChange={(e) => updateParam(idx, { name: e.target.value })}
-                  sx={{
-                    flex: 1,
-                    "& .MuiOutlinedInput-root": {
-                      borderRadius: "6px",
-                      fontSize: 11,
-                      "& fieldset": { borderColor: "divider" },
-                    },
-                  }}
-                  inputProps={{ style: { padding: "4px 8px", fontSize: 11 } }}
-                />
+                <Box sx={{ flex: 1 }}>
+                  <TextField
+                    size="small"
+                    placeholder="e.g. id1, name, data"
+                    value={p.name}
+                    onChange={(e) => updateParam(idx, { name: e.target.value })}
+                    fullWidth
+                    sx={{
+                      "& .MuiOutlinedInput-root": {
+                        borderRadius: "6px",
+                        fontSize: 11,
+                        "& fieldset": { borderColor: "divider" },
+                      },
+                    }}
+                    inputProps={{ style: { padding: "4px 8px", fontSize: 11 } }}
+                  />
+                  <Typography sx={{ fontSize: 8, color: "text.secondary", opacity: 0.7, mt: 0.25 }}>
+                    Python arg name
+                  </Typography>
+                </Box>
                 <IconButton
                   className="delete-btn"
                   size="small"
@@ -372,6 +377,7 @@ export default function ScriptTaskConfig({
                 onChange={(v) => updateParam(idx, { valueExpression: v })}
                 placeholder="context.someValue"
                 availableContext={availableContext}
+                hint="FEEL expression whose result is passed as this argument"
               />
             </Box>
           ))}

@@ -37,7 +37,9 @@ import { useApiCall } from "../../hooks/useApiCall";
 import { extractApiError } from "../../utils/apiError";
 import DialogErrorAlert from "../../components/common/DialogErrorAlert";
 import PageHeader from "../../components/common/PageHeader";
+import AppPagination from "../../components/common/AppPagination";
 import type { Workflow } from "../../types";
+import type { Pagination } from "../../api/schemas/common";
 
 export default function WorkflowsPage() {
   const navigate = useNavigate();
@@ -46,6 +48,9 @@ export default function WorkflowsPage() {
   const [workflows, setWorkflows] = useState<Workflow[]>([]);
   const [listLoading, setListLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [page, setPage] = useState(0);
+  const [limit, setLimit] = useState(20);
+  const [pagination, setPagination] = useState<Pagination | null>(null);
 
   const [newOpen, setNewOpen] = useState(false);
   const [newForm, setNewForm] = useState({ name: "", description: "" });
@@ -64,16 +69,19 @@ export default function WorkflowsPage() {
   const [deleteError, setDeleteError] = useState("");
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
 
-  const fetchWorkflows = useCallback(async () => {
+  const fetchWorkflows = useCallback(async (pageNum = 1, pageSize = 20) => {
     setListLoading(true);
     try {
-      const res = await call(() => getWorkflows());
+      const res = await call(() => getWorkflows({ page: pageNum, limit: pageSize }));
       if (res) {
-        const body = res as { workflows?: Workflow[] };
+        const body = res as { workflows?: Workflow[]; pagination?: Pagination };
         const list =
           body?.workflows ??
           (Array.isArray(body) ? (body as unknown as Workflow[]) : []);
         setWorkflows(list);
+        if (body?.pagination) {
+          setPagination(body.pagination);
+        }
       }
     } finally {
       setListLoading(false);
@@ -81,8 +89,21 @@ export default function WorkflowsPage() {
   }, [call]);
 
   useEffect(() => {
-    fetchWorkflows();
-  }, [fetchWorkflows]);
+    fetchWorkflows(page + 1, limit);
+  }, []);
+
+  const handlePageChange = (_event: unknown, newPage: number) => {
+    const newPageNum = newPage + 1;
+    setPage(newPage);
+    fetchWorkflows(newPageNum, limit);
+  };
+
+  const handleChangeRowsPerPage = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const newLimit = parseInt(event.target.value, 10);
+    setLimit(newLimit);
+    setPage(0);
+    fetchWorkflows(1, newLimit);
+  };
 
   const handleNewSubmit = async () => {
     if (!newForm.name.trim()) return;
@@ -105,7 +126,7 @@ export default function WorkflowsPage() {
     if (res) {
       setNewOpen(false);
       setNewForm({ name: "", description: "" });
-      fetchWorkflows();
+      fetchWorkflows(page + 1, limit);
     }
   };
 
@@ -136,7 +157,7 @@ export default function WorkflowsPage() {
     setEditLoading(false);
     if (res) {
       setEditOpen(false);
-      fetchWorkflows();
+      fetchWorkflows(page + 1, limit);
     }
   };
 
@@ -207,7 +228,7 @@ export default function WorkflowsPage() {
             <Tooltip title="Reload">
               <IconButton
                 size="small"
-                onClick={fetchWorkflows}
+                onClick={() => fetchWorkflows(page + 1, limit)}
                 disabled={listLoading}
                 sx={{ color: "text.secondary" }}
               >
@@ -474,6 +495,14 @@ export default function WorkflowsPage() {
             </Typography>
           </Box>
         )}
+        <AppPagination
+          pagination={pagination}
+          page={page}
+          rowsPerPage={limit}
+          onPageChange={handlePageChange}
+          onRowsPerPageChange={handleChangeRowsPerPage}
+          rowsPerPageOptions={[20, 50, 100]}
+        />
       </Paper>
 
       <Dialog

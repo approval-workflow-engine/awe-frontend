@@ -28,6 +28,7 @@ import LayersClearIcon from "@mui/icons-material/LayersClear";
 import LightModeIcon from "@mui/icons-material/LightMode";
 import DarkModeIcon from "@mui/icons-material/DarkMode";
 import VisibilityIcon from "@mui/icons-material/Visibility";
+import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 
 import { getWorkflow, getWorkflowVersion } from "../../api/workflowApi";
 import { useApiCall } from "../../hooks/useApiCall";
@@ -88,7 +89,7 @@ export default function WorkflowBuilder() {
     commitConfirmOpen, setCommitConfirmOpen,
     activateConfirmOpen, setActivateConfirmOpen,
     deactivateConfirmOpen, setDeactivateConfirmOpen,
-    handleSaveDraft, handleCommit, handleActivate, handleDeactivate,
+    handleSaveDraft, handleCommit, handleActivate, handleDeactivate, handleCopyPayload,
   } = useBuilderActions({
     workflowId,
     savedVersionNumber,
@@ -371,6 +372,11 @@ export default function WorkflowBuilder() {
         )}
 
         <Divider orientation="vertical" flexItem sx={{ my: "auto", height: 24, borderColor: "divider" }} />
+        <Tooltip title="Copy workflow as JSON">
+          <IconButton size="small" onClick={handleCopyPayload} sx={{ color: "text.disabled", "&:hover": { color: "text.primary" } }}>
+            <ContentCopyIcon sx={{ fontSize: 16 }} />
+          </IconButton>
+        </Tooltip>
         <Tooltip title={mode === "dark" ? "Switch to light mode" : "Switch to dark mode"}>
           <IconButton size="small" onClick={toggleTheme} sx={{ color: "text.disabled", "&:hover": { color: "text.primary" } }}>
             {mode === "dark" ? <LightModeIcon fontSize="small" /> : <DarkModeIcon fontSize="small" />}

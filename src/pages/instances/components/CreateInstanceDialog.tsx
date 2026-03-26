@@ -42,8 +42,26 @@ export default function CreateInstanceDialog({ open, onClose, onCreated }: Props
   const [jsonError, setJsonError] = useState('');
 
   const loadWorkflows = useCallback(async () => {
-    const res = await call(() => getWorkflows(), { showError: false });
-    setWorkflows((res as { workflows: Workflow[] } | null)?.workflows ?? []);
+    const pageSize = 100;
+    let page = 1;
+    let totalPages = 1;
+    const aggregated: Workflow[] = [];
+
+    do {
+      const res = await call(
+        () => getWorkflows({ page, limit: pageSize }),
+        { showError: false },
+      );
+      const body = res as
+        | { workflows?: Workflow[]; pagination?: { totalPages?: number } }
+        | null;
+
+      aggregated.push(...(body?.workflows ?? []));
+      totalPages = Number(body?.pagination?.totalPages ?? 1);
+      page += 1;
+    } while (page <= totalPages);
+
+    setWorkflows(aggregated);
   }, [call]);
 
   useEffect(() => {

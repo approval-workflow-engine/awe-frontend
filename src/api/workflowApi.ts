@@ -19,6 +19,9 @@ export const deleteWorkflow = (id: string) =>
 export const createWorkflowVersion = (id: string, payload: Record<string, unknown>) =>
   axiosClient.post(`/workflows/${id}/versions`, payload);
 
+export const getWorkflowVersions = (id: string, params?: PaginationParams) =>
+  axiosClient.get(`/workflows/${id}/versions`, { params });
+
 export const updateWorkflowVersion = (id: string, versionNumber: number | string, payload: Record<string, unknown>) =>
   axiosClient.patch(`/workflows/${id}/versions/${versionNumber}`, payload);
 

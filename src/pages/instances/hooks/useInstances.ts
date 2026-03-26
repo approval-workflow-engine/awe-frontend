@@ -2,16 +2,23 @@ import { useState, useCallback } from 'react';
 import { useApiCall } from '../../../hooks/useApiCall';
 import { getInstances } from '../../../api/instanceApi';
 import type { InstanceListItem } from '../../../api/schemas/instance';
-import type { PaginationParams } from '../../../types';
+import type { PaginationParams, Pagination } from '../../../api/schemas/common';
+
+interface FetchResult {
+  instances: InstanceListItem[];
+  pagination?: Pagination;
+}
 
 export function useInstances() {
   const { loading, error, call } = useApiCall();
   const [instances, setInstances] = useState<InstanceListItem[]>([]);
 
   const fetch = useCallback(
-    async (params?: PaginationParams) => {
+    async (params?: PaginationParams): Promise<FetchResult | null> => {
       const res = await call(() => getInstances(params));
-      setInstances(res?.instances ?? []);
+      const instances_ = res?.instances ?? [];
+      setInstances(instances_);
+      return res as FetchResult | null;
     },
     [call],
   );
@@ -19,7 +26,9 @@ export function useInstances() {
   const silentFetch = useCallback(
     async (params?: PaginationParams) => {
       const res = await call(() => getInstances(params), { silent: true });
-      setInstances(res?.instances ?? []);
+      const instances_ = res?.instances ?? [];
+      setInstances(instances_);
+      return res as FetchResult | null;
     },
     [call],
   );
