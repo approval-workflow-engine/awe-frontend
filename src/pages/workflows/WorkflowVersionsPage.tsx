@@ -29,11 +29,14 @@ import PowerSettingsNewIcon from "@mui/icons-material/PowerSettingsNew";
 import AddIcon from "@mui/icons-material/Add";
 import {
   getWorkflow,
+  getWorkflowVersions,
   updateVersionStatus,
 } from "../../api/workflowApi";
 import { useApiCall } from "../../hooks/useApiCall";
 import PageHeader from "../../components/common/PageHeader";
+import AppPagination from "../../components/common/AppPagination";
 import type { Workflow, WorkflowVersion } from "../../types";
+import type { Pagination } from "../../api/schemas/common";
 
 type LifecycleAction = "commit" | "activate" | "deactivate";
 
@@ -90,6 +93,10 @@ export default function WorkflowVersionsPage() {
   const [versions, setVersions] = useState<WorkflowVersion[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
+  const [page, setPage] = useState(0);
+  const [limit, setLimit] = useState(20);
+  const [pagination, setPagination] = useState<Pagination | null>(null);
+  const [hasDraftInWorkflow, setHasDraftInWorkflow] = useState(false);
 
   const [actionTarget, setActionTarget] = useState<{
     version: WorkflowVersion;
@@ -97,40 +104,44 @@ export default function WorkflowVersionsPage() {
   } | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
 
-  const fetchData = useCallback(async () => {
+  const fetchData = useCallback(async (pageNum = 1, pageSize = 20) => {
 
     if (!workflowId) return;
 
     setLoading(true);
 
     try {
-      const res = await call(() => getWorkflow(workflowId), {
+      const workflowRes = await call(() => getWorkflow(workflowId), {
         showError: false,
       });
-      if (res) {
+      const versionsRes = await call(
+        () => getWorkflowVersions(workflowId, { page: pageNum, limit: pageSize }),
+        { showError: false },
+      );
 
-        const wfBody = res as { workflow?: Workflow } | Workflow;
+      if (workflowRes) {
+        const wfBody = workflowRes as { workflow?: Workflow } | Workflow;
         const wf =
           (wfBody as { workflow?: Workflow }).workflow ?? (wfBody as Workflow);
         setWorkflow(wf || null);
 
-        const rawVersions: Array<Record<string, unknown>> = Array.isArray(
-          (wf as unknown as Record<string, unknown>)?.versions
-        )
-          ? ((wf as unknown as Record<string, unknown>).versions as Array<
-              Record<string, unknown>
-            >)
-          : [];
-        const normalized = rawVersions.map((v) => ({
-          ...v,
-          versionNumber:
-            (v.versionNumber as number | undefined) ??
-            (v.version as number | undefined) ??
-            0,
-        })) as WorkflowVersion[];
-        setVersions(
-          [...normalized].sort((a, b) => b.versionNumber - a.versionNumber)
+        const workflowVersions =
+          (wf as { versions?: Array<{ status?: string }> })?.versions ?? [];
+        setHasDraftInWorkflow(
+          workflowVersions.some((v) => {
+            const status = v.status?.toLowerCase?.() ?? "";
+            return status === "draft" || status === "valid";
+          }),
         );
+      }
+
+      if (versionsRes) {
+        const body = versionsRes as {
+          versions?: WorkflowVersion[];
+          pagination?: Pagination;
+        };
+        setVersions(body.versions ?? []);
+        setPagination(body.pagination ?? null);
       }
 
     } finally {
@@ -140,13 +151,28 @@ export default function WorkflowVersionsPage() {
   }, [workflowId, call]);
 
   useEffect(() => {
-    fetchData();
+    fetchData(page + 1, limit);
   }, [fetchData]);
 
   const normalizeStatus = (v: WorkflowVersion) =>
     v.status?.toLowerCase?.() || "draft";
 
-  const hasDraft = versions.some((v) => normalizeStatus(v) === "draft" || normalizeStatus(v) === "valid");
+  const hasDraft = hasDraftInWorkflow;
+
+  const handlePageChange = (_event: unknown, newPage: number) => {
+    const newPageNum = newPage + 1;
+    setPage(newPage);
+    fetchData(newPageNum, limit);
+  };
+
+  const handleChangeRowsPerPage = (
+    event: React.ChangeEvent<HTMLInputElement>,
+  ) => {
+    const newLimit = parseInt(event.target.value, 10);
+    setLimit(newLimit);
+    setPage(0);
+    fetchData(1, newLimit);
+  };
 
   const openAction = (version: WorkflowVersion, action: LifecycleAction) => {
     setActionTarget({ version, action });
@@ -508,6 +534,15 @@ export default function WorkflowVersionsPage() {
             </Typography>
           </Box>
         )}
+
+        <AppPagination
+          pagination={pagination}
+          page={page}
+          rowsPerPage={limit}
+          onPageChange={handlePageChange}
+          onRowsPerPageChange={handleChangeRowsPerPage}
+          rowsPerPageOptions={[20, 50, 100]}
+        />
       </Paper>
 
       <Dialog

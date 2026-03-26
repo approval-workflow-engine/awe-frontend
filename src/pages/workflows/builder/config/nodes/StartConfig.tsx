@@ -14,6 +14,7 @@ import {
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import DataTypeSelect from "../shared/DataTypeSelect";
+import ExpressionInput from "../shared/ExpressionInput";
 import AddRowButton from "../shared/AddRowButton";
 import { CollapsibleSection } from "../shared/CollapsibleSection";
 import { EXPR_FONT } from "../constants";
@@ -373,80 +374,68 @@ function FetchSourceCard({
       </Box>
 
       <Box>
-        <Typography
-          sx={{ fontSize: 10, color: "text.secondary", mb: 0.25, fontWeight: 500 }}
-        >
-          URL
-        </Typography>
-        <TextField
-          size="small"
-          fullWidth
+        <ExpressionInput
+          label="URL"
           value={fetchable.urlExpression}
-          onChange={(e) => onUpdate({ urlExpression: e.target.value })}
-          placeholder="https://api.example.com/endpoint"
-          inputProps={{
-            style: { fontSize: 11, fontFamily: EXPR_FONT, padding: "5px 8px" },
-          }}
-          sx={ROW_FIELD_SX}
+          onChange={(v) => onUpdate({ urlExpression: v })}
+          placeholder={'"https://api.example.com/items" or "https://api.example.com/" + context.id'}
+          hint='FEEL expression: use "url" for static, "url/" + context.var for dynamic'
         />
-        <Typography
-          sx={{ fontSize: 9, color: "text.secondary", opacity: 0.75, mt: 0.25, lineHeight: 1.4 }}
-        >
-          Use {"{"}context.varName{"}"} for dynamic path parameters
-        </Typography>
       </Box>
 
       <CollapsibleSection title="Headers" count={headers.length}>
-        <Box display="flex" flexDirection="column" gap={0.5} mt={0.25}>
+        <Box display="flex" flexDirection="column" gap={0.75} mt={0.25}>
           {headers.map((h, hIdx) => (
             <Box
               key={hIdx}
-              display="flex"
-              gap={0.5}
-              alignItems="center"
               sx={{
+                border: "1px solid",
+                borderColor: "divider",
+                borderRadius: "6px",
+                p: 0.75,
+                backgroundColor: "action.hover",
                 "& .del-h": { opacity: 0, transition: "opacity 0.15s" },
                 "&:hover .del-h": { opacity: 1 },
               }}
             >
-              <TextField
-                size="small"
-                placeholder="Header name"
-                value={h.key}
-                onChange={(e) =>
-                  onUpdate({
-                    headers: headers.map((hh, i) =>
-                      i === hIdx ? { ...hh, key: e.target.value } : hh,
-                    ),
-                  })
-                }
-                sx={{ flex: 1, ...ROW_FIELD_SX }}
-                inputProps={ROW_INPUT_PROPS}
-              />
-              <TextField
-                size="small"
-                placeholder="Value expression"
+              <Box display="flex" gap={0.5} alignItems="center" mb={0.5}>
+                <TextField
+                  size="small"
+                  placeholder="Header name"
+                  value={h.key}
+                  onChange={(e) =>
+                    onUpdate({
+                      headers: headers.map((hh, i) =>
+                        i === hIdx ? { ...hh, key: e.target.value } : hh,
+                      ),
+                    })
+                  }
+                  sx={{ flex: 1, ...ROW_FIELD_SX }}
+                  inputProps={ROW_INPUT_PROPS}
+                />
+                <IconButton
+                  className="del-h"
+                  size="small"
+                  onClick={() =>
+                    onUpdate({ headers: headers.filter((_, i) => i !== hIdx) })
+                  }
+                  sx={{ p: 0.25, color: "text.disabled", "&:hover": { color: "#ef4444" } }}
+                >
+                  <DeleteOutlineIcon sx={{ fontSize: 13 }} />
+                </IconButton>
+              </Box>
+              <ExpressionInput
                 value={h.valueExpression}
-                onChange={(e) =>
+                onChange={(v) =>
                   onUpdate({
                     headers: headers.map((hh, i) =>
-                      i === hIdx ? { ...hh, valueExpression: e.target.value } : hh,
+                      i === hIdx ? { ...hh, valueExpression: v } : hh,
                     ),
                   })
                 }
-                sx={{ flex: 1, ...ROW_FIELD_SX }}
-                inputProps={ROW_INPUT_PROPS}
+                placeholder="Bearer context.token"
+                availableContext={[]}
               />
-              <IconButton
-                className="del-h"
-                size="small"
-                onClick={() =>
-                  onUpdate({ headers: headers.filter((_, i) => i !== hIdx) })
-                }
-                sx={{ p: 0.25, color: "text.disabled", "&:hover": { color: "#ef4444" } }}
-              >
-                <DeleteOutlineIcon sx={{ fontSize: 13 }} />
-              </IconButton>
             </Box>
           ))}
           <AddRowButton

@@ -2,19 +2,29 @@ import { useState, useCallback } from 'react';
 import { useApiCall } from '../../../hooks/useApiCall';
 import { getTasks } from '../../../api/taskApi';
 import type { PendingUserTask } from '../../../api/schemas/task';
+import type { PaginationParams, Pagination } from '../../../api/schemas/common';
+
+interface FetchResult {
+  tasks: PendingUserTask[];
+  pagination?: Pagination;
+}
 
 export function useTasks() {
   const { loading, error, call } = useApiCall();
   const [tasks, setTasks] = useState<PendingUserTask[]>([]);
 
-  const fetch = useCallback(async () => {
-    const res = await call(() => getTasks({ status: 'in_progress' }));
-    setTasks(res?.tasks ?? []);
+  const fetch = useCallback(async (params?: PaginationParams): Promise<FetchResult | null> => {
+    const res = await call(() => getTasks(params));
+    const tasks_ = res?.tasks ?? [];
+    setTasks(tasks_);
+    return res as FetchResult | null;
   }, [call]);
 
-  const silentFetch = useCallback(async () => {
-    const res = await call(() => getTasks({ status: 'in_progress' }), { silent: true });
-    setTasks(res?.tasks ?? []);
+  const silentFetch = useCallback(async (params?: PaginationParams) => {
+    const res = await call(() => getTasks(params), { silent: true });
+    const tasks_ = res?.tasks ?? [];
+    setTasks(tasks_);
+    return res as FetchResult | null;
   }, [call]);
 
   return { tasks, loading, error, fetch, silentFetch };

@@ -10,45 +10,43 @@ function toFeelStringLiteral(value: string): string {
     return `"${escaped}"`;
 }
 
+function isAlreadyFeelExpression(value: string): boolean {
+    const t = value.trim();
+    if (t.includes(" + ")) return true;
+    if (t.startsWith("string(")) return true;
+    if (/\bcontext\.[A-Za-z_]/.test(t)) return true;
+    if (/^[A-Za-z_][A-Za-z0-9_.]*\s*\(/.test(t)) return true;
+    if (t.startsWith('"') && t.endsWith('"') && !t.slice(1, -1).includes('"')) return true;
+    return false;
+}
+
 function templateUrlToFeel(url: string): string {
     if (!url) return '""';
     const trimmed = url.trim();
     if (!trimmed) return '""';
-    let normalized = trimmed;
-    let stripped = true;
-    while (stripped) {
-        stripped = false;
-        if (
-            (normalized.startsWith('"') && normalized.endsWith('"')) ||
-            (normalized.startsWith("'") && normalized.endsWith("'"))
-        ) {
-            normalized = normalized.slice(1, -1).trim();
-            stripped = true;
-        }
+
+    if (isAlreadyFeelExpression(trimmed)) {
+        return trimmed;
     }
 
-    if (/^https?:\/\/\S+$/i.test(normalized)) {
-        return toFeelStringLiteral(normalized);
+    if (/^https?:\/\/\S+$/i.test(trimmed)) {
+        return toFeelStringLiteral(trimmed);
     }
 
-    const looksLikeFeel =
-        normalized.includes(" + ") ||
-        normalized.startsWith("string(") ||
-        /\bcontext\.[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*\b/.test(normalized) ||
-        (/^[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*$/.test(normalized) && !normalized.includes("://"));
-    if (looksLikeFeel) return normalized;
-    if (!normalized.includes('{')) return toFeelStringLiteral(normalized);
+    if (!trimmed.includes('{')) return toFeelStringLiteral(trimmed);
+
     const parts: string[] = [];
     let lastIndex = 0;
     const regex = /\{([^}]+)\}/g;
     let match: RegExpExecArray | null;
-    while ((match = regex.exec(normalized)) !== null) {
-        const staticPart = normalized.slice(lastIndex, match.index);
+    while ((match = regex.exec(trimmed)) !== null) {
+        const staticPart = trimmed.slice(lastIndex, match.index);
         if (staticPart) parts.push(toFeelStringLiteral(staticPart));
-        parts.push(`string(${match[1]})`);
+        const inner = match[1].trim();
+        parts.push(inner.startsWith("context.") ? inner : `string(${inner})`);
         lastIndex = regex.lastIndex;
     }
-    const trailing = normalized.slice(lastIndex);
+    const trailing = trimmed.slice(lastIndex);
     if (trailing) parts.push(toFeelStringLiteral(trailing));
     return parts.join(" + ");
 }

@@ -111,48 +111,14 @@ export default function ServiceTaskConfig({
           ))}
         </Box>
         <Box>
-          <Typography
-            sx={{
-              fontSize: 10,
-              color: "text.secondary",
-              mb: 0.25,
-              fontWeight: 500,
-            }}
-          >
-            URL
-          </Typography>
-          <TextField
-            size="small"
-            fullWidth
+          <ExpressionInput
+            label="URL"
             value={(c.urlExpression as string) ?? ""}
-            onChange={(e) => set("urlExpression", e.target.value)}
-            placeholder="https://api.example.com/endpoint"
-            inputProps={{
-              style: {
-                fontSize: 11,
-                fontFamily: "'JetBrains Mono', monospace",
-                padding: "5px 8px",
-              },
-            }}
-            sx={{
-              "& .MuiOutlinedInput-root": {
-                borderRadius: "6px",
-                fontSize: 11,
-                "& fieldset": { borderColor: "divider" },
-              },
-            }}
+            onChange={(v) => set("urlExpression", v)}
+            placeholder={'"https://api.example.com/items" or "https://api.example.com/" + context.id'}
+            availableContext={availableContext}
+            hint='FEEL expression: use "url" for static URLs, "url/" + context.var for dynamic paths'
           />
-          <Typography
-            sx={{
-              fontSize: 9,
-              color: "text.secondary",
-              opacity: 0.75,
-              mt: 0.25,
-              lineHeight: 1.4,
-            }}
-          >
-            Use {"{"}context.varName{"}"} for dynamic path parameters
-          </Typography>
         </Box>
       </Box>
 

@@ -6,23 +6,23 @@ export const WorkflowVersionStatusSchema = z.enum(['draft', 'valid', 'published'
 export const NodeConfigSchema = z.record(z.string(), z.any());
 
 export const NodeSchema = z.object({
-  id: z.string().uuid(),
-  nodeId: z.string(),
-  type: z.enum(['start', 'user_task', 'service_task', 'script_task', 'exclusive_gateway', 'end']),
-  label: z.string(),
-  x: z.number(),
-  y: z.number(),
-  config: NodeConfigSchema,
+  id: z.string(),
+  type: z.enum(['start', 'user', 'service', 'script', 'decision', 'end']),
+  label: z.string().nullable().optional(),
+  description: z.string().nullable().optional(),
+  configuration: NodeConfigSchema,
+  position: z.object({
+    x: z.number(),
+    y: z.number(),
+  }).nullable().optional(),
 });
 
 export const EdgeSchema = z.object({
-  id: z.string().uuid(),
-  edgeId: z.string(),
-  source: z.string(),
-  target: z.string(),
-  sourcePort: z.string(),
-  condition: z.string(),
-  isDefault: z.boolean(),
+  id: z.string(),
+  label: z.string().nullable().optional(),
+  sourceNodeId: z.string(),
+  targetNodeId: z.string().nullable().optional(),
+  ruleId: z.union([z.string(), z.literal('default')]).nullable().optional(),
 });
 
 export const WorkflowInputSchema = z.object({
@@ -76,6 +76,24 @@ export const WorkflowResponseSchema = z.object({
 
 export const WorkflowsResponseSchema = PaginatedResponseSchema(WorkflowSchema);
 
+export const WorkflowVersionListItemSchema = z.object({
+  id: z.string().uuid(),
+  workflowId: z.string().uuid(),
+  versionNumber: z.number(),
+  status: WorkflowVersionStatusSchema,
+  description: z.string().nullable().optional(),
+  publishedAt: z.string().datetime().nullable(),
+  createdAt: z.string().datetime(),
+  updatedAt: z.string().datetime(),
+});
+
+export const WorkflowVersionsResponseSchema = PaginatedResponseSchema(
+  WorkflowVersionListItemSchema,
+).transform((value) => ({
+  versions: value.items,
+  pagination: value.pagination,
+}));
+
 export const CreateVersionRequestSchema = z.object({
   description: z.string().optional(),
   nodes: z.array(NodeSchema),
@@ -98,6 +116,7 @@ export const UpdateVersionStatusRequestSchema = z.object({
 });
 
 export const ValidationErrorSchema = z.object({
+  code: z.number(),
   message: z.string(),
   nodeId: z.string().optional(),
   edgeId: z.string().optional(),
@@ -119,6 +138,8 @@ export type CreateWorkflowRequest = z.infer<typeof CreateWorkflowRequestSchema>;
 export type UpdateWorkflowRequest = z.infer<typeof UpdateWorkflowRequestSchema>;
 export type WorkflowResponse = z.infer<typeof WorkflowResponseSchema>;
 export type WorkflowsResponse = z.infer<typeof WorkflowsResponseSchema>;
+export type WorkflowVersionListItem = z.infer<typeof WorkflowVersionListItemSchema>;
+export type WorkflowVersionsResponse = z.infer<typeof WorkflowVersionsResponseSchema>;
 export type CreateVersionRequest = z.infer<typeof CreateVersionRequestSchema>;
 export type UpdateVersionRequest = z.infer<typeof UpdateVersionRequestSchema>;
 export type VersionResponse = z.infer<typeof VersionResponseSchema>;

@@ -97,9 +97,9 @@ export default function Dashboard() {
     (async () => {
       try {
         const [wfRes, instRes, taskRes] = await Promise.allSettled([
-          axiosClient.get('/workflows'),
-          axiosClient.get('/instances'),
-          axiosClient.get('/tasks'),
+          axiosClient.get('/workflows', { params: { page: 1, limit: 100 } }),
+          axiosClient.get('/instances', { params: { page: 1, limit: 100 } }),
+          axiosClient.get('/tasks', { params: { page: 1, limit: 100 } }),
         ]);
 
         if (cancelled) return;
@@ -111,16 +111,19 @@ export default function Dashboard() {
         const allWorkflows = (wfData.workflows as unknown[]) ?? [];
         const allInstances = (instData.instances as BackendInstance[]) ?? [];
         const allTasks = (taskData.tasks as BackendTask[]) ?? [];
+        const workflowTotal = Number((wfData.pagination as { total?: number } | undefined)?.total ?? allWorkflows.length);
+        const instanceTotal = Number((instData.pagination as { total?: number } | undefined)?.total ?? allInstances.length);
+        const taskTotal = Number((taskData.pagination as { total?: number } | undefined)?.total ?? allTasks.length);
 
         const runningCount = allInstances.filter(
           (inst) => inst.status === 'in_progress',
         ).length;
 
         setStats({
-          workflows: allWorkflows.length,
-          instances: allInstances.length,
+          workflows: workflowTotal,
+          instances: instanceTotal,
           running: runningCount,
-          pending: allTasks.length,
+          pending: taskTotal,
         });
 
         setInstances(allInstances.slice(0, 5));

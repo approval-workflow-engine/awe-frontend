@@ -44,6 +44,7 @@ interface UseBuilderActionsReturn {
   handleCommit: () => Promise<void>;
   handleActivate: () => Promise<void>;
   handleDeactivate: () => Promise<void>;
+  handleCopyPayload: () => void;
 }
 
 export function useBuilderActions({
@@ -75,6 +76,7 @@ export function useBuilderActions({
   const saveDraft = async (): Promise<number | null> => {
     if (!workflowId) return null;
     const payload = canvasToVersionPayload(nodes, edges);
+    console.log(payload);
     const res = await call(
       () =>
         savedVersionNumber !== null
@@ -155,6 +157,16 @@ export function useBuilderActions({
     if (res) setVersionStatus("published");
   };
 
+  const handleCopyPayload = () => {
+    const payload = canvasToVersionPayload(nodes, edges);
+    const json = JSON.stringify(payload, null, 2);
+    navigator.clipboard.writeText(json).then(() => {
+      enqueueSnackbar("Workflow JSON copied to clipboard", { variant: "success" });
+    }).catch(() => {
+      enqueueSnackbar("Failed to copy to clipboard", { variant: "error" });
+    });
+  };
+
   return {
     saving,
     committing,
@@ -176,5 +188,6 @@ export function useBuilderActions({
     handleCommit,
     handleActivate,
     handleDeactivate,
+    handleCopyPayload,
   };
 }

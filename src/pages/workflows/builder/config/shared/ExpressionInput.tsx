@@ -1,8 +1,9 @@
-import React, { useRef, useState, useMemo, useCallback } from 'react';
-import { Box, Typography, Paper, Tooltip } from '@mui/material';
+import React, { useRef, useState, useMemo, useCallback, useEffect } from 'react';
+import { Box, Typography, Paper } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { EXPR_FONT, EXPR_FS, EXPR_LH, EXPR_PAD_V } from '../constants';
 import type { AvailableCtxVar } from '../context';
+import { validateFeelExpressionClient, getExpressionKind } from './feelValidation';
 
 interface ExpressionInputProps {
   value: string;
@@ -14,7 +15,7 @@ interface ExpressionInputProps {
   hint?: string;
 }
 
-const FEEL_BADGE_W  = 30;
+const FEEL_BADGE_W  = 46;
 const FEEL_BADGE_MR = 5;
 const TEXTAREA_PR   = FEEL_BADGE_W + FEEL_BADGE_MR + 4;
 
@@ -32,6 +33,25 @@ export default function ExpressionInput({
   const [focused, setFocused] = useState(false);
   const [acOpen, setAcOpen] = useState(false);
   const [acFilter, setAcFilter] = useState('');
+  const [validationError, setValidationError] = useState<string | undefined>(undefined);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    if (!value.trim()) {
+      setValidationError(undefined);
+      return;
+    }
+    debounceRef.current = setTimeout(() => {
+      const result = validateFeelExpressionClient(value);
+      setValidationError(result.valid ? undefined : result.error);
+    }, 600);
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+  }, [value]);
+
+  const kind = getExpressionKind(value);
 
   const rows = multiline ? 3 : 1;
   const containerHeight = rows * EXPR_LH + EXPR_PAD_V * 2;
@@ -68,18 +88,48 @@ export default function ExpressionInput({
   );
 
   const isDark = theme.palette.mode === 'dark';
-  const borderColor = focused
+  const hasError = !!validationError && value.trim().length > 0;
+  const borderColor = hasError
+    ? 'rgba(239,68,68,0.6)'
+    : focused
     ? 'rgba(79,110,247,0.7)'
     : isDark ? 'rgba(255,255,255,0.13)' : 'rgba(0,0,0,0.18)';
   const bgColor = isDark ? 'rgba(0,0,0,0.35)' : 'rgba(0,0,0,0.04)';
 
+  const badgeColor = kind === 'string-literal' ? '#22c55e' : '#4f6ef7';
+  const badgeLabel = kind === 'string-literal' ? 'STR' : 'FEEL';
+  const badgeBg = kind === 'string-literal'
+    ? (focused ? 'rgba(34,197,94,0.12)' : isDark ? 'rgba(34,197,94,0.07)' : 'rgba(34,197,94,0.06)')
+    : (focused ? 'rgba(79,110,247,0.12)' : isDark ? 'rgba(79,110,247,0.07)' : 'rgba(79,110,247,0.06)');
+
   return (
     <Box>
-      {label && (
-        <Typography sx={{ fontSize: 10, color: 'text.secondary', fontWeight: 500, mb: 0.25 }}>
-          {label}
+      <Box display="flex" justifyContent="space-between" alignItems="flex-end" mb={0.25} minHeight={15}>
+        <Typography sx={{ fontSize: 10, color: 'text.secondary', fontWeight: 500 }}>
+          {label || ''}
         </Typography>
-      )}
+        <Box sx={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          fontSize: '7px',
+          fontFamily: EXPR_FONT,
+          fontWeight: 700,
+          letterSpacing: '0.04em',
+          color: focused ? badgeColor : `${badgeColor}aa`,
+          backgroundColor: badgeBg,
+          border: '1px solid',
+          borderColor: focused ? `${badgeColor}66` : `${badgeColor}33`,
+          borderRadius: '3px',
+          px: '4px',
+          py: '2px',
+          lineHeight: 1,
+          cursor: 'default',
+          userSelect: 'none',
+          transition: 'all 0.15s',
+        }}>
+          {badgeLabel}
+        </Box>
+      </Box>
 
       <Box sx={{ position: 'relative' }}>
         <Box sx={{
@@ -124,36 +174,6 @@ export default function ExpressionInput({
             }}
           />
 
-          <Tooltip title="FEEL (Friendly Enough Expression Language)" placement="top">
-            <Box sx={{
-              position: 'absolute',
-              top: multiline ? 5 : '50%',
-              transform: multiline ? 'none' : 'translateY(-50%)',
-              right: FEEL_BADGE_MR,
-              display: 'inline-flex',
-              alignItems: 'center',
-              fontSize: '6.5px',
-              fontFamily: EXPR_FONT,
-              fontWeight: 700,
-              letterSpacing: '0.06em',
-              color: focused ? '#4f6ef7' : 'rgba(79,110,247,0.55)',
-              backgroundColor: focused
-                ? 'rgba(79,110,247,0.12)'
-                : isDark ? 'rgba(79,110,247,0.07)' : 'rgba(79,110,247,0.06)',
-              border: '1px solid',
-              borderColor: focused ? 'rgba(79,110,247,0.4)' : 'rgba(79,110,247,0.22)',
-              borderRadius: '3px',
-              px: '4px',
-              py: '2px',
-              lineHeight: 1,
-              cursor: 'default',
-              userSelect: 'none',
-              transition: 'all 0.15s',
-              pointerEvents: 'none',
-            }}>
-              FEEL
-            </Box>
-          </Tooltip>
         </Box>
 
         {acOpen && filtered.length > 0 && (
@@ -182,7 +202,13 @@ export default function ExpressionInput({
         )}
       </Box>
 
-      {hint && (
+      {hasError && (
+        <Typography sx={{ fontSize: 9, color: '#ef4444', mt: 0.25, lineHeight: 1.4 }}>
+          {validationError}
+        </Typography>
+      )}
+
+      {hint && !hasError && (
         <Typography sx={{ fontSize: 9, color: 'text.secondary', opacity: 0.75, mt: 0.25, lineHeight: 1.4 }}>
           {hint}
         </Typography>
