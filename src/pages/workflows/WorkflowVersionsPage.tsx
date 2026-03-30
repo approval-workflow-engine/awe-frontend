@@ -126,7 +126,7 @@ export default function WorkflowVersionsPage() {
         setWorkflow(wf || null);
 
         const workflowVersions =
-          (wf as { versions?: Array<{ status?: string }> })?.versions ?? [];
+          (wf as { versions?: Array<{ status?: string; version?: number; versionNumber?: number }> })?.versions ?? [];
         setHasDraftInWorkflow(
           workflowVersions.some((v) => {
             const status = v.status?.toLowerCase?.() ?? "";
@@ -189,24 +189,21 @@ export default function WorkflowVersionsPage() {
     try {
       if (action === "commit") {
         await call(
-          () =>
-            updateVersionStatus(workflowId, version.versionNumber, "published"),
+          () => updateVersionStatus(version.id, "published"),
           { successMsg: `v${version.versionNumber} committed.` }
         );
         setActionTarget(null);
         fetchData();
       } else if (action === "activate") {
         await call(
-          () =>
-            updateVersionStatus(workflowId, version.versionNumber, "active"),
+          () => updateVersionStatus(version.id, "active"),
           { successMsg: `v${version.versionNumber} is now active.` }
         );
         setActionTarget(null);
         fetchData();
       } else if (action === "deactivate") {
         await call(
-          () =>
-            updateVersionStatus(workflowId, version.versionNumber, "published"),
+          () => updateVersionStatus(version.id, "published"),
           {
             successMsg: `v${version.versionNumber} deactivated and moved back to Committed.`,
           }
@@ -433,9 +430,7 @@ export default function WorkflowVersionsPage() {
                             <IconButton
                               size="small"
                               onClick={() =>
-                                navigate(
-                                  `/workflows/${workflowId}/builder/${v.versionNumber}`
-                                )
+                                navigate(`/workflows/${workflowId}/builder/${v.id}`)
                               }
                               sx={{
                                 color: "text.disabled",

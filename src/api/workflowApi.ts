@@ -1,35 +1,49 @@
-import axiosClient from './axiosClient';
-import type { PaginationParams } from '../types';
+import axiosClient from "./axiosClient";
+import type { PaginationParams } from "../types";
 
 export const getWorkflows = (params?: PaginationParams) =>
-  axiosClient.get('/workflows', { params });
+  axiosClient.get("/workflows", { params });
 
 export const createWorkflow = (data: { name: string; description?: string }) =>
-  axiosClient.post('/workflows', data);
+  axiosClient.post("/workflows", data);
 
 export const getWorkflow = (id: string) =>
   axiosClient.get(`/workflows/${id}`);
 
-export const updateWorkflow = (id: string, data: { name?: string; description?: string }) =>
-  axiosClient.patch(`/workflows/${id}`, data);
+export const updateWorkflow = (
+  id: string,
+  data: { name?: string; description?: string },
+) => axiosClient.patch(`/workflows/${id}`, data);
 
 export const deleteWorkflow = (id: string) =>
   axiosClient.delete(`/workflows/${id}`);
 
-export const createWorkflowVersion = (id: string, payload: Record<string, unknown>) =>
-  axiosClient.post(`/workflows/${id}/versions`, payload);
+export const createWorkflowVersion = (
+  id: string,
+  payload: Record<string, unknown>,
+) => axiosClient.post(`/workflows/${id}/versions`, payload);
 
 export const getWorkflowVersions = (id: string, params?: PaginationParams) =>
   axiosClient.get(`/workflows/${id}/versions`, { params });
 
-export const updateWorkflowVersion = (id: string, versionNumber: number | string, payload: Record<string, unknown>) =>
-  axiosClient.patch(`/workflows/${id}/versions/${versionNumber}`, payload);
+export const updateWorkflowVersion = (
+  versionId: string,
+  payload: Record<string, unknown>,
+) => axiosClient.patch(`/workflows/versions/${versionId}`, payload);
 
-export const getWorkflowVersion = (id: string, versionNumber: number | string) =>
-  axiosClient.get(`/workflows/${id}/versions/${versionNumber}`);
+export const getWorkflowVersion = (versionId: string) =>
+  axiosClient.get(`/workflows/versions/${versionId}`);
 
-export const validateVersion = (id: string, versionNumber: number | string) =>
-  axiosClient.post(`/workflows/${id}/versions/${versionNumber}/validate`);
+export const validateVersion = (versionId: string) =>
+  axiosClient.post(`/workflows/versions/${versionId}/validate`);
 
-export const updateVersionStatus = (id: string, versionNumber: number | string, status: string) =>
-  axiosClient.patch(`/workflows/${id}/versions/${versionNumber}/status`, { status });
+export const updateVersionStatus = (
+  versionId: string,
+  status: "published" | "active",
+) => {
+  if (status === "active") {
+    return axiosClient.post(`/workflows/versions/${versionId}/activate`);
+  }
+
+  return axiosClient.post(`/workflows/versions/${versionId}/publish`);
+};

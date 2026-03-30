@@ -52,9 +52,9 @@ const VERSION_STATUS_LABELS: Record<string, string> = {
 };
 
 export default function WorkflowBuilder() {
-  const { workflowId, versionNumber } = useParams<{
+  const { workflowId, versionId } = useParams<{
     workflowId: string;
-    versionNumber?: string;
+    versionId?: string;
   }>();
   const navigate = useNavigate();
   const { call } = useApiCall();
@@ -63,10 +63,11 @@ export default function WorkflowBuilder() {
   const [workflowName, setWorkflowName] = useState("");
   const [loadedVersionNumber, setLoadedVersionNumber] = useState<number | null>(null);
   const [savedVersionNumber, setSavedVersionNumber] = useState<number | null>(null);
+  const [savedVersionId, setSavedVersionId] = useState<string | null>(versionId ?? null);
   const [versionStatus, setVersionStatus] = useState<string>("draft");
   const [codeEditorOpenState, setCodeEditorOpen] = useState(false);
   const [clearConfirmOpen, setClearConfirmOpen] = useState(false);
-  const [canvasLoading, setCanvasLoading] = useState(() => !!versionNumber);
+  const [canvasLoading, setCanvasLoading] = useState(() => !!versionId);
 
   const {
     nodes, setNodes, edges, setEdges, inputs, setInputs,
@@ -92,6 +93,8 @@ export default function WorkflowBuilder() {
     handleSaveDraft, handleCommit, handleActivate, handleDeactivate, handleCopyPayload,
   } = useBuilderActions({
     workflowId,
+    savedVersionId,
+    setSavedVersionId,
     savedVersionNumber,
     setSavedVersionNumber,
     setLoadedVersionNumber,
@@ -116,9 +119,9 @@ export default function WorkflowBuilder() {
         setWorkflowName(body?.workflow?.name ?? body?.name ?? "Workflow");
       }
 
-      if (versionNumber) {
+      if (versionId) {
         const vRes = await call(
-          () => getWorkflowVersion(workflowId, Number(versionNumber)),
+          () => getWorkflowVersion(versionId),
           { showError: false },
         );
         if (vRes) {
@@ -132,9 +135,15 @@ export default function WorkflowBuilder() {
             setNodes(n.length > 0 ? n : [buildStartNode()]);
             setEdges(e);
             setInputs(i);
-            const vn = (vData.versionNumber as number) || Number(versionNumber);
-            setLoadedVersionNumber(vn);
-            setSavedVersionNumber(vn);
+            const vn =
+              (vData.versionNumber as number) ??
+              (vData.version as number) ??
+              loadedVersionNumber;
+            if (typeof vn === "number") {
+              setLoadedVersionNumber(vn);
+              setSavedVersionNumber(vn);
+            }
+            setSavedVersionId((vData.id as string) ?? versionId);
             setVersionStatus((vData.status as string)?.toLowerCase?.() || "draft");
           }
         }
@@ -143,7 +152,7 @@ export default function WorkflowBuilder() {
       setMarkDirtyEnabled(true);
       setCanvasLoading(false);
     })();
-  }, [workflowId, versionNumber, call, setMarkDirtyEnabled, setWorkflowName, setNodes, setEdges, setInputs, setLoadedVersionNumber, setSavedVersionNumber, setVersionStatus]);
+  }, [workflowId, versionId, call, setMarkDirtyEnabled, setWorkflowName, setNodes, setEdges, setInputs, setLoadedVersionNumber, setSavedVersionNumber, setSavedVersionId, setVersionStatus, loadedVersionNumber]);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -316,7 +325,7 @@ export default function WorkflowBuilder() {
             <Button
               size="small"
               variant="contained"
-              disabled={committing || !savedVersionNumber || versionStatus === "draft" || isDirty}
+              disabled={committing || !savedVersionId || versionStatus === "draft" || isDirty}
               onClick={() => setCommitConfirmOpen(true)}
               startIcon={committing ? <CircularProgress size={12} sx={{ color: "rgba(245,158,11,0.7)" }} /> : <LockOutlinedIcon sx={{ fontSize: 14 }} />}
               sx={{

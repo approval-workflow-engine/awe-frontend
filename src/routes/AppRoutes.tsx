@@ -13,6 +13,7 @@ import InstanceDetailPage from "../pages/instances/InstanceDetailPage";
 import TasksPage from "../pages/tasks/TasksPage";
 import TaskReviewPage from "../pages/tasks/TaskReviewPage";
 import AuditPage from "../pages/audit/AuditPage";
+import InstanceAuditPage from "../pages/audit/InstanceAuditPage";
 
 function ProtectedLayout() {
   const { isAuthenticated } = useApp();
@@ -44,7 +45,7 @@ const router = createBrowserRouter([
     element: <ProtectedFullScreen />,
     children: [
       { path: "/workflows/:workflowId/builder", element: <WorkflowBuilder /> },
-      { path: "/workflows/:workflowId/builder/:versionNumber", element: <WorkflowBuilder /> },
+      { path: "/workflows/:workflowId/builder/:versionId", element: <WorkflowBuilder /> },
     ],
   },
   {
@@ -58,6 +59,7 @@ const router = createBrowserRouter([
       { path: "/tasks", element: <TasksPage /> },
       { path: "/tasks/:id", element: <TaskReviewPage /> },
       { path: "/audit", element: <AuditPage /> },
+      { path: "/audit/:instanceId", element: <InstanceAuditPage /> },
       { path: "/settings", element: <Settings /> },
     ],
   },

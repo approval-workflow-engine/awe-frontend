@@ -14,6 +14,8 @@ import type { ValidationResult } from "../../../../types";
 
 interface UseBuilderActionsProps {
   workflowId: string | undefined;
+  savedVersionId: string | null;
+  setSavedVersionId: (id: string | null) => void;
   savedVersionNumber: number | null;
   setSavedVersionNumber: (n: number | null) => void;
   setLoadedVersionNumber: (n: number | null) => void;
@@ -49,6 +51,8 @@ interface UseBuilderActionsReturn {
 
 export function useBuilderActions({
   workflowId,
+  savedVersionId,
+  setSavedVersionId,
   savedVersionNumber,
   setSavedVersionNumber,
   setLoadedVersionNumber,
@@ -73,60 +77,87 @@ export function useBuilderActions({
   const [activateConfirmOpen, setActivateConfirmOpen] = useState(false);
   const [deactivateConfirmOpen, setDeactivateConfirmOpen] = useState(false);
 
-  const saveDraft = async (): Promise<number | null> => {
-    if (!workflowId) return null;
+  const saveDraft = async (): Promise<{ versionId: string | null; versionNumber: number | null }> => {
+    if (!workflowId) return { versionId: null, versionNumber: null };
     const payload = canvasToVersionPayload(nodes, edges);
-    console.log(payload);
+
     const res = await call(
       () =>
-        savedVersionNumber !== null
-          ? updateWorkflowVersion(workflowId, savedVersionNumber, payload as Record<string, unknown>)
+        savedVersionId
+          ? updateWorkflowVersion(savedVersionId, payload as Record<string, unknown>)
           : createWorkflowVersion(workflowId, payload as Record<string, unknown>),
       { showError: true },
     );
-    if (!res) return null;
-    const body = res as { version?: number; versionNumber?: number };
-    const vn = (typeof body?.version === "number" ? body.version : undefined) ?? body?.versionNumber ?? null;
-    setSavedVersionNumber(vn);
-    if (vn) {
-      setLoadedVersionNumber(vn);
+
+    if (!res) return { versionId: null, versionNumber: null };
+
+    const body = res as {
+      id?: string;
+      versionId?: string;
+      version?: number;
+      versionNumber?: number;
+    };
+
+    const versionId = body.id ?? body.versionId ?? null;
+    const versionNumber =
+      (typeof body.version === "number" ? body.version : undefined) ??
+      body.versionNumber ??
+      null;
+
+    setSavedVersionId(versionId);
+    setSavedVersionNumber(versionNumber);
+
+    if (versionNumber !== null) {
+      setLoadedVersionNumber(versionNumber);
       setVersionStatus("draft");
     }
+
     setIsDirty(false);
-    return vn;
+    return { versionId, versionNumber };
   };
 
   const handleSaveDraft = async (): Promise<boolean> => {
     if (!workflowId) return false;
+
     setSaving(true);
     setValidationResult(null);
     setErrorsPopoverOpen(false);
-    const vn = await saveDraft();
-    if (vn === null) {
+
+    const { versionId, versionNumber } = await saveDraft();
+    if (!versionId) {
       setSaving(false);
       return false;
     }
-    const res = await call(() => validateVersion(workflowId, vn), { showError: false });
+
+    const res = await call(() => validateVersion(versionId), { showError: false });
     const result = res
       ? (res as ValidationResult)
       : { valid: false, errors: [{ code: -1, message: "Validation request failed" }] };
+
     setValidationResult(result);
     setVersionStatus(result.valid ? "valid" : "draft");
     enqueueSnackbar(
       result.valid ? "Saved - No validation errors" : "Saved - Validation errors present",
       { variant: result.valid ? "success" : "warning" },
     );
+
     if (!result.valid) setErrorsPopoverOpen(true);
+
+    if (versionNumber !== null && !savedVersionNumber) {
+      setSavedVersionNumber(versionNumber);
+    }
+
     setSaving(false);
     return true;
   };
 
   const handleCommit = async () => {
-    if (!workflowId || !savedVersionNumber) return;
+    if (!savedVersionId) return;
+
     setCommitting(true);
     const res = await call(
-      () => updateVersionStatus(workflowId, savedVersionNumber, "published"),
-      { successMsg: `v${savedVersionNumber} committed.`, showError: true },
+      () => updateVersionStatus(savedVersionId, "published"),
+      { successMsg: `v${savedVersionNumber ?? "-"} committed.`, showError: true },
     );
     setCommitting(false);
     setCommitConfirmOpen(false);
@@ -134,11 +165,12 @@ export function useBuilderActions({
   };
 
   const handleActivate = async () => {
-    if (!workflowId || !savedVersionNumber) return;
+    if (!savedVersionId || !workflowId) return;
+
     setActivating(true);
     const res = await call(
-      () => updateVersionStatus(workflowId, savedVersionNumber, "active"),
-      { successMsg: `v${savedVersionNumber} is now active.`, showError: true },
+      () => updateVersionStatus(savedVersionId, "active"),
+      { successMsg: `v${savedVersionNumber ?? "-"} is now active.`, showError: true },
     );
     setActivating(false);
     setActivateConfirmOpen(false);
@@ -146,11 +178,12 @@ export function useBuilderActions({
   };
 
   const handleDeactivate = async () => {
-    if (!workflowId || !savedVersionNumber) return;
+    if (!savedVersionId) return;
+
     setDeactivating(true);
     const res = await call(
-      () => updateVersionStatus(workflowId, savedVersionNumber, "published"),
-      { successMsg: `v${savedVersionNumber} deactivated.`, showError: true },
+      () => updateVersionStatus(savedVersionId, "published"),
+      { successMsg: `v${savedVersionNumber ?? "-"} deactivated.`, showError: true },
     );
     setDeactivating(false);
     setDeactivateConfirmOpen(false);
@@ -160,11 +193,14 @@ export function useBuilderActions({
   const handleCopyPayload = () => {
     const payload = canvasToVersionPayload(nodes, edges);
     const json = JSON.stringify(payload, null, 2);
-    navigator.clipboard.writeText(json).then(() => {
-      enqueueSnackbar("Workflow JSON copied to clipboard", { variant: "success" });
-    }).catch(() => {
-      enqueueSnackbar("Failed to copy to clipboard", { variant: "error" });
-    });
+    navigator.clipboard
+      .writeText(json)
+      .then(() => {
+        enqueueSnackbar("Workflow JSON copied to clipboard", { variant: "success" });
+      })
+      .catch(() => {
+        enqueueSnackbar("Failed to copy to clipboard", { variant: "error" });
+      });
   };
 
   return {

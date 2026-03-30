@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { dateTransform, optionalDateTransform } from './common';
+import { dateTransform, optionalDateTransform, PaginationSchema } from './common';
 
 export const InstanceStatusSchema = z.enum(['in_progress', 'completed', 'failed', 'paused', 'terminated']);
 
@@ -69,6 +69,7 @@ export const InstanceResponseSchema = InstanceSchema;
 
 export const InstancesResponseSchema = z.object({
   instances: z.array(InstanceListItemSchema),
+  pagination: PaginationSchema,
 });
 
 export const AdvanceInstanceResponseSchema = z.object({
