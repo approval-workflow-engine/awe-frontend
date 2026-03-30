@@ -62,7 +62,7 @@ interface Props {
 }
 
 export default function DetailInfoSection({ instance }: Props) {
-  const formatSafeDate = (s: string | null) => s ? formatDate(s) : '—'; 
+  const formatSafeDate = (s: string | null) => s ? formatDate(s) : '-'; 
   return (
     <Paper variant="outlined" sx={{ p: 3 }}>
       <Typography fontWeight={700} fontSize={15} mb={2}>

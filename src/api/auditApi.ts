@@ -1,8 +1,5 @@
-import axiosClient from './axiosClient';
-import type { PaginationParams } from '../types';
+import { apiClient } from './client';
+import { InstanceAuditResponseSchema } from './schemas/audit';
 
-export const getAuditLogs = (params?: PaginationParams) =>
-  axiosClient.get('/audit', { params });
-
-export const getInstanceAudit = (id: string) =>
-  axiosClient.get(`/audit/instances/${id}`);
+export const getInstanceAudit = (instanceId: string) =>
+  apiClient.get(`/audit/${instanceId}`, InstanceAuditResponseSchema);

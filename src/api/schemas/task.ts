@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { dateTransform } from './common';
 
-export const TaskStatusSchema = z.enum(['in_progress', 'completed', 'rejected']);
+export const TaskStatusSchema = z.enum(['in_progress', 'completed', 'rejected', 'failed', 'terminated']);
 
 export const UserTaskDisplayFieldSchema = z.object({
   label: z.string(),
