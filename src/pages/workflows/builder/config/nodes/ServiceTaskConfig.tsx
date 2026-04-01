@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import {
   Box,
   Typography,
@@ -15,7 +15,6 @@ import { CollapsibleSection } from "../shared/CollapsibleSection";
 import ResponseMapSection, {
   type ResponseMapRow,
 } from "../shared/ResponseMapSection";
-import OnErrorSection from "../shared/OnErrorSection";
 import { flattenJsonToBody, bodyToJson } from "../bodyHelpers";
 import { HTTP_METHODS, METHOD_COLORS } from "../constants";
 import type { AvailableCtxVar } from "../context";
@@ -24,6 +23,11 @@ import type { CanvasNode } from "../../type/types";
 interface HeaderRow {
   key: string;
   valueExpression: string;
+}
+
+interface Backoff {
+  type: "fixed" | "exponential";
+  delayMs: number;
 }
 
 interface Props {
@@ -42,13 +46,17 @@ export default function ServiceTaskConfig({
     onUpdateConfig({ ...c, [key]: val });
 
   const headers: HeaderRow[] = (c.headers as HeaderRow[]) ?? [];
-  const body: Array<{ jsonPath: string; valueExpression: string }> =
-    (c.body as Array<{ jsonPath: string; valueExpression: string }>) ?? [];
+  const body: Array<{ jsonPath: string; valueExpression: string }> = useMemo(
+    () =>
+      (c.body as Array<{ jsonPath: string; valueExpression: string }>) ?? [],
+    [c.body],
+  );
 
   const [bodyJson, setBodyJson] = useState(() => bodyToJson(body));
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setBodyJson(bodyToJson(body));
-  }, [node.id]);
+  }, [node.id, body]);
 
   const [bodyError, setBodyError] = useState("");
 
@@ -80,6 +88,9 @@ export default function ServiceTaskConfig({
     );
 
   const method = (c.method as string) || "GET";
+  const backoff = (c.backoff as Backoff) ?? { type: "fixed", delayMs: 1000 };
+  const setBackoff = (patch: Partial<Backoff>) =>
+    set("backoff", { ...backoff, ...patch });
 
   return (
     <Box display="flex" flexDirection="column" gap={1.5}>
@@ -290,21 +301,54 @@ export default function ServiceTaskConfig({
             </Typography>
             <Box sx={{ width: 100 }}>
               <NumberInput
-                value={c.retryDelayMs as number | undefined}
-                onChange={(v) => set("retryDelayMs", v)}
+                value={backoff.delayMs}
+                onChange={(v) => setBackoff({ delayMs: v ?? 1000 })}
                 min={0}
               />
             </Box>
           </Box>
+          <Box
+            display="flex"
+            alignItems="center"
+            justifyContent="space-between"
+          >
+            <Typography sx={{ fontSize: 11, color: "text.secondary" }}>
+              Backoff Type
+            </Typography>
+            <Box display="flex" gap={0.5}>
+              {(["fixed", "exponential"] as const).map((t) => (
+                <Button
+                  key={t}
+                  size="small"
+                  onClick={() => setBackoff({ type: t })}
+                  sx={{
+                    fontSize: 9,
+                    height: 22,
+                    borderRadius: "5px",
+                    minWidth: 0,
+                    px: 0.75,
+                    fontWeight: 700,
+                    textTransform: "none",
+                    backgroundColor:
+                      backoff.type === t
+                        ? "action.selected"
+                        : "transparent",
+                    color:
+                      backoff.type === t ? "text.primary" : "text.disabled",
+                    border: "1px solid",
+                    borderColor:
+                      backoff.type === t ? "action.focus" : "divider",
+                    "&:hover": {
+                      backgroundColor: "action.hover",
+                    },
+                  }}
+                >
+                  {t}
+                </Button>
+              ))}
+            </Box>
+          </Box>
         </Box>
-      </CollapsibleSection>
-
-      <CollapsibleSection title="On Error">
-        <OnErrorSection
-          value={c.onError ?? "terminate"}
-          onChange={(v) => set("onError", v)}
-          availableContext={availableContext}
-        />
       </CollapsibleSection>
     </Box>
   );

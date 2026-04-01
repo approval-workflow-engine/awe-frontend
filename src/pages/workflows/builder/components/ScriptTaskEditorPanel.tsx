@@ -53,7 +53,7 @@ export default function ScriptTaskEditorPanel({
         sourceCode: `\t# code here\n`,
       });
     }
-  }, [node.id]);
+  }, [node.config, node.id, onUpdateConfig]);
 
   const handleDragHandleMouseDown = useCallback(
     (e: React.MouseEvent) => {

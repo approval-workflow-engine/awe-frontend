@@ -107,9 +107,21 @@ function serializeConfiguration(apiType: string, config: Record<string, any>): R
             };
 
         case "script": {
+            const backoff: any | undefined = config.backoff && typeof config.backoff === "object"
+                ? {
+                    type: config.backoff.type === "exponential" ? "exponential" : "fixed",
+                    delayMs: typeof config.backoff.delayMs === "number"
+                        ? config.backoff.delayMs
+                        : (typeof config.retryDelayMs === "number" ? config.retryDelayMs : 1000),
+                }
+                : (typeof config.retryDelayMs === "number"
+                    ? { type: "fixed", delayMs: config.retryDelayMs }
+                    : undefined);
+
             return {
                 runtime: "python3" as const,
                 maxAttempts: typeof config.maxAttempts === "number" ? config.maxAttempts : 1,
+                ...(backoff ? { backoff } : {}),
                 sourceCode: typeof config.sourceCode === "string" ? config.sourceCode : "",
                 entryFunctionName: typeof config.entryFunctionName === "string" ? config.entryFunctionName : "main",
                 parameterMap: Array.isArray(config.parameterMap)
@@ -142,7 +154,17 @@ function serializeConfiguration(apiType: string, config: Record<string, any>): R
             };
             if (typeof config.maxAttempts === "number") svc.maxAttempts = config.maxAttempts;
             if (typeof config.timeoutMs === "number") svc.timeoutMs = config.timeoutMs;
-            if (typeof config.retryDelayMs === "number") svc.retryDelayMs = config.retryDelayMs;
+            if (config.backoff && typeof config.backoff === "object") {
+                const delay = typeof config.backoff.delayMs === "number"
+                    ? config.backoff.delayMs
+                    : (typeof config.retryDelayMs === "number" ? config.retryDelayMs : 1000);
+                svc.backoff = {
+                    type: config.backoff.type === "exponential" ? "exponential" : "fixed",
+                    delayMs: delay,
+                };
+            } else if (typeof config.retryDelayMs === "number") {
+                svc.backoff = { type: "fixed", delayMs: config.retryDelayMs };
+            }
             if ("headers" in config) svc.headers = Array.isArray(config.headers)
                 ? config.headers.map((h: any) => ({ key: h.key ?? "", valueExpression: h.valueExpression ?? h.value ?? "" }))
                 : [];
@@ -317,6 +339,18 @@ export function definitionToCanvas(
         if (node.type !== "service_task") return;
         if (typeof node.config.urlExpression === "string") {
             node.config.urlExpression = feelUrlToTemplate(node.config.urlExpression);
+        }
+        // Migrate legacy retryDelayMs into backoff if needed
+        if (!node.config.backoff && typeof node.config.retryDelayMs === "number") {
+            node.config.backoff = { type: "fixed", delayMs: node.config.retryDelayMs };
+        }
+    });
+
+    // Script node: migrate legacy retryDelayMs into backoff for UI
+    cNodes.forEach((node) => {
+        if (node.type !== "script_task") return;
+        if (!node.config.backoff && typeof node.config.retryDelayMs === "number") {
+            node.config.backoff = { type: "fixed", delayMs: node.config.retryDelayMs };
         }
     });
 

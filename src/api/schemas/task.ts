@@ -55,11 +55,7 @@ export const TaskDetailSchema = z.object({
   startedAt: dateTransform,
   status: TaskStatusSchema,
   requestData: z.record(z.string(), z.any()).optional(),
-  responseData: z.array(z.object({
-    fieldId: z.string(),
-    label: z.string(),
-    dataType: z.string(),
-  })).optional(),
+  responseData: z.array(UserTaskResponseFieldSchema).optional(),
   workflow: z.any(), 
 });
 

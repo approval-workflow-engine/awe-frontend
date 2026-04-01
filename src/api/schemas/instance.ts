@@ -72,8 +72,7 @@ export const InstancesResponseSchema = z.object({
   pagination: PaginationSchema,
 });
 
-export const AdvanceInstanceResponseSchema = z.object({
-});
+export const AdvanceInstanceResponseSchema = z.object({});
 
 export const ExecutionLogSchema = z.object({
   id: z.string(),
@@ -91,8 +90,30 @@ export const ExecutionLogSchema = z.object({
   node_configuration: z.any(),
 });
 
+export const ExecutionNodeConnectionSchema = z.object({
+  destinationNodeId: z.string().nullable(),
+  destinationNodeClientId: z.string().nullable(),
+  conditionExpression: z.string().nullable(),
+});
+
+export const ExecutionNodeSchema = z.object({
+  nodeId: z.string(),
+  nodeClientId: z.string(),
+  nodeType: z.string(),
+  nodeName: z.string().nullable(),
+  order: z.number(),
+  status: z.enum(['completed', 'failed', 'pending', 'in_progress', 'terminated']),
+  startedOn: optionalDateTransform,
+  endedOn: optionalDateTransform,
+  inputVariables: z.record(z.string(), z.any()).nullable(),
+  outputVariables: z.record(z.string(), z.any()).nullable(),
+  outgoingConnections: z.array(ExecutionNodeConnectionSchema),
+});
+
 export const ExecutionLogsResponseSchema = z.object({
-  executions: z.array(ExecutionLogSchema),
+  data: z.object({
+    executions: z.array(ExecutionNodeSchema),
+  }),
 });
 
 export type InstanceStatus = z.infer<typeof InstanceStatusSchema>;
@@ -105,4 +126,6 @@ export type InstanceResponse = z.infer<typeof InstanceResponseSchema>;
 export type InstancesResponse = z.infer<typeof InstancesResponseSchema>;
 export type AdvanceInstanceResponse = z.infer<typeof AdvanceInstanceResponseSchema>;
 export type ExecutionLog = z.infer<typeof ExecutionLogSchema>;
+export type ExecutionNodeConnection = z.infer<typeof ExecutionNodeConnectionSchema>;
+export type ExecutionNode = z.infer<typeof ExecutionNodeSchema>;
 export type ExecutionLogsResponse = z.infer<typeof ExecutionLogsResponseSchema>;
