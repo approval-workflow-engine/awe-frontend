@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   Box,
@@ -26,13 +26,13 @@ import PageHeader from '../../components/common/PageHeader';
 import StatusChip from '../../components/common/StatusChip';
 import { useApiCall } from '../../hooks/useApiCall';
 import { getInstanceAudit } from '../../api/auditApi';
-import { formatDate } from '../../utils/formatUtils';
+import { formatDateWithSeconds } from '../../utils/formatUtils';
 import type { InstanceAuditResponse, AuditTask, AuditTaskExecution } from '../../api/schemas/audit';
 
 const MONO = "'JetBrains Mono', monospace";
 
 function safeDate(val: string | null | undefined) {
-  return val ? formatDate(val) : '—';
+  return val ? formatDateWithSeconds(val) : '—';
 }
 
 function formatDuration(durationMs: number | null): string {
@@ -203,13 +203,16 @@ export default function InstanceAuditPage() {
   const [audit, setAudit] = useState<InstanceAuditResponse | null>(null);
   const [search, setSearch] = useState('');
 
-  const fetchAudit = async () => {
+  const fetchAudit = useCallback(async () => {
     if (!instanceId) return;
     const data = await call(() => getInstanceAudit(instanceId), { showError: true });
     if (data) setAudit(data as InstanceAuditResponse);
-  };
+  }, [call, instanceId]);
 
-  useEffect(() => { fetchAudit(); }, [instanceId]);
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    fetchAudit();
+  }, [fetchAudit]);
 
   const inst = audit?.instance;
 

@@ -19,13 +19,17 @@ import { CollapsibleSection } from "../shared/CollapsibleSection";
 import ResponseMapSection, {
   type ResponseMapRow,
 } from "../shared/ResponseMapSection";
-import OnErrorSection from "../shared/OnErrorSection";
 import type { AvailableCtxVar } from "../context";
 import type { CanvasNode } from "../../type/types";
 
 interface ParamRow {
   name: string;
   valueExpression: string;
+}
+
+interface Backoff {
+  type: "fixed" | "exponential";
+  delayMs: number;
 }
 
 interface Props {
@@ -56,11 +60,16 @@ export default function ScriptTaskConfig({
       "parameterMap",
       paramMap.map((p, i) => (i === idx ? { ...p, ...patch } : p)),
     );
+
   const removeParam = (idx: number) =>
     set(
       "parameterMap",
       paramMap.filter((_, i) => i !== idx),
     );
+
+  const backoff = (c.backoff as Backoff) ?? { type: "fixed", delayMs: 1000 };
+  const setBackoff = (patch: Partial<Backoff>) =>
+    set("backoff", { ...backoff, ...patch });
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -100,55 +109,98 @@ export default function ScriptTaskConfig({
           Python 3
         </Typography>
         <Box display="flex" gap={0.5}>
-          <Button
-            size="small"
-            onClick={() => set("codeMode", "editor")}
-            startIcon={<EditIcon sx={{ fontSize: 12 }} />}
-            sx={{
-              fontSize: 10,
-              height: 26,
-              borderRadius: "6px",
-              textTransform: "none",
-              ...(codeMode === "editor"
-                ? {
-                    backgroundColor: "action.selected",
-                    color: "text.primary",
-                    boxShadow: "none",
-                  }
-                : {
-                    borderColor: "divider",
-                    color: "text.secondary",
-                    border: "1px solid",
-                  }),
-            }}
+          <Typography
+            variant="caption"
+            sx={{ fontSize: 10, fontWeight: 500, color: "text.secondary" }}
           >
-            Write
-          </Button>
-          <Button
-            size="small"
-            onClick={() => set("codeMode", "file")}
-            startIcon={<AttachFileIcon sx={{ fontSize: 12 }} />}
-            sx={{
-              fontSize: 10,
-              height: 26,
-              borderRadius: "6px",
-              textTransform: "none",
-              ...(codeMode === "file"
-                ? {
-                    backgroundColor: "action.selected",
-                    color: "text.primary",
-                    boxShadow: "none",
-                  }
-                : {
-                    borderColor: "divider",
-                    color: "text.secondary",
-                    border: "1px solid",
-                  }),
-            }}
-          >
-            File
-          </Button>
+            Execution Service
+          </Typography>
+          {(["jdoodle", "gemini"] as const).map((s) => (
+            <Button
+              key={s}
+              size="small"
+              onClick={() => set("executionService", s)}
+              sx={{
+                fontSize: 9,
+                height: 22,
+                borderRadius: "5px",
+                minWidth: 0,
+                px: 0.75,
+                fontWeight: 700,
+                textTransform: "none",
+                backgroundColor:
+                  (c.executionService ?? "jdoodle") === s
+                    ? "action.selected"
+                    : "transparent",
+                color:
+                  (c.executionService ?? "jdoodle") === s
+                    ? "text.primary"
+                    : "text.disabled",
+                border: "1px solid",
+                borderColor:
+                  (c.executionService ?? "jdoodle") === s
+                    ? "action.focus"
+                    : "divider",
+                "&:hover": {
+                  backgroundColor: "action.hover",
+                },
+              }}
+            >
+              {s}
+            </Button>
+          ))}
         </Box>
+      </Box>
+
+      <Box display="flex" gap={0.5}>
+        <Button
+          size="small"
+          onClick={() => set("codeMode", "editor")}
+          startIcon={<EditIcon sx={{ fontSize: 12 }} />}
+          sx={{
+            fontSize: 10,
+            height: 26,
+            borderRadius: "6px",
+            textTransform: "none",
+            ...(codeMode === "editor"
+              ? {
+                  backgroundColor: "action.selected",
+                  color: "text.primary",
+                  boxShadow: "none",
+                }
+              : {
+                  borderColor: "divider",
+                  color: "text.secondary",
+                  border: "1px solid",
+                }),
+          }}
+        >
+          Write
+        </Button>
+        <Button
+          size="small"
+          onClick={() => set("codeMode", "file")}
+          startIcon={<AttachFileIcon sx={{ fontSize: 12 }} />}
+          sx={{
+            fontSize: 10,
+            height: 26,
+            borderRadius: "6px",
+            textTransform: "none",
+            ...(codeMode === "file"
+              ? {
+                  backgroundColor: "action.selected",
+                  color: "text.primary",
+                  boxShadow: "none",
+                }
+              : {
+                  borderColor: "divider",
+                  color: "text.secondary",
+                  border: "1px solid",
+                }),
+          }}
+        >
+          File
+        </Button>
       </Box>
 
       <TextField
@@ -323,7 +375,9 @@ export default function ScriptTaskConfig({
               mb: 0.25,
             }}
           >
-            Map Python function arguments to FEEL expressions. Param name = argument name in your code (e.g. <code style={{fontFamily:"monospace"}}>id1</code>), Value = FEEL expression that provides the value (e.g. <code style={{fontFamily:"monospace"}}>context.id</code>).
+            Map Python function arguments to FEEL expressions. Param name =
+            argument name in your code (e.g. <code style={{ fontFamily: "monospace" }}>id1</code>),
+            Value = FEEL expression that provides the value (e.g. <code style={{ fontFamily: "monospace" }}>context.id</code>).
           </Typography>
           {paramMap.map((p, idx) => (
             <Box
@@ -353,9 +407,18 @@ export default function ScriptTaskConfig({
                         "& fieldset": { borderColor: "divider" },
                       },
                     }}
-                    inputProps={{ style: { padding: "4px 8px", fontSize: 11 } }}
+                    inputProps={{
+                      style: { padding: "4px 8px", fontSize: 11 },
+                    }}
                   />
-                  <Typography sx={{ fontSize: 8, color: "text.secondary", opacity: 0.7, mt: 0.25 }}>
+                  <Typography
+                    sx={{
+                      fontSize: 8,
+                      color: "text.secondary",
+                      opacity: 0.7,
+                      mt: 0.25,
+                    }}
+                  >
                     Python arg name
                   </Typography>
                 </Box>
@@ -404,29 +467,84 @@ export default function ScriptTaskConfig({
         />
       </CollapsibleSection>
 
-      <CollapsibleSection title="On Error">
-        <OnErrorSection
-          value={c.onError ?? "terminate"}
-          onChange={(v) => set("onError", v)}
-          availableContext={availableContext}
-        />
-      </CollapsibleSection>
-
-      <Divider sx={{ borderColor: "divider" }} />
-
-      <Box display="flex" alignItems="center" justifyContent="space-between">
-        <Typography sx={{ fontSize: 11, color: "text.secondary" }}>
-          Max Attempts
-        </Typography>
-        <Box sx={{ width: 100 }}>
-          <NumberInput
-            value={(c.maxAttempts as number) ?? 1}
-            onChange={(v) => set("maxAttempts", v ?? 1)}
-            min={1}
-            allowEmpty={false}
-          />
+      <CollapsibleSection title="Retry & Timeout">
+        <Box display="flex" flexDirection="column" gap={0.75}>
+          <Box
+            display="flex"
+            alignItems="center"
+            justifyContent="space-between"
+          >
+            <Typography sx={{ fontSize: 11, color: "text.secondary" }}>
+              Max Attempts
+            </Typography>
+            <Box sx={{ width: 100 }}>
+              <NumberInput
+                value={(c.maxAttempts as number) ?? 1}
+                onChange={(v) => set("maxAttempts", v ?? 1)}
+                min={1}
+                allowEmpty={false}
+              />
+            </Box>
+          </Box>
+          <Box
+            display="flex"
+            alignItems="center"
+            justifyContent="space-between"
+          >
+            <Typography sx={{ fontSize: 11, color: "text.secondary" }}>
+              Retry Delay (ms)
+            </Typography>
+            <Box sx={{ width: 100 }}>
+              <NumberInput
+                value={backoff.delayMs}
+                onChange={(v) => setBackoff({ delayMs: v ?? 1000 })}
+                min={0}
+              />
+            </Box>
+          </Box>
+          <Box
+            display="flex"
+            alignItems="center"
+            justifyContent="space-between"
+          >
+            <Typography sx={{ fontSize: 11, color: "text.secondary" }}>
+              Backoff Type
+            </Typography>
+            <Box display="flex" gap={0.5}>
+              {(["fixed", "exponential"] as const).map((t) => (
+                <Button
+                  key={t}
+                  size="small"
+                  onClick={() => setBackoff({ type: t })}
+                  sx={{
+                    fontSize: 9,
+                    height: 22,
+                    borderRadius: "5px",
+                    minWidth: 0,
+                    px: 0.75,
+                    fontWeight: 700,
+                    textTransform: "none",
+                    backgroundColor:
+                      backoff.type === t
+                        ? "action.selected"
+                        : "transparent",
+                    color:
+                      backoff.type === t ? "text.primary" : "text.disabled",
+                    border: "1px solid",
+                    borderColor:
+                      backoff.type === t ? "action.focus" : "divider",
+                    "&:hover": {
+                      backgroundColor: "action.hover",
+                    },
+                  }}
+                >
+                  {t}
+                </Button>
+              ))}
+            </Box>
+          </Box>
         </Box>
-      </Box>
+      </CollapsibleSection>
     </Box>
   );
 }

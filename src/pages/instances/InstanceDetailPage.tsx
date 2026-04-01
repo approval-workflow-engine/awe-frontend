@@ -17,9 +17,12 @@ import DetailInfoSection from './components/DetailInfoSection';
 import ExecutionDetails from './components/ExecutionDetails';
 import { useInstance } from './hooks/useInstance';
 import { usePolling } from '../../hooks/usePolling';
-import { useApiCall } from '../../hooks/useApiCall';
 import { getInstanceExecutions } from '../../api/instanceApi';
-import type { Instance, ExecutionLog, InstanceListItem } from '../../api/schemas/instance';
+import type {
+  Instance,
+  ExecutionNode,
+  InstanceListItem,
+} from '../../api/schemas/instance';
 
 const MONO = "'JetBrains Mono', monospace";
 const POLL_INTERVAL_MS = 3000;
@@ -49,8 +52,7 @@ export default function InstanceDetailPage() {
   const location = useLocation();
   const { instance, loading, fetch, silentFetch, resume, isTerminal } = useInstance();
   const pollEnabled = useRef(false);
-  const { call } = useApiCall();
-  const [executionLogs, setExecutionLogs] = useState<ExecutionLog[]>([]);
+  const [executions, setExecutions] = useState<ExecutionNode[]>([]);
   const [logsLoading, setLogsLoading] = useState(false);
 
   const stateInstance =
@@ -67,19 +69,14 @@ export default function InstanceDetailPage() {
   const fetchExecutionLogs = useCallback(async (instanceId: string, silent = false) => {
     if (!silent) setLogsLoading(true);
     try {
-      const response = await call(() => getInstanceExecutions(instanceId), {
-        silent: true,
-        showError: false,
-      });
-      if (response?.executions) {
-        setExecutionLogs(response.executions);
-      }
+      const response = await getInstanceExecutions(instanceId);
+      setExecutions(response?.data?.executions ?? []);
     } catch (error) {
       console.error('Failed to fetch execution logs:', error);
     } finally {
       if (!silent) setLogsLoading(false);
     }
-  }, [call]);
+  }, []);
 
   useEffect(() => {
     if (id) {
@@ -195,7 +192,10 @@ export default function InstanceDetailPage() {
           )}
 
           <DetailInfoSection instance={displayInstance} />
-          <ExecutionDetails logs={executionLogs} loading={logsLoading} />
+          <ExecutionDetails
+            executions={executions}
+            loading={logsLoading}
+          />
         </Box>
       )}
     </Box>

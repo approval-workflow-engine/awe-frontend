@@ -16,3 +16,19 @@ export function formatDate(
     ...options,
   });
 }
+
+export function formatDateWithSeconds(
+  date: string | Date,
+  options?: Intl.DateTimeFormatOptions,
+): string {
+  const dateObj = typeof date === "string" ? new Date(date) : date;
+  return dateObj.toLocaleString(undefined, {
+    year: "numeric",
+    month: "short",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    ...options,
+  });
+}
