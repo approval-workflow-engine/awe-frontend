@@ -1,4 +1,4 @@
-import { apiClient } from '../client';
+import { apiClient } from "../client";
 import {
   InstancesResponseSchema,
   InstanceResponseSchema,
@@ -12,12 +12,14 @@ import {
   type AdvanceInstanceResponse,
   type ExecutionLogsResponse,
   type PaginationParams,
-} from '../schemas';
+} from "../schemas";
 
 export class InstanceService {
   async getInstances(params?: PaginationParams): Promise<InstancesResponse> {
-    const validatedParams = params ? PaginationParamsSchema.parse(params) : undefined;
-    return apiClient.get('/instances', InstancesResponseSchema, {
+    const validatedParams = params
+      ? PaginationParamsSchema.parse(params)
+      : undefined;
+    return apiClient.get("/instances", InstancesResponseSchema, {
       params: validatedParams,
     });
   }
@@ -28,19 +30,26 @@ export class InstanceService {
 
   async createInstance(data: CreateInstanceRequest): Promise<InstanceResponse> {
     return apiClient.post(
-      '/instances',
+      "/instances",
       data,
       InstanceResponseSchema,
-      CreateInstanceRequestSchema
+      CreateInstanceRequestSchema,
     );
   }
 
   async advanceInstance(id: string): Promise<AdvanceInstanceResponse> {
-    return apiClient.post(`/instances/${id}/advance`, {}, AdvanceInstanceResponseSchema);
+    return apiClient.post(
+      `/instances/${id}/resume`,
+      {},
+      AdvanceInstanceResponseSchema,
+    );
   }
 
   async getExecutionLogs(id: string): Promise<ExecutionLogsResponse> {
-    return apiClient.get(`/instances/${id}/executions`, ExecutionLogsResponseSchema);
+    return apiClient.get(
+      `/instances/${id}/executions`,
+      ExecutionLogsResponseSchema,
+    );
   }
 }
 
