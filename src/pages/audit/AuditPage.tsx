@@ -40,14 +40,15 @@ export default function AuditPage() {
   const [limit, setLimit] = useState(20);
   const [pagination, setPagination] = useState<Pagination | null>(null);
 
-  const handleFetch = async (pageNum = 1, pageSize = 20) => {
-    const res = await fetch({ page: pageNum, limit: pageSize });
-    if (res?.pagination) {
-      setPagination(res.pagination);
-    }
-  };
-
-  useEffect(() => { handleFetch(page + 1, limit); }, []);
+  useEffect(() => {
+    const handleFetch = async (pageNum = 1, pageSize = 20) => {
+      const res = await fetch({ page: pageNum, limit: pageSize });
+      if (res?.pagination) {
+        setPagination(res.pagination);
+      }
+    };
+    handleFetch(page + 1, limit);
+  }, [page, limit, fetch]);
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase().trim();
@@ -59,17 +60,23 @@ export default function AuditPage() {
     );
   }, [instances, search]);
 
-  const handlePageChange = (_event: unknown, newPage: number) => {
+  const handlePageChange = async (_event: unknown, newPage: number) => {
     const newPageNum = newPage + 1;
     setPage(newPage);
-    handleFetch(newPageNum, limit);
+    const res = await fetch({ page: newPageNum, limit });
+    if (res?.pagination) {
+      setPagination(res.pagination);
+    }
   };
 
-  const handleChangeRowsPerPage = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleChangeRowsPerPage = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const newLimit = parseInt(event.target.value, 10);
     setLimit(newLimit);
     setPage(0);
-    handleFetch(1, newLimit);
+    const res = await fetch({ page: 1, limit: newLimit });
+    if (res?.pagination) {
+      setPagination(res.pagination);
+    }
   };
 
   return (
@@ -84,7 +91,12 @@ export default function AuditPage() {
           <Tooltip title="Reload">
             <IconButton
               size="small"
-              onClick={() => handleFetch(page + 1, limit)}
+              onClick={async () => {
+                const res = await fetch({ page: page + 1, limit });
+                if (res?.pagination) {
+                  setPagination(res.pagination);
+                }
+              }}
               disabled={loading}
               sx={{ color: 'text.secondary' }}
             >

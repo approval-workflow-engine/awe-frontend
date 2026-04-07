@@ -39,6 +39,7 @@ interface Props {
   onDeleteEdge: (id: string) => void;
   onChangeInputs: (inputs: WorkflowInput[]) => void;
   onOpenCodeEditor: () => void;
+  width?: number;
 }
 
 export default function ConfigPanel({
@@ -53,7 +54,9 @@ export default function ConfigPanel({
   onDeleteEdge,
   onChangeInputs,
   onOpenCodeEditor,
+  width,
 }: Props) {
+  const panelWidth = width ?? 260;
   if (!selectedItem) return null;
 
   if (selectedItem.type === "edge") {
@@ -65,7 +68,7 @@ export default function ConfigPanel({
     return (
       <Box
         sx={{
-          width: 260,
+          width: panelWidth,
           flexShrink: 0,
           display: "flex",
           flexDirection: "column",
@@ -212,7 +215,7 @@ export default function ConfigPanel({
   return (
     <Box
       sx={{
-        width: 260,
+        width: panelWidth,
         flexShrink: 0,
         display: "flex",
         flexDirection: "column",

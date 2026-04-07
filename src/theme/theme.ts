@@ -44,6 +44,10 @@ export const darkTheme: Theme = createTheme({
         '::-webkit-scrollbar': { width: '5px', height: '5px' },
         '::-webkit-scrollbar-track': { background: 'transparent' },
         '::-webkit-scrollbar-thumb': { background: '#2e3450', borderRadius: '3px' },
+        '@keyframes pulse': {
+          '0%, 100%': { opacity: 1 },
+          '50%': { opacity: 0.5 },
+        },
       },
     },
     MuiPaper: {

@@ -8,6 +8,7 @@ import {
   Typography,
   Box,
   Skeleton,
+  Button,
 } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import StatusChip from '../../../components/common/StatusChip';
@@ -44,20 +45,21 @@ export default function InstanceTable({ instances, loading }: Props) {
             <TableCell>Version</TableCell>
             <TableCell>Status</TableCell>
             <TableCell>Started</TableCell>
+            <TableCell align="right">Actions</TableCell>
           </TableRow>
         </TableHead>
         <TableBody>
           {loading ? (
             [0, 1, 2, 3].map((i) => (
               <TableRow key={i}>
-                <TableCell colSpan={5}>
+                <TableCell colSpan={6}>
                   <Skeleton variant="rounded" height={36} />
                 </TableCell>
               </TableRow>
             ))
           ) : instances.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={5}>
+              <TableCell colSpan={6}>
                 <Box sx={{ py: 6, textAlign: 'center' }}>
                   <Typography color="text.secondary" fontSize={13}>
                     No instances found. Create one to get started.
@@ -99,6 +101,19 @@ export default function InstanceTable({ instances, loading }: Props) {
                   <Typography fontSize={12} color="text.secondary">
                     {formatSafeDate(inst.started_on)}
                   </Typography>
+                </TableCell>
+                <TableCell align="right">
+                  <Button
+                    variant="outlined"
+                    size="small"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      navigate(`/audit/${inst.id}`);
+                    }}
+                    sx={{ fontSize: 11, fontWeight: 600, borderRadius: '8px', height: 30 }}
+                  >
+                    View Audits
+                  </Button>
                 </TableCell>
               </TableRow>
             ))

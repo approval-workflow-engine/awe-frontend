@@ -13,28 +13,25 @@ export default function TasksPage() {
   const [limit, setLimit] = useState(20);
   const [pagination, setPagination] = useState<Pagination | null>(null);
 
-  const handleFetch = async (pageNum = 1, pageSize = 20) => {
-    const res = await fetch({ page: pageNum, limit: pageSize });
-    if (res?.pagination) {
-      setPagination(res.pagination);
-    }
-  };
+  useEffect(() => {
+    const handleFetch = async (pageNum = 1, pageSize = 20) => {
+      const res = await fetch({ page: pageNum, limit: pageSize });
+      if (res?.pagination) {
+        setPagination(res.pagination);
+      }
+    };
 
-  useEffect(() => { 
     handleFetch(page + 1, limit); 
-  }, []);
+  }, [page, limit, fetch]);
 
   const handlePageChange = (_event: unknown, newPage: number) => {
-    const newPageNum = newPage + 1;
     setPage(newPage);
-    handleFetch(newPageNum, limit);
   };
 
   const handleChangeRowsPerPage = (event: React.ChangeEvent<HTMLInputElement>) => {
     const newLimit = parseInt(event.target.value, 10);
     setLimit(newLimit);
     setPage(0);
-    handleFetch(1, newLimit);
   };
 
   return (
@@ -44,7 +41,12 @@ export default function TasksPage() {
         subtitle="Review and complete tasks waiting for manual approval"
         action={
           <Tooltip title="Reload">
-            <IconButton size="small" onClick={() => handleFetch(page + 1, limit)} disabled={loading}
+            <IconButton size="small" onClick={async () => {
+              const res = await fetch({ page: page + 1, limit });
+              if (res?.pagination) {
+                setPagination(res.pagination);
+              }
+            }} disabled={loading}
               sx={{ color: 'text.secondary' }}>
               <RefreshIcon fontSize="small" />
             </IconButton>

@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import {
   Box,
   Paper,
@@ -25,6 +25,7 @@ import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
 import PageHeader from '../../components/common/PageHeader';
 import StatusChip from '../../components/common/StatusChip';
 import { useApiCall } from '../../hooks/useApiCall';
+import { useBackNavigation } from '../../hooks/useBackNavigation';
 import { getInstanceAudit } from '../../api/auditApi';
 import { formatDateWithSeconds } from '../../utils/formatUtils';
 import type { InstanceAuditResponse, AuditTask, AuditTaskExecution } from '../../api/schemas/audit';
@@ -198,7 +199,7 @@ function TaskRow({ task, index }: { task: AuditTask; index: number }) {
 
 export default function InstanceAuditPage() {
   const { instanceId } = useParams<{ instanceId: string }>();
-  const navigate = useNavigate();
+  const { goBack } = useBackNavigation('/audit');
   const { loading, call } = useApiCall();
   const [audit, setAudit] = useState<InstanceAuditResponse | null>(null);
   const [search, setSearch] = useState('');
@@ -232,7 +233,7 @@ export default function InstanceAuditPage() {
       <PageHeader
         title={inst ? `Audit - ${inst.workflowName} v${inst.versionNumber}` : 'Instance Audit'}
         subtitle={inst ? `Instance: ${inst.id}` : undefined}
-        onBack={() => navigate('/audit')}
+        onBack={goBack}
         searchQuery={search}
         onSearchChange={setSearch}
         searchPlaceholder="Search tasks…"

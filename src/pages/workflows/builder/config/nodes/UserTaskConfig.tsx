@@ -9,10 +9,14 @@ import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import ExpressionInput from "../shared/ExpressionInput";
 import ContextVariableSelector from "../shared/ContextVariableSelector";
 import DataTypeSelect from "../shared/DataTypeSelect";
+import UITypeSelect from "../shared/UITypeSelect";
+import DropdownOptionsConfigurator from "../shared/DropdownOptionsConfigurator";
 import AddRowButton from "../shared/AddRowButton";
 import { SectionLabel } from "../shared/CollapsibleSection";
 import type { AvailableCtxVar } from "../context";
 import type { CanvasNode, ContextVariable } from "../../type/types";
+import type { UIType } from "../shared/UITypeSelect";
+import type { DropdownOption } from "../shared/DropdownOptionsConfigurator";
 import { DataType } from "../../type/types";
 import { generateId } from "../../utils/nodeHelpers";
 
@@ -21,7 +25,8 @@ interface ResponseMapRowUser {
   label: string;
   contextVariable?: ContextVariable;
   type: string;
-  options?: Array<{ label?: string; valueExpression: string }>;
+  uiType?: UIType;
+  options?: DropdownOption[];
 }
 
 interface Props {
@@ -260,7 +265,20 @@ export default function UserTaskConfig({
                     <DeleteOutlineIcon sx={{ fontSize: 13 }} />
                   </IconButton>
                 </Box>
-              
+
+                <UITypeSelect
+                  value={row.uiType}
+                  onChange={(v) => updateRes(idx, { uiType: v, options: v === "dropdown" ? row.options || [] : undefined })}
+                  dataType={row.type}
+                />
+
+                {row.uiType === "dropdown" && (
+                  <DropdownOptionsConfigurator
+                    options={row.options || []}
+                    onChange={(opts) => updateRes(idx, { options: opts })}
+                  />
+                )}
+
                 <Box>
                   <Typography
                     sx={{ fontSize: 9, color: "text.secondary", mb: 0.25 }}

@@ -1,4 +1,4 @@
-import { Box, Typography, TextField, InputAdornment } from '@mui/material';
+import { Box, Typography, TextField } from '@mui/material';
 import { EXPR_FONT } from '../constants';
 
 interface Props {
@@ -22,22 +22,12 @@ export default function JsonPathInput({ value, onChange, placeholder = 'data.fie
         value={value}
         onChange={e => onChange(e.target.value)}
         fullWidth
-        InputProps={{
-          startAdornment: (
-            <InputAdornment position="start" sx={{ mr: 0.25, ml: '-2px' }}>
-              <Typography sx={{ fontSize: 10, color: 'text.disabled', fontFamily: EXPR_FONT, lineHeight: 1, userSelect: 'none' }}>
-                {'{ }'}
-              </Typography>
-            </InputAdornment>
-          ),
-        }}
         sx={{
           '& .MuiOutlinedInput-root': {
             borderRadius: '6px', fontSize: 11, fontFamily: EXPR_FONT,
             '& fieldset': { borderColor: 'divider' },
           },
         }}
-        inputProps={{ style: { padding: '5px 6px', fontSize: 11 } }}
       />
     </Box>
   );

@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import type { MouseEvent as ReactMouseEvent } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
   Box,
@@ -17,6 +18,8 @@ import {
   DialogActions,
 } from "@mui/material";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
+import UndoIcon from "@mui/icons-material/Undo";
+import RedoIcon from "@mui/icons-material/Redo";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import ErrorIcon from "@mui/icons-material/Error";
 import SaveIcon from "@mui/icons-material/Save";
@@ -68,14 +71,39 @@ export default function WorkflowBuilder() {
   const [codeEditorOpenState, setCodeEditorOpen] = useState(false);
   const [clearConfirmOpen, setClearConfirmOpen] = useState(false);
   const [canvasLoading, setCanvasLoading] = useState(() => !!versionId);
+  const [configPanelWidth, setConfigPanelWidth] = useState(320);
+  const [isResizingConfig, setIsResizingConfig] = useState(false);
+  const configResizeOriginRef = useRef({ x: 0, width: 320 });
 
   const {
-    nodes, setNodes, edges, setEdges, inputs, setInputs,
-    selectedItem, setSelectedItem, connectingFrom, setConnectingFrom,
-    isDirty, setIsDirty, setMarkDirtyEnabled,
-    markDirty, blocker,
-    handleUpdateNode, handleAddNode, handleAddEdge,
-    handleUpdateEdge, handleDeleteEdge, handleDeleteSelected, handleClearCanvas,
+    nodes,
+    edges,
+    inputs,
+    selectedItem,
+    setSelectedItem,
+    connectingFrom,
+    setConnectingFrom,
+    isDirty,
+    setIsDirty,
+    setMarkDirtyEnabled,
+    markDirty,
+    blocker,
+    handleUpdateNode,
+    handleAddNode,
+    handleAddEdge,
+    handleUpdateEdge,
+    handleDeleteEdge,
+    handleDeleteSelected,
+    handleClearCanvas,
+    replaceInputs,
+    hydrateCanvas,
+    undo,
+    redo,
+    canUndo,
+    canRedo,
+    beginHistoryBatch,
+    endHistoryBatch,
+    clearHistory,
   } = useBuilderCanvas();
 
   const isReadOnly =
@@ -102,12 +130,53 @@ export default function WorkflowBuilder() {
     setIsDirty,
     nodes,
     edges,
+    clearHistory,
   });
 
   const markDirtyAndClearValidation = useCallback(() => {
     markDirty();
     setValidationResult(null);
   }, [markDirty, setValidationResult]);
+
+  const handleConfigWidthChange = useCallback((width: number) => {
+    const clamped = Math.min(Math.max(width, 260), 520);
+    setConfigPanelWidth(Math.round(clamped));
+  }, []);
+
+  const handleConfigResizeStart = useCallback((event: ReactMouseEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    configResizeOriginRef.current = { x: event.clientX, width: configPanelWidth };
+    setIsResizingConfig(true);
+  }, [configPanelWidth]);
+
+  useEffect(() => {
+    if (!isResizingConfig) return;
+
+    const handleMouseMove = (event: MouseEvent) => {
+      const delta = configResizeOriginRef.current.x - event.clientX;
+      handleConfigWidthChange(configResizeOriginRef.current.width + delta);
+    };
+
+    const handleMouseUp = () => {
+      setIsResizingConfig(false);
+    };
+
+    const prevCursor = document.body.style.cursor;
+    const prevUserSelect = document.body.style.userSelect;
+
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+
+    window.addEventListener("mousemove", handleMouseMove);
+    window.addEventListener("mouseup", handleMouseUp);
+
+    return () => {
+      window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("mouseup", handleMouseUp);
+      document.body.style.cursor = prevCursor;
+      document.body.style.userSelect = prevUserSelect;
+    };
+  }, [isResizingConfig, handleConfigWidthChange]);
 
   useEffect(() => {
     if (!workflowId) return;
@@ -132,9 +201,7 @@ export default function WorkflowBuilder() {
               : vRaw;
           if (vData) {
             const { nodes: n, edges: e, inputs: i } = definitionToCanvas(vData);
-            setNodes(n.length > 0 ? n : [buildStartNode()]);
-            setEdges(e);
-            setInputs(i);
+            hydrateCanvas(n.length > 0 ? n : [buildStartNode()], e, i);
             const vn =
               (vData.versionNumber as number) ??
               (vData.version as number) ??
@@ -152,7 +219,7 @@ export default function WorkflowBuilder() {
       setMarkDirtyEnabled(true);
       setCanvasLoading(false);
     })();
-  }, [workflowId, versionId, call, setMarkDirtyEnabled, setWorkflowName, setNodes, setEdges, setInputs, setLoadedVersionNumber, setSavedVersionNumber, setSavedVersionId, setVersionStatus, loadedVersionNumber]);
+  }, [workflowId, versionId, call, setMarkDirtyEnabled, setWorkflowName, hydrateCanvas, setLoadedVersionNumber, setSavedVersionNumber, setSavedVersionId, setVersionStatus, loadedVersionNumber]);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -180,10 +247,10 @@ export default function WorkflowBuilder() {
   const canDelete =
     !isReadOnly &&
     selectedItem &&
-    !(selectedItem.type === "node" && nodes.find((n) => n.id === selectedItem.id)?.type === "start");
+    !(selectedItem.type === "node" && nodes.find((n: { id: unknown; }) => n.id === selectedItem.id)?.type === "start");
 
   const selectedScriptNode =
-    nodes.find((n) => n.id === selectedItem?.id && n.type === "script_task") ?? null;
+    nodes.find((n: { id: unknown; type: string; }) => n.id === selectedItem?.id && n.type === "script_task") ?? null;
 
   const codeEditorOpen = codeEditorOpenState && !!selectedScriptNode;
 
@@ -256,6 +323,37 @@ export default function WorkflowBuilder() {
 
         {!isReadOnly && (
           <>
+            <Tooltip title="Undo" placement="bottom">
+              <span>
+                <IconButton
+                  size="small"
+                  onClick={() => {
+                    undo();
+                    setValidationResult(null);
+                  }}
+                  disabled={!canUndo}
+                  sx={{ color: canUndo ? "text.secondary" : "text.disabled" }}
+                >
+                  <UndoIcon fontSize="small" />
+                </IconButton>
+              </span>
+            </Tooltip>
+            <Tooltip title="Redo" placement="bottom">
+              <span>
+                <IconButton
+                  size="small"
+                  onClick={() => {
+                    redo();
+                    setValidationResult(null);
+                  }}
+                  disabled={!canRedo}
+                  sx={{ color: canRedo ? "text.secondary" : "text.disabled" }}
+                >
+                  <RedoIcon fontSize="small" />
+                </IconButton>
+              </span>
+            </Tooltip>
+
             <Divider orientation="vertical" flexItem sx={{ my: "auto", height: 24, borderColor: "divider" }} />
 
             <Button
@@ -307,7 +405,7 @@ export default function WorkflowBuilder() {
                 <List disablePadding dense>
                   {validationResult?.errors.map((err, i) => {
                     const nodeLabel = err.nodeId
-                      ? (nodes.find((n) => n.id === err.nodeId)?.label ?? err.nodeId)
+                      ? (nodes.find((n: { id: string | undefined; }) => n.id === err.nodeId)?.label ?? err.nodeId)
                       : null;
                     return (
                       <ListItem key={i} sx={{ px: 0, py: 0.25 }}>
@@ -415,7 +513,7 @@ export default function WorkflowBuilder() {
               </Box>
             )}
             <Divider />
-            <ContextVarsPanel nodes={nodes} inputs={inputs} />
+                <ContextVarsPanel nodes={nodes} inputs={inputs} />
           </Box>
 
           {canvasLoading ? (
@@ -441,32 +539,48 @@ export default function WorkflowBuilder() {
                   setConnectingFrom({ nodeId, portId });
                 }}
                 onCancelConnect={() => setConnectingFrom(null)}
+                onBeginHistoryBatch={beginHistoryBatch}
+                onEndHistoryBatch={endHistoryBatch}
               />
 
               {selectedItem && (
-                <ConfigPanel
-                  selectedItem={selectedItem}
-                  nodes={nodes}
-                  edges={edges}
-                  inputs={inputs}
-                  nodeErrors={
-                    selectedItem.type === "node"
-                      ? (validationResult?.errors.filter((e) => e.nodeId === selectedItem.id) ?? [])
-                      : undefined
-                  }
-                  onClose={() => setSelectedItem(null)}
-                  onUpdateNode={isReadOnly ? () => undefined : handleUpdateNode}
-                  onUpdateEdge={isReadOnly ? () => undefined : handleUpdateEdge}
-                  onDeleteEdge={isReadOnly ? () => undefined : handleDeleteEdge}
-                  onChangeInputs={(newInputs) => {
-                    if (isReadOnly) return;
-                    setInputs(newInputs);
-                    markDirtyAndClearValidation();
-                  }}
-                  onOpenCodeEditor={() => {
-                    setCodeEditorOpen(true);
-                  }}
-                />
+                <Box sx={{ display: "flex", flexShrink: 0 }}>
+                  <Box
+                    onMouseDown={handleConfigResizeStart}
+                    sx={{
+                      width: 6,
+                      cursor: "col-resize",
+                      flexShrink: 0,
+                      backgroundColor: isResizingConfig ? "action.hover" : "transparent",
+                      transition: "background-color 0.12s",
+                      "&:hover": { backgroundColor: "action.hover" },
+                    }}
+                  />
+                  <ConfigPanel
+                    width={configPanelWidth}
+                    selectedItem={selectedItem}
+                    nodes={nodes}
+                    edges={edges}
+                    inputs={inputs}
+                    nodeErrors={
+                      selectedItem.type === "node"
+                        ? (validationResult?.errors.filter((e) => e.nodeId === selectedItem.id) ?? [])
+                        : undefined
+                    }
+                    onClose={() => setSelectedItem(null)}
+                    onUpdateNode={isReadOnly ? () => undefined : handleUpdateNode}
+                    onUpdateEdge={isReadOnly ? () => undefined : handleUpdateEdge}
+                    onDeleteEdge={isReadOnly ? () => undefined : handleDeleteEdge}
+                    onChangeInputs={(newInputs) => {
+                      if (isReadOnly) return;
+                      replaceInputs(newInputs);
+                      markDirtyAndClearValidation();
+                    }}
+                    onOpenCodeEditor={() => {
+                      setCodeEditorOpen(true);
+                    }}
+                  />
+                </Box>
               )}
             </>
           )}

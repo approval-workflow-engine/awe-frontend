@@ -23,6 +23,7 @@ interface UseBuilderActionsProps {
   setIsDirty: (b: boolean) => void;
   nodes: CanvasNode[];
   edges: CanvasEdge[];
+  clearHistory: () => void;
 }
 
 interface UseBuilderActionsReturn {
@@ -60,6 +61,7 @@ export function useBuilderActions({
   setIsDirty,
   nodes,
   edges,
+  clearHistory,
 }: UseBuilderActionsProps): UseBuilderActionsReturn {
   const navigate = useNavigate();
   const { call } = useApiCall();
@@ -148,6 +150,7 @@ export function useBuilderActions({
     }
 
     setSaving(false);
+    clearHistory();
     return true;
   };
 
