@@ -67,12 +67,16 @@ export const CreateInstanceResponseSchema = z.object({
 
 export const InstanceResponseSchema = InstanceSchema;
 
+export const InstanceActionResponseSchema = z.object({
+  instance: InstanceSchema,
+});
+
 export const InstancesResponseSchema = z.object({
   instances: z.array(InstanceListItemSchema),
   pagination: PaginationSchema,
 });
 
-export const AdvanceInstanceResponseSchema = z.object({});
+export const AdvanceInstanceResponseSchema = InstanceActionResponseSchema;
 
 export const ExecutionLogSchema = z.object({
   id: z.string(),
@@ -123,6 +127,7 @@ export type InstanceListItem = z.infer<typeof InstanceListItemSchema>;
 export type CreateInstanceRequest = z.infer<typeof CreateInstanceRequestSchema>;
 export type CreateInstanceResponse = z.infer<typeof CreateInstanceResponseSchema>;
 export type InstanceResponse = z.infer<typeof InstanceResponseSchema>;
+export type InstanceActionResponse = z.infer<typeof InstanceActionResponseSchema>;
 export type InstancesResponse = z.infer<typeof InstancesResponseSchema>;
 export type AdvanceInstanceResponse = z.infer<typeof AdvanceInstanceResponseSchema>;
 export type ExecutionLog = z.infer<typeof ExecutionLogSchema>;

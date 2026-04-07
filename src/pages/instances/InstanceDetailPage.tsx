@@ -10,7 +10,9 @@ import {
   Skeleton,
   Tooltip,
 } from '@mui/material';
+import PauseIcon from '@mui/icons-material/Pause';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
+import StopCircleOutlinedIcon from '@mui/icons-material/StopCircleOutlined';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import PageHeader from '../../components/common/PageHeader';
 import DetailInfoSection from './components/DetailInfoSection';
@@ -53,7 +55,7 @@ export default function InstanceDetailPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const { goBack } = useBackNavigation('/instances');
-  const { instance, loading, fetch, silentFetch, resume, isTerminal } = useInstance();
+  const { instance, loading, fetch, silentFetch, resume, pause, terminate, isTerminal } = useInstance();
   const pollEnabled = useRef(false);
   const [executions, setExecutions] = useState<ExecutionNode[]>([]);
   const [logsLoading, setLogsLoading] = useState(false);
@@ -104,8 +106,9 @@ export default function InstanceDetailPage() {
     true,
   );
 
-  const canResume =
-    displayInstance?.autoAdvance === false && displayInstance?.status === 'paused';
+  const canResume = displayInstance?.status === 'paused';
+  const canPause = displayInstance?.status === 'in_progress' && !isTerminal(displayInstance.status);
+  const canTerminate = !!displayInstance && !isTerminal(displayInstance.status);
 
   const orderedExecutions = useMemo(
     () => [...executions].sort((a, b) => a.order - b.order),
@@ -131,6 +134,20 @@ export default function InstanceDetailPage() {
   const handleResume = async () => {
     if (!id) return;
     await resume(id);
+    await fetch(id);
+    await fetchExecutionLogs(id);
+  };
+
+  const handlePause = async () => {
+    if (!id) return;
+    await pause(id);
+    await fetch(id);
+    await fetchExecutionLogs(id);
+  };
+
+  const handleTerminate = async () => {
+    if (!id) return;
+    await terminate(id);
     await fetch(id);
     await fetchExecutionLogs(id);
   };
@@ -172,6 +189,17 @@ export default function InstanceDetailPage() {
                 <RefreshIcon fontSize="small" />
               </IconButton>
             </Tooltip>
+            {canPause && (
+              <Button
+                variant="outlined"
+                size="small"
+                startIcon={loading ? <CircularProgress size={14} /> : <PauseIcon />}
+                onClick={handlePause}
+                disabled={loading}
+              >
+                Pause Instance
+              </Button>
+            )}
             {canResume && (
               <Button
                 variant="contained"
@@ -181,6 +209,18 @@ export default function InstanceDetailPage() {
                 disabled={loading}
               >
                 Resume Instance
+              </Button>
+            )}
+            {canTerminate && (
+              <Button
+                variant="outlined"
+                color="error"
+                size="small"
+                startIcon={loading ? <CircularProgress size={14} /> : <StopCircleOutlinedIcon />}
+                onClick={handleTerminate}
+                disabled={loading}
+              >
+                Terminate Instance
               </Button>
             )}
           </Box>
