@@ -1,6 +1,11 @@
 import { useState, useCallback } from 'react';
 import { useApiCall } from '../../../hooks/useApiCall';
-import { getInstance, resumeInstance as resumeApi } from '../../../api/instanceApi';
+import {
+  getInstance,
+  pauseInstance as pauseApi,
+  resumeInstance as resumeApi,
+  terminateInstance as terminateApi,
+} from '../../../api/instanceApi';
 import type { Instance } from '../../../api/schemas/instance';
 
 const TERMINAL_STATUSES = new Set(['completed', 'failed', 'terminated']);
@@ -27,10 +32,13 @@ export function useInstance() {
     [call],
   );
 
-  const resume = useCallback(
-    async (id: string) => {
-      const res = await call(() => resumeApi(id), { successMsg: 'Instance resumed successfully' });
-      // Advance endpoint returns empty object, so we need to refetch the instance
+  const runAction = useCallback(
+    async (
+      action: (id: string) => Promise<unknown>,
+      successMsg: string,
+      id: string,
+    ) => {
+      const res = await call(() => action(id), { successMsg });
       if (res) {
         return await fetch(id);
       }
@@ -39,10 +47,25 @@ export function useInstance() {
     [call, fetch],
   );
 
+  const resume = useCallback(
+    async (id: string) => runAction(resumeApi, 'Instance resumed successfully', id),
+    [runAction],
+  );
+
+  const pause = useCallback(
+    async (id: string) => runAction(pauseApi, 'Instance paused successfully', id),
+    [runAction],
+  );
+
+  const terminate = useCallback(
+    async (id: string) => runAction(terminateApi, 'Instance terminated successfully', id),
+    [runAction],
+  );
+
   const isTerminal = useCallback(
     (status: string | undefined) => (status ? TERMINAL_STATUSES.has(status) : false),
     [],
   );
 
-  return { instance, loading, error, fetch, silentFetch, resume, isTerminal };
+  return { instance, loading, error, fetch, silentFetch, resume, pause, terminate, isTerminal };
 }

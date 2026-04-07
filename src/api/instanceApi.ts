@@ -5,7 +5,7 @@ import {
   InstanceResponseSchema,
   InstancesResponseSchema,
   ExecutionLogsResponseSchema,
-  AdvanceInstanceResponseSchema
+  InstanceActionResponseSchema,
 } from './schemas/instance';
 import type { PaginationParams } from '../types';
 
@@ -25,4 +25,10 @@ export const getInstanceExecutions = (id: string) =>
   apiClient.get(`/instances/${id}/executions`, ExecutionLogsResponseSchema);
 
 export const resumeInstance = (id: string) =>
-  apiClient.post(`/instances/${id}/advance`, {}, AdvanceInstanceResponseSchema);
+  apiClient.post(`/instances/${id}/resume`, {}, InstanceActionResponseSchema);
+
+export const pauseInstance = (id: string) =>
+  apiClient.post(`/instances/${id}/pause`, {}, InstanceActionResponseSchema);
+
+export const terminateInstance = (id: string) =>
+  apiClient.post(`/instances/${id}/terminate`, {}, InstanceActionResponseSchema);

@@ -242,6 +242,7 @@ export function canvasToDefinition(
             edgeId: e.id,
             sourceNodeId: e.source,
             targetNodeId: e.target,
+            ruleId: e.isDefault ? "default" : e.sourcePort,
             conditionExpression: e.condition || undefined,
             isDefault: e.isDefault || false,
         };
@@ -288,15 +289,13 @@ export function canvasToVersionPayload(
                 position: n.position || { x: n.x_coordinate || 0, y: n.y_coordinate || 0 },
             };
         }),
-        edges: edges
-            .filter(e => e.source && e.target)
-            .map(e => ({
-                id: e.id,
-                label: e.condition || null,
-                sourceNodeId: e.source,
-                targetNodeId: e.target,
-                ruleId: e.isDefault ? "default" : (e.sourcePort || null),
-            })),
+        edges: definition.edges.map((e) => ({
+            id: e.edgeId || e.id,
+            label: e.conditionExpression || null,
+            sourceNodeId: e.sourceNodeId,
+            targetNodeId: e.targetNodeId,
+            ruleId: e.ruleId ?? null,
+        })),
     };
 }
 

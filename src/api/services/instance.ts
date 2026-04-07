@@ -3,13 +3,13 @@ import {
   InstancesResponseSchema,
   InstanceResponseSchema,
   CreateInstanceRequestSchema,
-  AdvanceInstanceResponseSchema,
+  InstanceActionResponseSchema,
   ExecutionLogsResponseSchema,
   PaginationParamsSchema,
   type InstancesResponse,
   type InstanceResponse,
   type CreateInstanceRequest,
-  type AdvanceInstanceResponse,
+  type InstanceActionResponse,
   type ExecutionLogsResponse,
   type PaginationParams,
 } from '../schemas';
@@ -35,8 +35,16 @@ export class InstanceService {
     );
   }
 
-  async advanceInstance(id: string): Promise<AdvanceInstanceResponse> {
-    return apiClient.post(`/instances/${id}/advance`, {}, AdvanceInstanceResponseSchema);
+  async resumeInstance(id: string): Promise<InstanceActionResponse> {
+    return apiClient.post(`/instances/${id}/resume`, {}, InstanceActionResponseSchema);
+  }
+
+  async pauseInstance(id: string): Promise<InstanceActionResponse> {
+    return apiClient.post(`/instances/${id}/pause`, {}, InstanceActionResponseSchema);
+  }
+
+  async terminateInstance(id: string): Promise<InstanceActionResponse> {
+    return apiClient.post(`/instances/${id}/terminate`, {}, InstanceActionResponseSchema);
   }
 
   async getExecutionLogs(id: string): Promise<ExecutionLogsResponse> {
