@@ -37,14 +37,14 @@ export default function ScriptTaskEditorPanel({
   const [validateSnack, setValidateSnack] = useState(false);
   const dragRef = useRef<{ startY: number; startH: number } | null>(null);
 
-  const functionName =
-    (node.config.entryFunctionName as string) ||
-    (node.config.mainFunction as string) ||
-    "main";
-  const paramRows =
-    (node.config.parameterMap as Array<{ name?: string; key?: string }>) ?? [];
-  const params = paramRows.map((p) => p.name || p.key || "").filter(Boolean);
-  const signature = `def ${functionName}(${params.join(", ")}):`;
+  // const functionName =
+    // (node.config.entryFunctionName as string) ||
+    // (node.config.mainFunction as string) ||
+    // "main";
+  // const paramRows =
+    // (node.config.parameterMap as Array<{ name?: string; key?: string }>) ?? [];
+  // const params = paramRows.map((p) => p.name || p.key || "").filter(Boolean);
+  // const signature = `def ${functionName}(${params.join(", ")}):`;
 
   useEffect(() => {
     if (!node.config.sourceCode) {
@@ -253,7 +253,7 @@ export default function ScriptTaskEditorPanel({
         </Box>
       )}
 
-      <Box
+      {/* <Box
         sx={{
           px: 1.5,
           py: 0.5,
@@ -279,7 +279,7 @@ export default function ScriptTaskEditorPanel({
         >
           {signature}
         </Typography>
-      </Box>
+      </Box> */}
 
       <Box sx={{ flex: 1, overflow: "hidden" }}>
         <Editor

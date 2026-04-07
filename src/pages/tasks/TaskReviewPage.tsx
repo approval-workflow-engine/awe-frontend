@@ -1,21 +1,39 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Box, Typography, Skeleton, Paper } from '@mui/material';
+import { Box, Typography, Skeleton, Paper, CircularProgress } from '@mui/material';
 import PageHeader from '../../components/common/PageHeader';
 import StatusChip from '../../components/common/StatusChip';
 import TaskInfoSection from './components/TaskInfoSection';
 import TaskInputForm from './components/TaskInputForm';
 import { useTask } from './hooks/useTask';
 import { TASK_STATUS, UI_TEXT } from '../../constants/status';
+import { useBackNavigation } from '../../hooks/useBackNavigation';
+
+const RETRY_INTERVAL_MS = 1000;
+const MAX_RETRIES = 5;
+
 
 export default function TaskReviewPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { task, loading, error, fetch, complete } = useTask();
+  const { goBack } = useBackNavigation('/tasks');
+  const [retryCount, setRetryCount] = useState(0);
 
   useEffect(() => {
     if (id) fetch(id);
   }, [id, fetch]);
+
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout>;
+    if (!loading && !task && !error && retryCount < MAX_RETRIES) {
+      timer = setTimeout(() => {
+        setRetryCount(prev => prev + 1);
+        if (id) fetch(id);
+      }, RETRY_INTERVAL_MS);
+    }
+    return () => clearTimeout(timer);
+  }, [loading, task, error, id, fetch, retryCount]);
 
   const handleSubmit = async (values: Record<string, unknown>) => {
     if (!id) return;
@@ -31,7 +49,7 @@ export default function TaskReviewPage() {
       <PageHeader
         title={title}
         subtitle={task?.workflow ? `Workflow: ${task.workflow.name || task.workflow}` : undefined}
-        onBack={() => navigate('/tasks')}
+        onBack={goBack}
         chip={task ? <StatusChip status={task.status} /> : undefined}
       />
 
@@ -50,10 +68,22 @@ export default function TaskReviewPage() {
         </Box>
       )}
 
-      {!loading && !task && !error && (
+      {!loading && !task && !error && retryCount >= MAX_RETRIES && (
         <Box sx={{ py: 8, textAlign: 'center' }}>
           <Typography color="text.secondary" fontSize={14}>
-            Task not found.
+            Task not found. It may have been completed or archived. <br />
+            <Typography component="span" fontSize={12} color="text.disabled" sx={{ mt: 1, display: 'block' }}>
+              ID: {id}
+            </Typography>
+          </Typography>
+        </Box>
+      )}
+
+      {!loading && !task && !error && retryCount < MAX_RETRIES && (
+        <Box sx={{ py: 8, textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+          <CircularProgress size={32} />
+          <Typography color="text.secondary" fontSize={13}>
+            Loading task (attempt {retryCount + 1}/{MAX_RETRIES})...
           </Typography>
         </Box>
       )}

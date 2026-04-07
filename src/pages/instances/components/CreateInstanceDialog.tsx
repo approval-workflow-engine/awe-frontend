@@ -65,7 +65,11 @@ export default function CreateInstanceDialog({ open, onClose, onCreated }: Props
   }, [call]);
 
   useEffect(() => {
-    if (open) loadWorkflows();
+    if (open) {
+      (async () => {
+        await loadWorkflows();
+      })();
+    }
   }, [open, loadWorkflows]);
 
   const handleClose = () => {

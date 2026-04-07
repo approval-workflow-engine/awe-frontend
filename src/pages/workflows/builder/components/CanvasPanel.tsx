@@ -333,6 +333,8 @@ interface CanvasPanelProps {
   onSelectItem: (item: SelectedItem) => void;
   onStartConnect: (nodeId: string, portId: string) => void;
   onCancelConnect: () => void;
+  onBeginHistoryBatch?: () => void;
+  onEndHistoryBatch?: () => void;
 }
 
 export default function CanvasPanel({
@@ -348,6 +350,8 @@ export default function CanvasPanel({
   onSelectItem,
   onStartConnect,
   onCancelConnect,
+  onBeginHistoryBatch,
+  onEndHistoryBatch,
 }: CanvasPanelProps) {
   const theme = useTheme();
   const containerRef = useRef<HTMLDivElement>(null);
@@ -410,6 +414,10 @@ export default function CanvasPanel({
       const node = nodeMap.get(nodeId);
       if (!node) return;
 
+      if (!readOnlyMode) {
+        onBeginHistoryBatch?.();
+      }
+
       dragRef.current = {
         nodeId,
         startX: e.clientX,
@@ -418,7 +426,7 @@ export default function CanvasPanel({
         origY: node.y,
       };
     },
-    [connectingFrom, nodeMap],
+    [connectingFrom, nodeMap, onBeginHistoryBatch, readOnlyMode],
   );
 
   const handleMouseMove = useCallback(
@@ -454,10 +462,14 @@ export default function CanvasPanel({
   );
 
   const handleMouseUp = useCallback(() => {
+    const hadDrag = !!dragRef.current;
     dragRef.current = null;
     setDragMousePos(null);
     if (connectingFrom) onCancelConnect();
-  }, [connectingFrom, onCancelConnect]);
+    if (hadDrag && !readOnlyMode) {
+      onEndHistoryBatch?.();
+    }
+  }, [connectingFrom, onCancelConnect, onEndHistoryBatch, readOnlyMode]);
 
   const handleDrop = useCallback(
     (e: React.DragEvent) => {

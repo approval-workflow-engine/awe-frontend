@@ -67,7 +67,7 @@ export default function ResponseMapSection({
                 <JsonPathInput
                   value={row.jsonPath}
                   onChange={(v) => update(idx, { jsonPath: v })}
-                  placeholder="result.field"
+                  placeholder="$.field"
                 />
               </Box>
               <DataTypeSelect

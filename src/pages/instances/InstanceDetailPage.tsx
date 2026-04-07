@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import {
   Box,
@@ -14,14 +14,16 @@ import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import PageHeader from '../../components/common/PageHeader';
 import DetailInfoSection from './components/DetailInfoSection';
-import ExecutionDetails from './components/ExecutionDetails';
+import { ExecutionFlowCard, NodeExecutionDetailsCard } from './components/ExecutionDetails.tsx';
 import { useInstance } from './hooks/useInstance';
 import { usePolling } from '../../hooks/usePolling';
+import { useBackNavigation } from '../../hooks/useBackNavigation';
 import { getInstanceExecutions } from '../../api/instanceApi';
 import type {
   Instance,
   ExecutionNode,
   InstanceListItem,
+  CurrentTask,
 } from '../../api/schemas/instance';
 
 const MONO = "'JetBrains Mono', monospace";
@@ -50,10 +52,12 @@ export default function InstanceDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const location = useLocation();
+  const { goBack } = useBackNavigation('/instances');
   const { instance, loading, fetch, silentFetch, resume, isTerminal } = useInstance();
   const pollEnabled = useRef(false);
   const [executions, setExecutions] = useState<ExecutionNode[]>([]);
   const [logsLoading, setLogsLoading] = useState(false);
+  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
 
   const stateInstance =
     (location.state as { instance?: Instance | InstanceListItem } | null)?.instance ?? null;
@@ -103,6 +107,27 @@ export default function InstanceDetailPage() {
   const canResume =
     displayInstance?.autoAdvance === false && displayInstance?.status === 'paused';
 
+  const orderedExecutions = useMemo(
+    () => [...executions].sort((a, b) => a.order - b.order),
+    [executions],
+  );
+
+  useEffect(() => {
+    if (orderedExecutions.length === 0) {
+      setSelectedNodeId(null);
+      return;
+    }
+    setSelectedNodeId((prev) => {
+      if (prev && orderedExecutions.some((node) => node.nodeId === prev)) {
+        return prev;
+      }
+      const latestExecuted = [...orderedExecutions]
+        .reverse()
+        .find((node) => node.status !== 'pending');
+      return latestExecuted?.nodeId ?? orderedExecutions[0].nodeId;
+    });
+  }, [orderedExecutions]);
+
   const handleResume = async () => {
     if (!id) return;
     await resume(id);
@@ -121,11 +146,20 @@ export default function InstanceDetailPage() {
     ? `Instance - Workflow Version ${displayInstance.workflow.version}`
     : 'Instance Details';
 
+  const currentTask: CurrentTask | null = displayInstance?.currentTask ?? null;
+  const showReviewAction =
+    !!currentTask && currentTask.status === 'in_progress' && Boolean(currentTask.id);
+
+  const handleReviewTask = () => {
+    if (!currentTask) return;
+    navigate(`/tasks/${currentTask.id}`, { state: { fromInstance: id } });
+  };
+
   return (
     <Box>
       <PageHeader
         title={workflowLabel}
-        onBack={() => navigate('/instances')}
+        onBack={goBack}
         action={
           <Box display="flex" alignItems="center" gap={1}>
             <Tooltip title="Reload">
@@ -167,7 +201,7 @@ export default function InstanceDetailPage() {
       )}
 
       {displayInstance && (
-        <Box display="flex" flexDirection="column" gap={2}>
+        <Box display="flex" flexDirection="column" gap={2} sx={{ height: 'calc(100vh - 140px)' }}>
           {!displayInstance.autoAdvance && displayInstance.status === 'in_progress' && (
             <Box
               sx={{
@@ -192,10 +226,32 @@ export default function InstanceDetailPage() {
           )}
 
           <DetailInfoSection instance={displayInstance} />
-          <ExecutionDetails
-            executions={executions}
-            loading={logsLoading}
-          />
+
+          <Box
+            sx={{
+              display: 'grid',
+              gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' },
+              gap: 2,
+              alignItems: 'stretch',
+              flex: 1,
+              minHeight: 0,
+            }}
+          >
+            <ExecutionFlowCard
+              nodes={orderedExecutions}
+              loading={logsLoading}
+              selectedNodeId={selectedNodeId}
+              onSelectNode={setSelectedNodeId}
+              currentTaskNodeClientId={currentTask?.nodeId ?? null}
+            />
+            <NodeExecutionDetailsCard
+              nodes={orderedExecutions}
+              selectedNodeId={selectedNodeId}
+              currentTask={currentTask}
+              onReviewTask={showReviewAction ? handleReviewTask : undefined}
+              loading={logsLoading}
+            />
+          </Box>
         </Box>
       )}
     </Box>

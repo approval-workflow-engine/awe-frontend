@@ -33,6 +33,7 @@ import {
   updateVersionStatus,
 } from "../../api/workflowApi";
 import { useApiCall } from "../../hooks/useApiCall";
+import { useBackNavigation } from "../../hooks/useBackNavigation";
 import PageHeader from "../../components/common/PageHeader";
 import AppPagination from "../../components/common/AppPagination";
 import type { Workflow, WorkflowVersion } from "../../types";
@@ -87,6 +88,7 @@ export default function WorkflowVersionsPage() {
 
   const { workflowId } = useParams<{ workflowId: string }>();
   const navigate = useNavigate();
+  const { goBack } = useBackNavigation("/workflows");
   const { call } = useApiCall();
 
   const [workflow, setWorkflow] = useState<Workflow | null>(null);
@@ -246,7 +248,7 @@ export default function WorkflowVersionsPage() {
       <PageHeader
         title={workflow?.name || "Version History"}
         subtitle={workflow?.description || undefined}
-        onBack={() => navigate("/workflows")}
+        onBack={goBack}
         chip={
           !loading && versions.length > 0 && (
             <Chip

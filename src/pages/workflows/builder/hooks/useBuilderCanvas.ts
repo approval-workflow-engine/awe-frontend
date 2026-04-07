@@ -3,13 +3,25 @@ import { useBlocker } from "react-router-dom";
 import type { CanvasNode, CanvasEdge, SelectedItem, WorkflowInput } from "../type/types";
 import { buildStartNode } from "../utils/nodeHelpers";
 
+const HISTORY_LIMIT = 30;
+
+type CanvasSnapshot = {
+  nodes: CanvasNode[];
+  edges: CanvasEdge[];
+  inputs: WorkflowInput[];
+};
+
+const cloneState = <T,>(value: T): T => {
+  if (typeof structuredClone === "function") {
+    return structuredClone(value);
+  }
+  return JSON.parse(JSON.stringify(value));
+};
+
 interface UseBuilderCanvasReturn {
   nodes: CanvasNode[];
-  setNodes: React.Dispatch<React.SetStateAction<CanvasNode[]>>;
   edges: CanvasEdge[];
-  setEdges: React.Dispatch<React.SetStateAction<CanvasEdge[]>>;
   inputs: WorkflowInput[];
-  setInputs: React.Dispatch<React.SetStateAction<WorkflowInput[]>>;
   selectedItem: SelectedItem;
   setSelectedItem: React.Dispatch<React.SetStateAction<SelectedItem>>;
   connectingFrom: { nodeId: string; portId: string } | null;
@@ -26,6 +38,15 @@ interface UseBuilderCanvasReturn {
   handleDeleteEdge: (id: string) => void;
   handleDeleteSelected: () => void;
   handleClearCanvas: (onClear?: () => void) => void;
+  replaceInputs: (nextInputs: WorkflowInput[]) => void;
+  hydrateCanvas: (nextNodes: CanvasNode[], nextEdges: CanvasEdge[], nextInputs: WorkflowInput[]) => void;
+  undo: () => void;
+  redo: () => void;
+  canUndo: boolean;
+  canRedo: boolean;
+  beginHistoryBatch: () => void;
+  endHistoryBatch: () => void;
+  clearHistory: () => void;
 }
 
 export function useBuilderCanvas(): UseBuilderCanvasReturn {
@@ -37,6 +58,27 @@ export function useBuilderCanvas(): UseBuilderCanvasReturn {
   const [isDirty, setIsDirty] = useState(false);
   const markDirtyEnabled = useRef(false);
 
+  const [canUndo, setCanUndo] = useState(false);
+  const [canRedo, setCanRedo] = useState(false);
+
+  const historyRef = useRef<{ past: CanvasSnapshot[]; future: CanvasSnapshot[] }>({ past: [], future: [] });
+  const historyReadyRef = useRef(false);
+  const historyBatchRef = useRef(false);
+
+  const nodesRef = useRef(nodes);
+  const edgesRef = useRef(edges);
+  const inputsRef = useRef(inputs);
+
+  useEffect(() => { nodesRef.current = nodes; }, [nodes]);
+  useEffect(() => { edgesRef.current = edges; }, [edges]);
+  useEffect(() => { inputsRef.current = inputs; }, [inputs]);
+
+  useEffect(() => {
+    historyReadyRef.current = true;
+  }, []);
+
+  const blocker = useBlocker(isDirty);
+
   const markDirty = useCallback(() => {
     if (markDirtyEnabled.current) {
       setIsDirty(true);
@@ -47,66 +89,159 @@ export function useBuilderCanvas(): UseBuilderCanvasReturn {
     markDirtyEnabled.current = enabled;
   }, []);
 
-  const blocker = useBlocker(isDirty);
+  const createSnapshot = useCallback((): CanvasSnapshot => ({
+    nodes: cloneState(nodesRef.current),
+    edges: cloneState(edgesRef.current),
+    inputs: cloneState(inputsRef.current),
+  }), []);
 
-  useEffect(() => {
-    const handler = (e: BeforeUnloadEvent) => {
-      if (isDirty) {
-        e.preventDefault();
-        e.returnValue = "";
-      }
+  const pushSnapshot = useCallback(() => {
+    const snapshot = createSnapshot();
+    const nextPast = [...historyRef.current.past, snapshot].slice(-HISTORY_LIMIT);
+    historyRef.current = { past: nextPast, future: [] };
+    setCanUndo(nextPast.length > 0);
+    setCanRedo(false);
+  }, [createSnapshot]);
+
+  const captureSnapshotOnMutation = useCallback(() => {
+    if (!historyReadyRef.current || historyBatchRef.current) return;
+    pushSnapshot();
+  }, [pushSnapshot]);
+
+  const beginHistoryBatch = useCallback(() => {
+    if (!historyReadyRef.current) return;
+    pushSnapshot();
+    historyBatchRef.current = true;
+  }, [pushSnapshot]);
+
+  const endHistoryBatch = useCallback(() => {
+    historyBatchRef.current = false;
+  }, []);
+
+  const clearHistory = useCallback(() => {
+    historyRef.current = { past: [], future: [] };
+    setCanUndo(false);
+    setCanRedo(false);
+  }, []);
+
+  const applySnapshot = useCallback((snapshot: CanvasSnapshot) => {
+    historyReadyRef.current = false;
+    historyBatchRef.current = false;
+    setNodes(snapshot.nodes);
+    setEdges(snapshot.edges);
+    setInputs(snapshot.inputs);
+    setSelectedItem(null);
+    setConnectingFrom(null);
+    setTimeout(() => {
+      historyReadyRef.current = true;
+    }, 0);
+  }, []);
+
+  const undo = useCallback(() => {
+    if (historyRef.current.past.length === 0) return;
+    const previous = historyRef.current.past[historyRef.current.past.length - 1];
+    const current = createSnapshot();
+
+    historyRef.current = {
+      past: historyRef.current.past.slice(0, -1),
+      future: [current, ...historyRef.current.future],
     };
-    window.addEventListener("beforeunload", handler);
-    return () => window.removeEventListener("beforeunload", handler);
-  }, [isDirty]);
+
+    applySnapshot(previous);
+    setCanUndo(historyRef.current.past.length > 0);
+    setCanRedo(historyRef.current.future.length > 0);
+    setIsDirty(true);
+  }, [applySnapshot, createSnapshot]);
+
+  const redo = useCallback(() => {
+    if (historyRef.current.future.length === 0) return;
+    const next = historyRef.current.future[0];
+    const current = createSnapshot();
+
+    historyRef.current = {
+      past: [...historyRef.current.past, current].slice(-HISTORY_LIMIT),
+      future: historyRef.current.future.slice(1),
+    };
+
+    applySnapshot(next);
+    setCanUndo(historyRef.current.past.length > 0);
+    setCanRedo(historyRef.current.future.length > 0);
+    setIsDirty(true);
+  }, [applySnapshot, createSnapshot]);
+
+  const hydrateCanvas = useCallback((nextNodes: CanvasNode[], nextEdges: CanvasEdge[], nextInputs: WorkflowInput[]) => {
+    historyReadyRef.current = false;
+    historyBatchRef.current = false;
+    setNodes(nextNodes.length > 0 ? nextNodes : [buildStartNode()]);
+    setEdges(nextEdges);
+    setInputs(nextInputs);
+    setSelectedItem(null);
+    setConnectingFrom(null);
+    setIsDirty(false);
+    historyRef.current = { past: [], future: [] };
+    setCanUndo(false);
+    setCanRedo(false);
+    setTimeout(() => {
+      historyReadyRef.current = true;
+    }, 0);
+  }, []);
 
   const handleUpdateNode = useCallback(
     (id: string, updates: Partial<CanvasNode>) => {
+      captureSnapshotOnMutation();
       setNodes((prev) => prev.map((n) => (n.id === id ? { ...n, ...updates } : n)));
       markDirty();
     },
-    [markDirty],
+    [captureSnapshotOnMutation, markDirty],
   );
 
   const handleAddNode = useCallback(
     (node: CanvasNode) => {
+      captureSnapshotOnMutation();
       setNodes((prev) => [...prev, node]);
       markDirty();
     },
-    [markDirty],
+    [captureSnapshotOnMutation, markDirty],
   );
 
   const handleAddEdge = useCallback(
     (edge: CanvasEdge) => {
+      captureSnapshotOnMutation();
       setEdges((prev) => [...prev, edge]);
       markDirty();
     },
-    [markDirty],
+    [captureSnapshotOnMutation, markDirty],
   );
 
   const handleUpdateEdge = useCallback(
     (id: string, updates: Partial<CanvasEdge>) => {
+      captureSnapshotOnMutation();
       setEdges((prev) => prev.map((e) => (e.id === id ? { ...e, ...updates } : e)));
       markDirty();
     },
-    [markDirty],
+    [captureSnapshotOnMutation, markDirty],
   );
 
   const handleDeleteEdge = useCallback(
     (id: string) => {
+      captureSnapshotOnMutation();
       setEdges((prev) => prev.filter((e) => e.id !== id));
       markDirty();
     },
-    [markDirty],
+    [captureSnapshotOnMutation, markDirty],
   );
 
   const handleDeleteSelected = useCallback(() => {
     if (!selectedItem) return;
     if (selectedItem.type === "node") {
-      setNodes((prev) => {
-        if (prev.find((n) => n.id === selectedItem.id)?.type === "start") return prev;
-        return prev.filter((n) => n.id !== selectedItem.id);
-      });
+      const targetNode = nodesRef.current.find((n) => n.id === selectedItem.id);
+      if (!targetNode || targetNode.type === "start") return;
+    }
+
+    captureSnapshotOnMutation();
+
+    if (selectedItem.type === "node") {
+      setNodes((prev) => prev.filter((n) => n.id !== selectedItem.id));
       setEdges((prev) =>
         prev.filter((e) => e.source !== selectedItem.id && e.target !== selectedItem.id),
       );
@@ -115,10 +250,12 @@ export function useBuilderCanvas(): UseBuilderCanvasReturn {
     }
     setSelectedItem(null);
     markDirty();
-  }, [selectedItem, markDirty]);
+  }, [selectedItem, captureSnapshotOnMutation, markDirty]);
 
   const handleClearCanvas = useCallback(
     (onClear?: () => void) => {
+      captureSnapshotOnMutation();
+      historyBatchRef.current = false;
       setNodes([buildStartNode()]);
       setEdges([]);
       setInputs([]);
@@ -126,16 +263,25 @@ export function useBuilderCanvas(): UseBuilderCanvasReturn {
       markDirty();
       onClear?.();
     },
-    [markDirty],
+    [captureSnapshotOnMutation, markDirty],
   );
 
+  const replaceInputs = useCallback((nextInputs: WorkflowInput[]) => {
+    captureSnapshotOnMutation();
+    setInputs(nextInputs);
+    markDirty();
+  }, [captureSnapshotOnMutation, markDirty]);
+
   return {
-    nodes, setNodes,
-    edges, setEdges,
-    inputs, setInputs,
-    selectedItem, setSelectedItem,
-    connectingFrom, setConnectingFrom,
-    isDirty, setIsDirty,
+    nodes,
+    edges,
+    inputs,
+    selectedItem,
+    setSelectedItem,
+    connectingFrom,
+    setConnectingFrom,
+    isDirty,
+    setIsDirty,
     setMarkDirtyEnabled,
     markDirty,
     blocker,
@@ -146,6 +292,14 @@ export function useBuilderCanvas(): UseBuilderCanvasReturn {
     handleDeleteEdge,
     handleDeleteSelected,
     handleClearCanvas,
+    replaceInputs,
+    hydrateCanvas,
+    undo,
+    redo,
+    canUndo,
+    canRedo,
+    beginHistoryBatch,
+    endHistoryBatch,
+    clearHistory,
   };
 }
-
