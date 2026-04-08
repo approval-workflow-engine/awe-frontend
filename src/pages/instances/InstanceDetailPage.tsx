@@ -31,6 +31,11 @@ import type {
 const MONO = "'JetBrains Mono', monospace";
 const POLL_INTERVAL_MS = 3000;
 
+const isUserTaskType = (nodeType: string) => {
+  const normalized = nodeType.toLowerCase();
+  return normalized === 'user' || normalized === 'user_task';
+};
+
 function toInstanceFromListItem(item: InstanceListItem): Instance {
   return {
     id: item.id,
@@ -115,6 +120,11 @@ export default function InstanceDetailPage() {
     [executions],
   );
 
+  const selectedExecutionNode = useMemo(
+    () => orderedExecutions.find((node) => node.nodeId === selectedNodeId) ?? null,
+    [orderedExecutions, selectedNodeId],
+  );
+
   useEffect(() => {
     if (orderedExecutions.length === 0) {
       setSelectedNodeId(null);
@@ -165,11 +175,14 @@ export default function InstanceDetailPage() {
 
   const currentTask: CurrentTask | null = displayInstance?.currentTask ?? null;
   const showReviewAction =
-    !!currentTask && currentTask.status === 'in_progress' && Boolean(currentTask.id);
+    !!selectedExecutionNode &&
+    isUserTaskType(selectedExecutionNode.nodeType) &&
+    selectedExecutionNode.status === 'in_progress' &&
+    Boolean(selectedExecutionNode.userTaskExecutionId);
 
   const handleReviewTask = () => {
-    if (!currentTask) return;
-    navigate(`/tasks/${currentTask.id}`, { state: { fromInstance: id } });
+    if (!selectedExecutionNode?.userTaskExecutionId) return;
+    navigate(`/tasks/${selectedExecutionNode.userTaskExecutionId}`, { state: { fromInstance: id } });
   };
 
   return (
@@ -287,7 +300,6 @@ export default function InstanceDetailPage() {
             <NodeExecutionDetailsCard
               nodes={orderedExecutions}
               selectedNodeId={selectedNodeId}
-              currentTask={currentTask}
               onReviewTask={showReviewAction ? handleReviewTask : undefined}
               loading={logsLoading}
             />

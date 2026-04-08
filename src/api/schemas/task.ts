@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { dateTransform } from './common';
+import { dateTransform, PaginationSchema } from './common';
 
 export const TaskStatusSchema = z.enum(['in_progress', 'completed', 'rejected', 'failed', 'terminated']);
 
@@ -61,6 +61,7 @@ export const TaskDetailSchema = z.object({
 
 export const PendingTasksResponseSchema = z.object({
   tasks: z.array(PendingUserTaskSchema),
+  pagination: PaginationSchema,
 });
 
 export const TaskDetailResponseSchema = TaskDetailSchema;

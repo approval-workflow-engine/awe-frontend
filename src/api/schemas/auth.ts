@@ -6,7 +6,7 @@ export const SystemSchema = z.object({
   orgName: z.string(),
   contactEmail: z.string().email(),
   environmentType: z.enum(['production', 'development', 'staging']),
-  status: z.literal('active'),
+  status: z.literal('active').optional(),
   createdAt: z.string().datetime().optional(),
   updatedAt: z.string().datetime().optional(),
 });
@@ -51,6 +51,13 @@ export const ApiKeySchema = z.object({
   revokedAt: z.string().datetime().nullable(),
 });
 
+export const CreateApiKeyResponseSchema = z.object({
+  id: z.string().uuidv4(),
+  label: z.string().nullable().optional(),
+  apiKey: z.string(),
+  createdAt: z.string().datetime(),
+});
+
 export const CreateApiKeyRequestSchema = z.object({
   label: z.string().optional(),
 });
@@ -60,7 +67,10 @@ export const ApiKeysResponseSchema = z.object({
 });
 
 export const RevokeApiKeyResponseSchema = z.object({
-  success: z.boolean(),
+  id: z.string().uuidv4(),
+  label: z.string().nullable().optional(),
+  isRevoked: z.boolean(),
+  revokedAt: z.string().datetime().nullable(),
 });
 
 export type System = z.infer<typeof SystemSchema>;
@@ -71,6 +81,7 @@ export type RefreshTokenResponse = z.infer<typeof RefreshTokenResponseSchema>;
 export type RegisterRequest = z.infer<typeof RegisterRequestSchema>;
 export type RegisterResponse = z.infer<typeof RegisterResponseSchema>;
 export type ApiKey = z.infer<typeof ApiKeySchema>;
+export type CreateApiKeyResponse = z.infer<typeof CreateApiKeyResponseSchema>;
 export type CreateApiKeyRequest = z.infer<typeof CreateApiKeyRequestSchema>;
 export type ApiKeysResponse = z.infer<typeof ApiKeysResponseSchema>;
 export type RevokeApiKeyResponse = z.infer<typeof RevokeApiKeyResponseSchema>;
