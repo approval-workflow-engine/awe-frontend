@@ -26,11 +26,13 @@ import VisibilityIcon from "@mui/icons-material/Visibility";
 import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
 import BoltIcon from "@mui/icons-material/Bolt";
 import PowerSettingsNewIcon from "@mui/icons-material/PowerSettingsNew";
+import CallSplitIcon from "@mui/icons-material/CallSplit";
 import AddIcon from "@mui/icons-material/Add";
 import {
   getWorkflow,
   getWorkflowVersions,
   updateVersionStatus,
+  cloneWorkflowVersion,
 } from "../../api/workflowApi";
 import { useApiCall } from "../../hooks/useApiCall";
 import { useBackNavigation } from "../../hooks/useBackNavigation";
@@ -39,7 +41,7 @@ import AppPagination from "../../components/common/AppPagination";
 import type { Workflow, WorkflowVersion } from "../../types";
 import type { Pagination } from "../../api/schemas/common";
 
-type LifecycleAction = "commit" | "activate" | "deactivate";
+type LifecycleAction = "commit" | "activate" | "deactivate" | "clone";
 
 const STATUS_COLORS: Record<string, { bg: string; color: string }> = {
   draft:     { bg: "rgba(59,130,246,0.12)",  color: "#3b82f6" },
@@ -81,6 +83,12 @@ const ACTION_CONFIG: Record<
     body: "This will move the version back to Committed status. It will no longer be the live version and no new instances can be started until another version is activated.",
     confirmLabel: "Deactivate",
     confirmColor: "#ef4444",
+  },
+  clone: {
+    title: (vn) => `Clone v${vn}?`,
+    body: "This will create a new draft copy of this version so you can edit it safely without changing the original.",
+    confirmLabel: "Clone",
+    confirmColor: "#3b82f6",
   },
 };
 
@@ -211,6 +219,26 @@ export default function WorkflowVersionsPage() {
           }
         );
         setActionTarget(null);
+        fetchData();
+      } else if (action === "clone") {
+        const cloned = await call(
+          () => cloneWorkflowVersion(version.id),
+          { successMsg: `v${version.versionNumber} cloned as a new draft.` },
+        );
+
+        const clonedBody = (cloned ?? {}) as {
+          id?: string;
+          versionId?: string;
+        };
+        const clonedVersionId = clonedBody.id ?? clonedBody.versionId ?? null;
+
+        setActionTarget(null);
+
+        if (clonedVersionId) {
+          navigate(`/workflows/${workflowId}/builder/${clonedVersionId}`);
+          return;
+        }
+
         fetchData();
       }
     } finally {
@@ -368,6 +396,8 @@ export default function WorkflowVersionsPage() {
                   const isDraft = st === "draft";
                   const isValid = st === "valid";
                   const isCommitted = st === "published";
+                  const isActive = st === "active";
+                  const canClone = isCommitted || isActive;
                   const statusStyle = STATUS_COLORS[st] ?? { bg: "action.selected", color: "text.secondary" };
 
                   return (
@@ -481,7 +511,7 @@ export default function WorkflowVersionsPage() {
                             </Tooltip>
                           )}
 
-                          {st === "active" && (
+                          {isActive && (
                             <Tooltip title="Deactivate (move back to Committed)">
                               <IconButton
                                 size="small"
@@ -494,6 +524,23 @@ export default function WorkflowVersionsPage() {
                                 }}
                               >
                                 <PowerSettingsNewIcon fontSize="small" />
+                              </IconButton>
+                            </Tooltip>
+                          )}
+
+                          {canClone && (
+                            <Tooltip title="Clone as new draft">
+                              <IconButton
+                                size="small"
+                                onClick={() =>
+                                  openAction(v, "clone")
+                                }
+                                sx={{
+                                  color: "text.disabled",
+                                  "&:hover": { color: "#3b82f6" },
+                                }}
+                              >
+                                <CallSplitIcon fontSize="small" />
                               </IconButton>
                             </Tooltip>
                           )}
