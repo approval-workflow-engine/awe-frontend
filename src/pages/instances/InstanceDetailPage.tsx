@@ -1,39 +1,26 @@
-import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
-import { useParams, useNavigate, useLocation } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from "react-router-dom";
+import { Box, Typography, Chip, Skeleton } from "@mui/material";
+import PageHeader from "../../components/common/PageHeader";
+import DetailInfoSection from "./components/DetailInfoSection";
 import {
-  Box,
-  Button,
-  IconButton,
-  Typography,
-  CircularProgress,
-  Chip,
-  Skeleton,
-  Tooltip,
-} from '@mui/material';
-import PauseIcon from '@mui/icons-material/Pause';
-import PlayArrowIcon from '@mui/icons-material/PlayArrow';
-import StopCircleOutlinedIcon from '@mui/icons-material/StopCircleOutlined';
-import RefreshIcon from '@mui/icons-material/Refresh';
-import PageHeader from '../../components/common/PageHeader';
-import DetailInfoSection from './components/DetailInfoSection';
-import { ExecutionFlowCard, NodeExecutionDetailsCard } from './components/ExecutionDetails.tsx';
-import { useInstance } from './hooks/useInstance';
-import { usePolling } from '../../hooks/usePolling';
-import { useBackNavigation } from '../../hooks/useBackNavigation';
-import { getInstanceExecutions } from '../../api/instanceApi';
+  ExecutionFlowCard,
+  NodeExecutionDetailsCard,
+} from "./components/ExecutionDetails.tsx";
+import InstanceHeaderActions from "./components/InstanceHeaderActions";
+import { useInstance } from "./hooks/useInstance";
+import { useExecutionLogs } from "./hooks/useExecutionLogs";
+import { useBackNavigation } from "../../hooks/useBackNavigation";
 import type {
   Instance,
-  ExecutionNode,
   InstanceListItem,
   CurrentTask,
-} from '../../api/schemas/instance';
+} from "../../api/schemas/instance";
 
 const MONO = "'JetBrains Mono', monospace";
-const POLL_INTERVAL_MS = 3000;
 
 const isUserTaskType = (nodeType: string) => {
   const normalized = nodeType.toLowerCase();
-  return normalized === 'user' || normalized === 'user_task';
+  return normalized === "user" || normalized === "user_task";
 };
 
 function toInstanceFromListItem(item: InstanceListItem): Instance {
@@ -59,130 +46,89 @@ export default function InstanceDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const location = useLocation();
-  const { goBack } = useBackNavigation('/instances');
-  const { instance, loading, fetch, silentFetch, resume, pause, terminate, isTerminal } = useInstance();
-  const pollEnabled = useRef(false);
-  const [executions, setExecutions] = useState<ExecutionNode[]>([]);
-  const [logsLoading, setLogsLoading] = useState(false);
-  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+  const { goBack } = useBackNavigation("/instances");
+  const {
+    instance,
+    loading,
+    fetch,
+    silentFetch,
+    resume,
+    pause,
+    terminate,
+    isTerminal,
+  } = useInstance();
 
   const stateInstance =
-    (location.state as { instance?: Instance | InstanceListItem } | null)?.instance ?? null;
+    (location.state as { instance?: Instance | InstanceListItem } | null)
+      ?.instance ?? null;
 
   const navInstance = stateInstance
-    ? ('workflow' in stateInstance ? stateInstance : toInstanceFromListItem(stateInstance))
+    ? "workflow" in stateInstance
+      ? stateInstance
+      : toInstanceFromListItem(stateInstance)
     : null;
 
-  const displayInstance: Instance | null = instance
-    ? instance
-    : navInstance;
+  const displayInstance: Instance | null = instance ? instance : navInstance;
 
-  const fetchExecutionLogs = useCallback(async (instanceId: string, silent = false) => {
-    if (!silent) setLogsLoading(true);
-    try {
-      const response = await getInstanceExecutions(instanceId);
-      setExecutions(response?.data?.executions ?? []);
-    } catch (error) {
-      console.error('Failed to fetch execution logs:', error);
-    } finally {
-      if (!silent) setLogsLoading(false);
-    }
-  }, []);
+  const {
+    logsLoading,
+    orderedExecutions,
+    selectedNodeId,
+    setSelectedNodeId,
+    selectedExecutionNode,
+    refreshInstanceAndLogs,
+  } = useExecutionLogs({
+    instanceId: id,
+    instance,
+    fetchInstance: fetch,
+    silentFetchInstance: silentFetch,
+    isTerminal,
+  });
 
-  useEffect(() => {
-    if (id) {
-      fetch(id);
-      fetchExecutionLogs(id);
-    }
-  }, [id, fetch, fetchExecutionLogs]);
-
-  useEffect(() => {
-    pollEnabled.current = !!instance && !isTerminal(instance.status);
-  }, [instance, isTerminal]);
-
-  usePolling(
-    () => {
-      if (id && pollEnabled.current) {
-        silentFetch(id);
-        fetchExecutionLogs(id, true);
-      }
-    },
-    POLL_INTERVAL_MS,
-    true,
-  );
-
-  const canResume = displayInstance?.status === 'paused';
-  const canPause = displayInstance?.status === 'in_progress' && !isTerminal(displayInstance.status);
+  const canResume = displayInstance?.status === "paused";
+  const canPause =
+    displayInstance?.status === "in_progress" &&
+    !isTerminal(displayInstance.status);
   const canTerminate = !!displayInstance && !isTerminal(displayInstance.status);
-
-  const orderedExecutions = useMemo(
-    () => [...executions].sort((a, b) => a.order - b.order),
-    [executions],
-  );
-
-  const selectedExecutionNode = useMemo(
-    () => orderedExecutions.find((node) => node.nodeId === selectedNodeId) ?? null,
-    [orderedExecutions, selectedNodeId],
-  );
-
-  useEffect(() => {
-    if (orderedExecutions.length === 0) {
-      setSelectedNodeId(null);
-      return;
-    }
-    setSelectedNodeId((prev) => {
-      if (prev && orderedExecutions.some((node) => node.nodeId === prev)) {
-        return prev;
-      }
-      const latestExecuted = [...orderedExecutions]
-        .reverse()
-        .find((node) => node.status !== 'pending');
-      return latestExecuted?.nodeId ?? orderedExecutions[0].nodeId;
-    });
-  }, [orderedExecutions]);
 
   const handleResume = async () => {
     if (!id) return;
     await resume(id);
-    await fetch(id);
-    await fetchExecutionLogs(id);
+    await refreshInstanceAndLogs();
   };
 
   const handlePause = async () => {
     if (!id) return;
     await pause(id);
-    await fetch(id);
-    await fetchExecutionLogs(id);
+    await refreshInstanceAndLogs();
   };
 
   const handleTerminate = async () => {
     if (!id) return;
     await terminate(id);
-    await fetch(id);
-    await fetchExecutionLogs(id);
+    await refreshInstanceAndLogs();
   };
 
   const handleReload = () => {
-    if (id) {
-      fetch(id);
-      fetchExecutionLogs(id);
-    }
+    refreshInstanceAndLogs();
   };
 
   const workflowLabel = displayInstance?.workflow
     ? `Instance - Workflow Version ${displayInstance.workflow.version}`
-    : 'Instance Details';
+    : "Instance Details";
 
   const currentTask: CurrentTask | null = displayInstance?.currentTask ?? null;
   const showReviewAction =
     !!selectedExecutionNode &&
     isUserTaskType(selectedExecutionNode.nodeType) &&
-    selectedExecutionNode.status === 'in_progress' &&
+    selectedExecutionNode.status === "in_progress" &&
     Boolean(selectedExecutionNode.userTaskExecutionId);
 
   const handleReviewTask = () => {
     if (!selectedExecutionNode?.userTaskExecutionId) return;
-    navigate(`/tasks/${selectedExecutionNode.userTaskExecutionId}`, { state: { fromInstance: id } });
+    navigate(`/tasks/${selectedExecutionNode.userTaskExecutionId}`, {
+      state: { fromInstance: id },
+    });
   };
 
   return (
@@ -191,52 +137,16 @@ export default function InstanceDetailPage() {
         title={workflowLabel}
         onBack={goBack}
         action={
-          <Box display="flex" alignItems="center" gap={1}>
-            <Tooltip title="Reload">
-              <IconButton
-                size="small"
-                onClick={handleReload}
-                disabled={loading}
-                sx={{ color: 'text.secondary' }}
-              >
-                <RefreshIcon fontSize="small" />
-              </IconButton>
-            </Tooltip>
-            {canPause && (
-              <Button
-                variant="outlined"
-                size="small"
-                startIcon={loading ? <CircularProgress size={14} /> : <PauseIcon />}
-                onClick={handlePause}
-                disabled={loading}
-              >
-                Pause Instance
-              </Button>
-            )}
-            {canResume && (
-              <Button
-                variant="contained"
-                size="small"
-                startIcon={loading ? <CircularProgress size={14} /> : <PlayArrowIcon />}
-                onClick={handleResume}
-                disabled={loading}
-              >
-                Resume Instance
-              </Button>
-            )}
-            {canTerminate && (
-              <Button
-                variant="outlined"
-                color="error"
-                size="small"
-                startIcon={loading ? <CircularProgress size={14} /> : <StopCircleOutlinedIcon />}
-                onClick={handleTerminate}
-                disabled={loading}
-              >
-                Terminate Instance
-              </Button>
-            )}
-          </Box>
+          <InstanceHeaderActions
+            loading={loading}
+            canPause={canPause}
+            canResume={canResume}
+            canTerminate={canTerminate}
+            onReload={handleReload}
+            onPause={handlePause}
+            onResume={handleResume}
+            onTerminate={handleTerminate}
+          />
         }
       />
 
@@ -248,44 +158,51 @@ export default function InstanceDetailPage() {
       )}
 
       {!loading && !displayInstance && (
-        <Box sx={{ py: 8, textAlign: 'center' }}>
+        <Box sx={{ py: 8, textAlign: "center" }}>
           <Typography color="text.secondary">Instance not found.</Typography>
         </Box>
       )}
 
       {displayInstance && (
-        <Box display="flex" flexDirection="column" gap={2} sx={{ height: 'calc(100vh - 140px)' }}>
-          {!displayInstance.autoAdvance && displayInstance.status === 'in_progress' && (
-            <Box
-              sx={{
-                px: 2,
-                py: 1,
-                borderRadius: 1,
-                backgroundColor: 'action.hover',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 1,
-              }}
-            >
-              <Chip
-                label="Manual Mode"
-                size="small"
-                sx={{ fontFamily: MONO, fontSize: 11, height: 22 }}
-              />
-              <Typography fontSize={13} color="text.secondary">
-                This instance requires manual execution to advance between nodes.
-              </Typography>
-            </Box>
-          )}
+        <Box
+          display="flex"
+          flexDirection="column"
+          gap={2}
+          sx={{ height: "calc(100vh - 140px)" }}
+        >
+          {!displayInstance.autoAdvance &&
+            displayInstance.status === "in_progress" && (
+              <Box
+                sx={{
+                  px: 2,
+                  py: 1,
+                  borderRadius: 1,
+                  backgroundColor: "action.hover",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 1,
+                }}
+              >
+                <Chip
+                  label="Manual Mode"
+                  size="small"
+                  sx={{ fontFamily: MONO, fontSize: 11, height: 22 }}
+                />
+                <Typography fontSize={13} color="text.secondary">
+                  This instance requires manual execution to advance between
+                  nodes.
+                </Typography>
+              </Box>
+            )}
 
           <DetailInfoSection instance={displayInstance} />
 
           <Box
             sx={{
-              display: 'grid',
-              gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' },
+              display: "grid",
+              gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" },
               gap: 2,
-              alignItems: 'stretch',
+              alignItems: "stretch",
               flex: 1,
               minHeight: 0,
             }}
