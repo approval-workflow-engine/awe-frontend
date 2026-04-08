@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { PaginatedResponseSchema } from './common';
+import { PaginationSchema } from './common';
 
 export const WorkflowVersionStatusSchema = z.enum(['draft', 'valid', 'published', 'active']);
 
@@ -32,7 +32,7 @@ export const WorkflowInputSchema = z.object({
 });
 
 export const WorkflowSchema = z.object({
-  id: z.string().uuid(),
+  id: z.string(),
   name: z.string(),
   description: z.string().nullable().optional(),
   createdAt: z.string().datetime(),
@@ -40,24 +40,30 @@ export const WorkflowSchema = z.object({
   latestVersion: z.number().nullable().optional(),
   status: z.string().optional(),
   versions: z.array(z.object({
-    versionNumber: z.number(),
+    id: z.string(),
+    version: z.number(),
     status: WorkflowVersionStatusSchema,
-    publishedAt: z.string().datetime().nullable(),
+    description: z.string().nullable().optional(),
+    publishedAt: z.string().datetime().nullable().optional(),
     createdAt: z.string().datetime(),
+    updatedAt: z.string().datetime(),
   })).optional(),
 });
 
 export const WorkflowVersionSchema = z.object({
-  id: z.string().uuid(),
-  workflowId: z.string().uuid(),
-  versionNumber: z.number(),
+  id: z.string(),
+  workflowId: z.string(),
+  version: z.number(),
   status: WorkflowVersionStatusSchema,
-  publishedAt: z.string().datetime().nullable(),
+  description: z.string().nullable().optional(),
+  publishedAt: z.string().datetime().nullable().optional(),
   createdAt: z.string().datetime(),
-  modifiedAt: z.string().datetime(),
-  nodes: z.array(NodeSchema),
-  edges: z.array(EdgeSchema),
-  inputs: z.array(WorkflowInputSchema),
+  modifiedAt: z.string().datetime().optional(),
+  updatedAt: z.string().datetime().optional(),
+  nodes: z.array(NodeSchema).optional(),
+  edges: z.array(EdgeSchema).optional(),
+  startVariables: z.array(WorkflowInputSchema).optional(),
+  inputs: z.array(WorkflowInputSchema).optional(),
 });
 
 export const CreateWorkflowRequestSchema = z.object({
@@ -74,25 +80,26 @@ export const WorkflowResponseSchema = z.object({
   workflow: WorkflowSchema,
 });
 
-export const WorkflowsResponseSchema = PaginatedResponseSchema(WorkflowSchema);
+export const WorkflowsResponseSchema = z.object({
+  workflows: z.array(WorkflowSchema),
+  pagination: PaginationSchema,
+});
 
 export const WorkflowVersionListItemSchema = z.object({
-  id: z.string().uuid(),
-  workflowId: z.string().uuid(),
+  id: z.string(),
+  workflowId: z.string(),
   versionNumber: z.number(),
   status: WorkflowVersionStatusSchema,
   description: z.string().nullable().optional(),
-  publishedAt: z.string().datetime().nullable(),
+  publishedAt: z.string().datetime().nullable().optional(),
   createdAt: z.string().datetime(),
   updatedAt: z.string().datetime(),
 });
 
-export const WorkflowVersionsResponseSchema = PaginatedResponseSchema(
-  WorkflowVersionListItemSchema,
-).transform((value) => ({
-  versions: value.items,
-  pagination: value.pagination,
-}));
+export const WorkflowVersionsResponseSchema = z.object({
+  versions: z.array(WorkflowVersionListItemSchema),
+  pagination: PaginationSchema,
+});
 
 export const CreateVersionRequestSchema = z.object({
   description: z.string().optional(),
@@ -102,14 +109,16 @@ export const CreateVersionRequestSchema = z.object({
 });
 
 export const UpdateVersionRequestSchema = z.object({
-  nodes: z.array(NodeSchema).optional(),
-  edges: z.array(EdgeSchema).optional(),
+  nodes: z.array(NodeSchema),
+  edges: z.array(EdgeSchema),
   inputs: z.array(WorkflowInputSchema).optional(),
+  description: z.string().nullable().optional(),
 });
 
-export const VersionResponseSchema = z.object({
-  version: WorkflowVersionSchema,
-});
+export const VersionResponseSchema = z.union([
+  WorkflowVersionSchema,
+  z.object({ version: WorkflowVersionSchema }),
+]);
 
 export const UpdateVersionStatusRequestSchema = z.object({
   status: WorkflowVersionStatusSchema,

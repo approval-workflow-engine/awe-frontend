@@ -2,22 +2,24 @@ import { apiClient } from '../client';
 import {
   WorkflowsResponseSchema,
   WorkflowResponseSchema,
+  WorkflowSchema,
   CreateWorkflowRequestSchema,
   UpdateWorkflowRequestSchema,
+  WorkflowVersionsResponseSchema,
   VersionResponseSchema,
   CreateVersionRequestSchema,
   UpdateVersionRequestSchema,
-  UpdateVersionStatusRequestSchema,
   ValidationResultSchema,
   PaginationParamsSchema,
+  type WorkflowVersionsResponse,
   type WorkflowsResponse,
   type WorkflowResponse,
+  type Workflow,
   type CreateWorkflowRequest,
   type UpdateWorkflowRequest,
   type VersionResponse,
   type CreateVersionRequest,
   type UpdateVersionRequest,
-  type UpdateVersionStatusRequest,
   type ValidationResult,
   type PaginationParams,
 } from '../schemas';
@@ -31,8 +33,8 @@ export class WorkflowService {
     });
   }
 
-  async getWorkflow(id: string): Promise<WorkflowResponse> {
-    return apiClient.get(`/workflows/${id}`, WorkflowResponseSchema);
+  async getWorkflow(id: string): Promise<Workflow> {
+    return apiClient.get(`/workflows/${id}`, WorkflowSchema);
   }
 
   async createWorkflow(data: CreateWorkflowRequest): Promise<WorkflowResponse> {
@@ -47,17 +49,17 @@ export class WorkflowService {
   async updateWorkflow(
     id: string,
     data: UpdateWorkflowRequest
-  ): Promise<WorkflowResponse> {
+  ): Promise<Workflow> {
     return apiClient.patch(
       `/workflows/${id}`,
       data,
-      WorkflowResponseSchema,
+      WorkflowSchema,
       UpdateWorkflowRequestSchema
     );
   }
 
-  async deleteWorkflow(id: string): Promise<{ success: boolean }> {
-    return apiClient.delete(`/workflows/${id}`, z.object({ success: z.boolean() }));
+  async deleteWorkflow(id: string): Promise<Record<string, never>> {
+    return apiClient.delete(`/workflows/${id}`, z.object({}));
   }
 
   async validateWorkflow(definition: any): Promise<ValidationResult> {
@@ -76,48 +78,53 @@ export class WorkflowService {
     );
   }
 
-  async getVersion(workflowId: string, versionNumber: number): Promise<VersionResponse> {
+  async getVersion(versionId: string): Promise<VersionResponse> {
     return apiClient.get(
-      `/workflows/${workflowId}/versions/${versionNumber}`,
+      `/workflows/versions/${versionId}`,
       VersionResponseSchema
     );
   }
 
   async updateVersion(
-    workflowId: string,
-    versionNumber: number,
+    versionId: string,
     data: UpdateVersionRequest
   ): Promise<VersionResponse> {
     return apiClient.patch(
-      `/workflows/${workflowId}/versions/${versionNumber}`,
+      `/workflows/versions/${versionId}`,
       data,
       VersionResponseSchema,
       UpdateVersionRequestSchema
     );
   }
 
-  async validateVersion(
-    workflowId: string,
-    versionNumber: number
-  ): Promise<ValidationResult> {
+  async validateVersion(versionId: string): Promise<ValidationResult> {
     return apiClient.post(
-      `/workflows/${workflowId}/versions/${versionNumber}/validate`,
+      `/workflows/versions/${versionId}/validate`,
       {},
       ValidationResultSchema
     );
   }
 
-  async updateVersionStatus(
+  async getWorkflowVersions(
     workflowId: string,
-    versionNumber: number,
-    data: UpdateVersionStatusRequest
+    params?: PaginationParams,
+  ): Promise<WorkflowVersionsResponse> {
+    const validatedParams = params ? PaginationParamsSchema.parse(params) : undefined;
+    return apiClient.get(`/workflows/${workflowId}/versions`, WorkflowVersionsResponseSchema, {
+      params: validatedParams,
+    });
+  }
+
+  async updateVersionStatus(
+    versionId: string,
+    status: 'published' | 'active'
   ): Promise<VersionResponse> {
-    return apiClient.patch(
-      `/workflows/${workflowId}/versions/${versionNumber}/status`,
-      data,
-      VersionResponseSchema,
-      UpdateVersionStatusRequestSchema
-    );
+    const endpoint =
+      status === 'active'
+        ? `/workflows/versions/${versionId}/activate`
+        : `/workflows/versions/${versionId}/publish`;
+
+    return apiClient.post(endpoint, {}, VersionResponseSchema);
   }
 }
 

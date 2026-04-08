@@ -6,7 +6,7 @@ import {
   RegisterResponseSchema,
   ApiKeysResponseSchema,
   CreateApiKeyRequestSchema,
-  ApiKeySchema,
+  CreateApiKeyResponseSchema,
   RevokeApiKeyResponseSchema
 } from './schemas/auth';
 
@@ -20,7 +20,7 @@ export const getApiKeys = () =>
   apiClient.get('/systems/api-keys', ApiKeysResponseSchema);
 
 export const createApiKey = (data: { label?: string }) =>
-  apiClient.post('/systems/api-keys', data, ApiKeySchema, CreateApiKeyRequestSchema);
+  apiClient.post('/systems/api-keys', data, CreateApiKeyResponseSchema, CreateApiKeyRequestSchema);
 
 export const revokeApiKey = (keyId: string) =>
   apiClient.patch(`/systems/api-keys/${keyId}/revoke`, {}, RevokeApiKeyResponseSchema);
