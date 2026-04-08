@@ -506,7 +506,7 @@ function DirectInputCard({ row, onUpdate, onRemove }: DirectInputCardProps) {
             onChange={(e) =>
               onUpdate({
                 contextVariableName: e.target.value,
-                jsonPath: e.target.value,
+                jsonPath: "$." + e.target.value,
               })
             }
             sx={{
@@ -562,7 +562,6 @@ function FetchedInputCard({
     !VALID_IDENT.test(row.contextVariableName);
 
   const sourceFetchable = fetchables.find((f) => f.id === row.fetchableId);
-  const sourceLabel = sourceFetchable?.label || "?";
   const isOrphaned = !sourceFetchable;
 
   return (
@@ -700,22 +699,10 @@ function FetchedInputCard({
                 minWidth: 0,
               }}
             >
-              <Typography
-                sx={{
-                  fontSize: 11,
-                  fontFamily: EXPR_FONT,
-                  color: "primary.main",
-                  flexShrink: 0,
-                  pr: 0.25,
-                  userSelect: "none",
-                }}
-              >
-                {sourceLabel}.
-              </Typography>
               <TextField
                 size="small"
-                placeholder="field_path"
-                value={row.jsonPath}
+                placeholder="$.field_path"
+                value= { row.jsonPath}
                 onChange={(e) => onUpdate({ jsonPath: e.target.value })}
                 sx={{
                   flex: 1,
