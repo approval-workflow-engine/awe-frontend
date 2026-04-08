@@ -223,7 +223,9 @@ export default function ConfigPanel({
               p: 1,
             }}
           >
-            <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, mb: 0.5 }}>
+            <Box
+              sx={{ display: "flex", alignItems: "center", gap: 0.5, mb: 0.5 }}
+            >
               <ErrorOutlineIcon sx={{ fontSize: 12, color: "#ef4444" }} />
               <Typography
                 sx={{
@@ -250,14 +252,35 @@ export default function ConfigPanel({
         {renderConfig()}
 
         <Box sx={{ mt: 2, pb: 1 }}>
-          <Typography sx={{ fontSize: 10, fontWeight: 600, color: "text.secondary", mb: 0.75, letterSpacing: "0.05em", textTransform: "uppercase" }}>
+          <Typography
+            sx={{
+              fontSize: 10,
+              fontWeight: 600,
+              color: "text.secondary",
+              mb: 0.75,
+              letterSpacing: "0.05em",
+              textTransform: "uppercase",
+            }}
+          >
             Live Configuration JSON
           </Typography>
-          <Box sx={{
-            p: 1.25, backgroundColor: "background.default", borderRadius: "6px",
-            border: "1px solid", borderColor: "divider", overflowX: "auto",
-          }}>
-            <pre style={{ margin: 0, fontSize: 10, fontFamily: "'JetBrains Mono', monospace" }}>
+          <Box
+            sx={{
+              p: 1.25,
+              backgroundColor: "background.default",
+              borderRadius: "6px",
+              border: "1px solid",
+              borderColor: "divider",
+              overflowX: "auto",
+            }}
+          >
+            <pre
+              style={{
+                margin: 0,
+                fontSize: 10,
+                fontFamily: "'JetBrains Mono', monospace",
+              }}
+            >
               {JSON.stringify(node.config || {}, null, 2)}
             </pre>
           </Box>

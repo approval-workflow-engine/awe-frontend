@@ -1,11 +1,11 @@
-import React from 'react';
-import { useTheme } from '@mui/material/styles';
-import { type CanvasEdge, type CanvasNode, NODE_WIDTH } from '../../type/types';
+import React from "react";
+import { useTheme } from "@mui/material/styles";
+import { type CanvasEdge, type CanvasNode, NODE_WIDTH } from "../../type/types";
 import {
   getOutputPorts,
   portYFraction,
   estimateCardHeight,
-} from '../../utils/nodeHelpers';
+} from "../../utils/nodeHelpers";
 
 interface EdgePathProps {
   edge: CanvasEdge;
@@ -14,7 +14,12 @@ interface EdgePathProps {
   onClick: (e: React.MouseEvent) => void;
 }
 
-const EdgePath = React.memo(function EdgePath({ edge, nodes, isSelected, onClick }: EdgePathProps) {
+const EdgePath = React.memo(function EdgePath({
+  edge,
+  nodes,
+  isSelected,
+  onClick,
+}: EdgePathProps) {
   const theme = useTheme();
   const src = nodes.find((n) => n.id === edge.source);
   const tgt = nodes.find((n) => n.id === edge.target);
@@ -45,21 +50,21 @@ const EdgePath = React.memo(function EdgePath({ edge, nodes, isSelected, onClick
   const portLabel = srcPorts[portIdx]?.label;
 
   return (
-    <g onClick={onClick} style={{ cursor: 'pointer', pointerEvents: 'auto' }}>
+    <g onClick={onClick} style={{ cursor: "pointer", pointerEvents: "auto" }}>
       <path d={d} fill="none" stroke="transparent" strokeWidth={16} />
       <path
         d={d}
         fill="none"
         stroke={
           isSelected
-            ? '#4f6ef7'
+            ? "#4f6ef7"
             : edge.isDefault
               ? theme.palette.text.secondary
               : theme.palette.divider
         }
         strokeWidth={isSelected ? 2 : 1.5}
-        strokeDasharray={edge.isDefault ? '6,4' : undefined}
-        markerEnd={isSelected ? 'url(#arrowhead-selected)' : 'url(#arrowhead)'}
+        strokeDasharray={edge.isDefault ? "6,4" : undefined}
+        markerEnd={isSelected ? "url(#arrowhead-selected)" : "url(#arrowhead)"}
       />
       {(edge.condition || portLabel) && (
         <text
@@ -72,7 +77,7 @@ const EdgePath = React.memo(function EdgePath({ edge, nodes, isSelected, onClick
         >
           {edge.condition
             ? edge.condition.length > 28
-              ? edge.condition.slice(0, 28) + '…'
+              ? edge.condition.slice(0, 28) + "…"
               : edge.condition
             : portLabel}
         </text>

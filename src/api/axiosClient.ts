@@ -24,7 +24,8 @@ function attachAccessToken(
   token: string,
 ) {
   if (config.headers) {
-    (config.headers as Record<string, string>).Authorization = `Bearer ${token}`;
+    (config.headers as Record<string, string>).Authorization =
+      `Bearer ${token}`;
   }
 }
 
@@ -60,7 +61,9 @@ function clearAndRedirect(): void {
   window.location.href = "/login";
 }
 
-function enqueueRefreshRetry(request: AxiosRequestConfig & { _retry?: boolean }) {
+function enqueueRefreshRetry(
+  request: AxiosRequestConfig & { _retry?: boolean },
+) {
   return new Promise<string>((resolve, reject) => {
     refreshQueue.push({ resolve, reject });
   })
@@ -80,7 +83,9 @@ function persistRefreshedTokens(accessToken: string, refreshToken?: string) {
 }
 
 async function refreshAccessToken(refreshToken: string) {
-  const { data } = await axios.post(`${BASE_URL}/auth/refresh`, { refreshToken });
+  const { data } = await axios.post(`${BASE_URL}/auth/refresh`, {
+    refreshToken,
+  });
   return {
     accessToken: (data.data?.accessToken || data.accessToken) as string,
     refreshToken: (data.data?.refreshToken || data.refreshToken) as
@@ -89,7 +94,10 @@ async function refreshAccessToken(refreshToken: string) {
   };
 }
 
-function shouldHandleUnauthorized(error: AxiosError, request: { _retry?: boolean } | undefined) {
+function shouldHandleUnauthorized(
+  error: AxiosError,
+  request: { _retry?: boolean } | undefined,
+) {
   return error.response?.status === 401 && request && !request._retry;
 }
 

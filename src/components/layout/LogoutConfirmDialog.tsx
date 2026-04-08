@@ -1,4 +1,4 @@
-import { Box, Dialog, Typography, Button } from '@mui/material';
+import { Box, Dialog, Typography, Button } from "@mui/material";
 
 interface LogoutConfirmDialogProps {
   open: boolean;
@@ -6,14 +6,18 @@ interface LogoutConfirmDialogProps {
   onConfirm: () => void;
 }
 
-export default function LogoutConfirmDialog({ open, onClose, onConfirm }: LogoutConfirmDialogProps) {
+export default function LogoutConfirmDialog({
+  open,
+  onClose,
+  onConfirm,
+}: LogoutConfirmDialogProps) {
   return (
     <Dialog
       open={open}
       onClose={onClose}
       maxWidth="xs"
       fullWidth
-      PaperProps={{ sx: { borderRadius: '12px', overflow: 'hidden' } }}
+      PaperProps={{ sx: { borderRadius: "12px", overflow: "hidden" } }}
     >
       <Box sx={{ px: 3, pt: 2.5, pb: 2.5 }}>
         <Typography
@@ -29,7 +33,7 @@ export default function LogoutConfirmDialog({ open, onClose, onConfirm }: Logout
         <Typography
           sx={{
             fontSize: 12,
-            color: 'text.secondary',
+            color: "text.secondary",
             mb: 2.5,
             lineHeight: 1.6,
           }}
@@ -40,7 +44,7 @@ export default function LogoutConfirmDialog({ open, onClose, onConfirm }: Logout
           <Button
             size="small"
             onClick={onClose}
-            sx={{ color: 'text.secondary', borderRadius: '8px' }}
+            sx={{ color: "text.secondary", borderRadius: "8px" }}
           >
             Cancel
           </Button>
@@ -48,7 +52,7 @@ export default function LogoutConfirmDialog({ open, onClose, onConfirm }: Logout
             variant="contained"
             size="small"
             onClick={onConfirm}
-            sx={{ borderRadius: '8px', fontWeight: 600 }}
+            sx={{ borderRadius: "8px", fontWeight: 600 }}
           >
             Sign Out
           </Button>

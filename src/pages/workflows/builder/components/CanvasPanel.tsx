@@ -58,7 +58,9 @@ export default function CanvasPanel({
 }: CanvasPanelProps) {
   const theme = useTheme();
   const containerRef = useRef<HTMLDivElement>(null);
-  const [visualNodePositions, setVisualNodePositions] = useState<Record<string, { x: number; y: number }>>({});
+  const [visualNodePositions, setVisualNodePositions] = useState<
+    Record<string, { x: number; y: number }>
+  >({});
 
   const dragRef = useRef<{
     nodeId: string;
@@ -75,9 +77,10 @@ export default function CanvasPanel({
   } | null>(null);
 
   const getEffectiveNodes = useMemo(() => {
-    if (!readOnlyMode || Object.keys(visualNodePositions).length === 0) return nodes;
+    if (!readOnlyMode || Object.keys(visualNodePositions).length === 0)
+      return nodes;
 
-    return nodes.map(node => {
+    return nodes.map((node) => {
       const visualPos = visualNodePositions[node.id];
       return visualPos && (visualPos.x !== node.x || visualPos.y !== node.y)
         ? { ...node, x: visualPos.x, y: visualPos.y }
@@ -85,13 +88,15 @@ export default function CanvasPanel({
     });
   }, [nodes, visualNodePositions, readOnlyMode]);
 
-  const nodeMap = useMemo(() =>
-    new Map(getEffectiveNodes.map(n => [n.id, n])), [getEffectiveNodes]);
+  const nodeMap = useMemo(
+    () => new Map(getEffectiveNodes.map((n) => [n.id, n])),
+    [getEffectiveNodes],
+  );
 
   useEffect(() => {
     if (readOnlyMode) {
-      const nodeIds = new Set(nodes.map(n => n.id));
-      setVisualNodePositions(prev => cleanupStaleEntries(prev, nodeIds));
+      const nodeIds = new Set(nodes.map((n) => n.id));
+      setVisualNodePositions((prev) => cleanupStaleEntries(prev, nodeIds));
     }
   }, [nodes, readOnlyMode]);
 
@@ -140,13 +145,13 @@ export default function CanvasPanel({
           origX,
           origY,
           e.clientX - startX,
-          e.clientY - startY
+          e.clientY - startY,
         );
 
         if (readOnlyMode) {
-          setVisualNodePositions(prev => ({
+          setVisualNodePositions((prev) => ({
             ...prev,
-            [nodeId]: { x: newX, y: newY }
+            [nodeId]: { x: newX, y: newY },
           }));
         } else {
           onUpdateNode(nodeId, { x: newX, y: newY });
@@ -183,8 +188,16 @@ export default function CanvasPanel({
       if (!nodeType || !containerRef.current) return;
 
       const rect = containerRef.current.getBoundingClientRect();
-      const rawX = e.clientX - rect.left + containerRef.current.scrollLeft - NODE_WIDTH / 2;
-      const rawY = e.clientY - rect.top + containerRef.current.scrollTop - NODE_MIN_HEIGHT / 2;
+      const rawX =
+        e.clientX -
+        rect.left +
+        containerRef.current.scrollLeft -
+        NODE_WIDTH / 2;
+      const rawY =
+        e.clientY -
+        rect.top +
+        containerRef.current.scrollTop -
+        NODE_MIN_HEIGHT / 2;
       const { x, y } = calculateNodePosition(0, 0, rawX, rawY);
 
       onAddNode({
@@ -241,7 +254,8 @@ export default function CanvasPanel({
       if (isGateway) {
         if (edges.some((e) => e.source === nodeId && e.sourcePort === portId)) {
           setConnError("This branch already has a connection.");
-          if (connErrorTimerRef.current) clearTimeout(connErrorTimerRef.current);
+          if (connErrorTimerRef.current)
+            clearTimeout(connErrorTimerRef.current);
           connErrorTimerRef.current = setTimeout(() => setConnError(""), 3000);
           return;
         }
@@ -250,7 +264,8 @@ export default function CanvasPanel({
           setConnError(
             "This node already has an outgoing connection. Use a Gateway node to create multiple branches.",
           );
-          if (connErrorTimerRef.current) clearTimeout(connErrorTimerRef.current);
+          if (connErrorTimerRef.current)
+            clearTimeout(connErrorTimerRef.current);
           connErrorTimerRef.current = setTimeout(() => setConnError(""), 3000);
           return;
         }
