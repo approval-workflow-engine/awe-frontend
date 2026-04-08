@@ -26,6 +26,7 @@ import SaveIcon from "@mui/icons-material/Save";
 import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
 import BoltIcon from "@mui/icons-material/Bolt";
 import PowerSettingsNewIcon from "@mui/icons-material/PowerSettingsNew";
+import CallSplitIcon from "@mui/icons-material/CallSplit";
 import DeleteIcon from "@mui/icons-material/Delete";
 import LayersClearIcon from "@mui/icons-material/LayersClear";
 import LightModeIcon from "@mui/icons-material/LightMode";
@@ -33,7 +34,7 @@ import DarkModeIcon from "@mui/icons-material/DarkMode";
 import VisibilityIcon from "@mui/icons-material/Visibility";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 
-import { getWorkflow, getWorkflowVersion } from "../../api/workflowApi";
+import { cloneWorkflowVersion, getWorkflow, getWorkflowVersion } from "../../api/workflowApi";
 import { useApiCall } from "../../hooks/useApiCall";
 import { useThemeMode } from "../../context/useThemeMode";
 import NodePalette from "./builder/components/NodePalette";
@@ -70,6 +71,8 @@ export default function WorkflowBuilder() {
   const [versionStatus, setVersionStatus] = useState<string>("draft");
   const [codeEditorOpenState, setCodeEditorOpen] = useState(false);
   const [clearConfirmOpen, setClearConfirmOpen] = useState(false);
+  const [cloneConfirmOpen, setCloneConfirmOpen] = useState(false);
+  const [cloning, setCloning] = useState(false);
   const [canvasLoading, setCanvasLoading] = useState(() => !!versionId);
   const [configPanelWidth, setConfigPanelWidth] = useState(320);
   const [isResizingConfig, setIsResizingConfig] = useState(false);
@@ -248,6 +251,32 @@ export default function WorkflowBuilder() {
     !isReadOnly &&
     selectedItem &&
     !(selectedItem.type === "node" && nodes.find((n: { id: unknown; }) => n.id === selectedItem.id)?.type === "start");
+
+  const canCloneVersion =
+    !!savedVersionId &&
+    (versionStatus === "published" || versionStatus === "active");
+
+  const handleCloneVersion = useCallback(async () => {
+    if (!workflowId || !savedVersionId) return;
+
+    setCloning(true);
+    const cloned = await call(
+      () => cloneWorkflowVersion(savedVersionId),
+      { successMsg: `v${savedVersionNumber ?? "-"} cloned as a new draft.` },
+    );
+    setCloning(false);
+    setCloneConfirmOpen(false);
+
+    const clonedBody = (cloned ?? {}) as {
+      id?: string;
+      versionId?: string;
+    };
+    const clonedVersionId = clonedBody.id ?? clonedBody.versionId ?? null;
+
+    if (clonedVersionId) {
+      navigate(`/workflows/${workflowId}/builder/${clonedVersionId}`);
+    }
+  }, [workflowId, savedVersionId, call, savedVersionNumber, navigate]);
 
   const selectedScriptNode =
     nodes.find((n: { id: unknown; type: string; }) => n.id === selectedItem?.id && n.type === "script_task") ?? null;
@@ -443,6 +472,20 @@ export default function WorkflowBuilder() {
             <Divider orientation="vertical" flexItem sx={{ my: "auto", height: 24, borderColor: "divider" }} />
             <Button
               size="small"
+              variant="outlined"
+              disabled={cloning}
+              onClick={() => setCloneConfirmOpen(true)}
+              startIcon={cloning ? <CircularProgress size={12} /> : <CallSplitIcon sx={{ fontSize: 14 }} />}
+              sx={{
+                fontSize: 12, height: 30, borderRadius: "8px", fontWeight: 600,
+                borderColor: "#3b82f6", color: "#3b82f6",
+                "&:hover": { backgroundColor: "rgba(59,130,246,0.08)", borderColor: "#3b82f6" },
+              }}
+            >
+              Clone
+            </Button>
+            <Button
+              size="small"
               variant="contained"
               disabled={activating}
               onClick={() => setActivateConfirmOpen(true)}
@@ -461,6 +504,20 @@ export default function WorkflowBuilder() {
         {isReadOnly && versionStatus === "active" && (
           <>
             <Divider orientation="vertical" flexItem sx={{ my: "auto", height: 24, borderColor: "divider" }} />
+            <Button
+              size="small"
+              variant="outlined"
+              disabled={cloning}
+              onClick={() => setCloneConfirmOpen(true)}
+              startIcon={cloning ? <CircularProgress size={12} /> : <CallSplitIcon sx={{ fontSize: 14 }} />}
+              sx={{
+                fontSize: 12, height: 30, borderRadius: "8px", fontWeight: 600,
+                borderColor: "#3b82f6", color: "#3b82f6",
+                "&:hover": { backgroundColor: "rgba(59,130,246,0.08)", borderColor: "#3b82f6" },
+              }}
+            >
+              Clone
+            </Button>
             <Button
               size="small"
               variant="outlined"
@@ -673,6 +730,49 @@ export default function WorkflowBuilder() {
             sx={{ borderRadius: "8px", fontWeight: 600, backgroundColor: "#ef4444", color: "#fff", "&:hover": { backgroundColor: "#dc2626" } }}
           >
             {deactivating ? <CircularProgress size={14} sx={{ color: "#fff" }} /> : "Deactivate"}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog
+        open={cloneConfirmOpen}
+        onClose={() => {
+          if (!cloning) setCloneConfirmOpen(false);
+        }}
+        maxWidth="xs"
+        fullWidth
+      >
+        <DialogTitle sx={{ fontFamily: "'Syne', sans-serif", fontWeight: 700, fontSize: 16 }}>
+          Clone v{savedVersionNumber}?
+        </DialogTitle>
+        <DialogContent sx={{ pt: "8px !important" }}>
+          <Typography sx={{ fontSize: 13, color: "text.secondary" }}>
+            This will create a new draft copy of this version so you can edit it safely without changing the original.
+          </Typography>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button
+            size="small"
+            onClick={() => setCloneConfirmOpen(false)}
+            disabled={cloning}
+            sx={{ color: "text.secondary" }}
+          >
+            Cancel
+          </Button>
+          <Button
+            variant="contained"
+            size="small"
+            disabled={cloning || !canCloneVersion}
+            onClick={handleCloneVersion}
+            sx={{
+              borderRadius: "8px",
+              fontWeight: 600,
+              backgroundColor: "#3b82f6",
+              color: "#fff",
+              "&:hover": { backgroundColor: "#2563eb" },
+            }}
+          >
+            {cloning ? <CircularProgress size={14} sx={{ color: "#fff" }} /> : "Clone"}
           </Button>
         </DialogActions>
       </Dialog>

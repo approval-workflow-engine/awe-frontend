@@ -47,3 +47,6 @@ export const updateVersionStatus = (
 
   return axiosClient.post(`/workflows/versions/${versionId}/publish`);
 };
+
+export const cloneWorkflowVersion = (versionId: string) =>
+  axiosClient.post(`/workflows/versions/${versionId}/clone`);
