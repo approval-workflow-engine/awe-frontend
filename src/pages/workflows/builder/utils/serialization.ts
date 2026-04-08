@@ -1,9 +1,27 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import type { WorkflowDefinition, WorkflowNode, WorkflowEdge } from "../../../../types";
 import type { CanvasNode, CanvasEdge, WorkflowInput } from "../type/types";
 import { generateId } from "./nodeHelpers";
 
 const VALID_HTTP_METHODS = ["GET", "POST", "PUT", "PATCH", "DELETE"] as const;
+
+type UnknownRecord = Record<string, unknown>;
+type CanvasEdgeWithRuleIndex = CanvasEdge & { _ruleIndex?: number };
+
+function asArray(value: unknown): UnknownRecord[] {
+    return Array.isArray(value) ? (value as UnknownRecord[]) : [];
+}
+
+function asRecord(value: unknown): UnknownRecord {
+    return value && typeof value === "object" ? (value as UnknownRecord) : {};
+}
+
+function asString(value: unknown, fallback = ""): string {
+    return typeof value === "string" ? value : fallback;
+}
+
+function asNumber(value: unknown, fallback: number): number {
+    return typeof value === "number" ? value : fallback;
+}
 
 function toFeelStringLiteral(value: string): string {
     const escaped = value.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
@@ -69,7 +87,7 @@ function feelUrlToTemplate(feel: string): string {
     return result;
 }
 
-function serializeConfiguration(apiType: string, config: Record<string, any>): Record<string, any> {
+function serializeConfiguration(apiType: string, config: UnknownRecord): UnknownRecord {
     switch (apiType) {
         case "start":
             return {
@@ -107,11 +125,12 @@ function serializeConfiguration(apiType: string, config: Record<string, any>): R
             };
 
         case "script": {
-            const backoff: any | undefined = config.backoff && typeof config.backoff === "object"
+            const rawBackoff = asRecord(config.backoff);
+            const backoff: UnknownRecord | undefined = Object.keys(rawBackoff).length > 0
                 ? {
-                    type: config.backoff.type === "exponential" ? "exponential" : "fixed",
-                    delayMs: typeof config.backoff.delayMs === "number"
-                        ? config.backoff.delayMs
+                    type: rawBackoff.type === "exponential" ? "exponential" : "fixed",
+                    delayMs: typeof rawBackoff.delayMs === "number"
+                        ? rawBackoff.delayMs
                         : (typeof config.retryDelayMs === "number" ? config.retryDelayMs : 1000),
                 }
                 : (typeof config.retryDelayMs === "number"
@@ -141,8 +160,11 @@ function serializeConfiguration(apiType: string, config: Record<string, any>): R
         }
 
         case "service": {
-            const svc: Record<string, any> = {
-                method: VALID_HTTP_METHODS.includes(config.method) ? config.method : "GET",
+            const rawBackoff = asRecord(config.backoff);
+            const svc: UnknownRecord = {
+                method: VALID_HTTP_METHODS.includes(asString(config.method) as typeof VALID_HTTP_METHODS[number])
+                    ? asString(config.method)
+                    : "GET",
                 urlExpression: templateUrlToFeel(typeof config.urlExpression === "string" ? config.urlExpression : ""),
                 responseMap: Array.isArray(config.responseMap)
                     ? config.responseMap.map((r: any) => ({
@@ -154,12 +176,12 @@ function serializeConfiguration(apiType: string, config: Record<string, any>): R
             };
             if (typeof config.maxAttempts === "number") svc.maxAttempts = config.maxAttempts;
             if (typeof config.timeoutMs === "number") svc.timeoutMs = config.timeoutMs;
-            if (config.backoff && typeof config.backoff === "object") {
-                const delay = typeof config.backoff.delayMs === "number"
-                    ? config.backoff.delayMs
+            if (Object.keys(rawBackoff).length > 0) {
+                const delay = typeof rawBackoff.delayMs === "number"
+                    ? rawBackoff.delayMs
                     : (typeof config.retryDelayMs === "number" ? config.retryDelayMs : 1000);
                 svc.backoff = {
-                    type: config.backoff.type === "exponential" ? "exponential" : "fixed",
+                    type: rawBackoff.type === "exponential" ? "exponential" : "fixed",
                     delayMs: delay,
                 };
             } else if (typeof config.retryDelayMs === "number") {
@@ -303,28 +325,29 @@ export function definitionToCanvas(
     def: unknown
 ): { nodes: CanvasNode[]; edges: CanvasEdge[]; inputs: WorkflowInput[] } {
     console.log("Deserializing definition:", def)
-    const defAny = def as any;
-    const rawNodes: any[] = defAny.nodes || defAny.definition?.nodes || [];
-    const rawEdges: any[] = defAny.edges || defAny.definition?.edges || [];
+    const root = asRecord(def);
+    const nestedDefinition = asRecord(root.definition);
+    const rawNodes = asArray(root.nodes).length > 0 ? asArray(root.nodes) : asArray(nestedDefinition.nodes);
+    const rawEdges = asArray(root.edges).length > 0 ? asArray(root.edges) : asArray(nestedDefinition.edges);
 
-    const cNodes: CanvasNode[] = rawNodes.map((n: any) => ({
-        id: n.nodeId || n.id || n.client_id || generateId("node"),
-        type: n.type,
-        label: n.name || n.label || "",
-        description: n.description || undefined,
+    const cNodes: CanvasNode[] = rawNodes.map((n) => ({
+        id: asString(n.nodeId) || asString(n.id) || asString(n.client_id) || generateId("node"),
+        type: asString(n.type),
+        label: asString(n.name) || asString(n.label),
+        description: asString(n.description) || undefined,
         config: JSON.parse(JSON.stringify(n.config || n.configuration || {})),
-        x: n.position?.x ?? n.x_coordinate ?? 100,
-        y: n.position?.y ?? n.y_coordinate ?? 100,
+        x: asNumber(asRecord(n.position).x, asNumber(n.x_coordinate, 100)),
+        y: asNumber(asRecord(n.position).y, asNumber(n.y_coordinate, 100)),
     }));
 
-    const cEdges: CanvasEdge[] = rawEdges.map((e: any) => ({
-        id: e.edgeId || e.id || e.client_id || generateId("edge"),
-        source: e.sourceNodeId || e.source_node_id || e.source || "",
-        target: e.targetNodeId || e.destination_node_id || e.target || "",
-        sourcePort: e.ruleId === "default" ? "default" : (e.ruleId || e.sourcePort || "out"),
-        condition: e.conditionExpression || e.condition_expression || e.condition || "",
-        isDefault: e.isDefault || e.ruleId === "default" || false,
-        _ruleIndex: typeof e.ruleIndex === "number" ? e.ruleIndex : undefined,
+    const cEdges: CanvasEdgeWithRuleIndex[] = rawEdges.map((e) => ({
+        id: asString(e.edgeId) || asString(e.id) || asString(e.client_id) || generateId("edge"),
+        source: asString(e.sourceNodeId) || asString(e.source_node_id) || asString(e.source),
+        target: asString(e.targetNodeId) || asString(e.destination_node_id) || asString(e.target),
+        sourcePort: e.ruleId === "default" ? "default" : (asString(e.ruleId) || asString(e.sourcePort) || "out"),
+        condition: asString(e.conditionExpression) || asString(e.condition_expression) || asString(e.condition),
+        isDefault: Boolean(e.isDefault || e.ruleId === "default"),
+        _ruleIndex: typeof e.ruleIndex === "number" ? (e.ruleIndex as number) : undefined,
     }));
 
     cNodes.forEach((node) => {
@@ -411,7 +434,7 @@ export function definitionToCanvas(
 
         const assignedRuleIds = new Set<string>();
         for (const edge of gatewayEdges) {
-            const rule = rules.find(r => r.id === (edge as any).sourcePort);
+            const rule = rules.find(r => r.id === edge.sourcePort);
             if (rule) {
                 assignedRuleIds.add(rule.id);
                 if (!edge.condition && rule.conditionExpression) {
@@ -421,12 +444,12 @@ export function definitionToCanvas(
         }
 
         for (const edge of gatewayEdges) {
-            if (assignedRuleIds.has((edge as any).sourcePort)) continue;
-            const ruleIndex: number | undefined = (edge as any)._ruleIndex;
+            if (assignedRuleIds.has(edge.sourcePort)) continue;
+            const ruleIndex = edge._ruleIndex;
             if (typeof ruleIndex === "number" && ruleIndex >= 0 && ruleIndex < rules.length) {
                 const rule = rules[ruleIndex];
                 if (!assignedRuleIds.has(rule.id)) {
-                    (edge as any).sourcePort = rule.id;
+                    edge.sourcePort = rule.id;
                     assignedRuleIds.add(rule.id);
                     if (!edge.condition && rule.conditionExpression) {
                         edge.condition = rule.conditionExpression;
@@ -436,13 +459,13 @@ export function definitionToCanvas(
         }
 
         for (const edge of gatewayEdges) {
-            if (assignedRuleIds.has((edge as any).sourcePort)) continue;
+            if (assignedRuleIds.has(edge.sourcePort)) continue;
             if (!edge.condition) continue;
             const matched = rules.find(r =>
                 r.conditionExpression && r.conditionExpression === edge.condition && !assignedRuleIds.has(r.id)
             );
             if (matched) {
-                (edge as any).sourcePort = matched.id;
+                edge.sourcePort = matched.id;
                 assignedRuleIds.add(matched.id);
             }
         }
@@ -450,9 +473,9 @@ export function definitionToCanvas(
         const remainingRules = rules.filter(r => !assignedRuleIds.has(r.id));
         let rIdx = 0;
         for (const edge of gatewayEdges) {
-            if (assignedRuleIds.has((edge as any).sourcePort)) continue;
+            if (assignedRuleIds.has(edge.sourcePort)) continue;
             if (rIdx < remainingRules.length) {
-                (edge as any).sourcePort = remainingRules[rIdx].id;
+                edge.sourcePort = remainingRules[rIdx].id;
                 if (!edge.condition && remainingRules[rIdx].conditionExpression) {
                     edge.condition = remainingRules[rIdx].conditionExpression ?? '';
                 }
@@ -461,7 +484,7 @@ export function definitionToCanvas(
         }
 
         for (const edge of gatewayEdges) {
-            delete (edge as any)._ruleIndex;
+            delete edge._ruleIndex;
         }
     });
 
@@ -477,5 +500,5 @@ export function definitionToCanvas(
             }));
     }
 
-    return { nodes: cNodes, edges: cEdges, inputs };
+    return { nodes: cNodes, edges: cEdges as CanvasEdge[], inputs };
 }

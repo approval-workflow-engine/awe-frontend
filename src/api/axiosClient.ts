@@ -1,5 +1,6 @@
 import axios from "axios";
 import type {
+  AxiosError,
   AxiosInstance,
   AxiosRequestConfig,
   InternalAxiosRequestConfig,
@@ -18,10 +19,27 @@ const axiosClient: AxiosInstance = axios.create({
   headers: { "Content-Type": "application/json" },
 });
 
+function attachAccessToken(
+  config: InternalAxiosRequestConfig | AxiosRequestConfig,
+  token: string,
+) {
+  if (config.headers) {
+    (config.headers as Record<string, string>).Authorization = `Bearer ${token}`;
+  }
+}
+
+function getStoredToken(key: string) {
+  return localStorage.getItem(key);
+}
+
+function setStoredToken(key: string, value: string) {
+  localStorage.setItem(key, value);
+}
+
 axiosClient.interceptors.request.use((config: InternalAxiosRequestConfig) => {
   const token = localStorage.getItem(TOKEN_KEYS.ACCESS);
   if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
+    attachAccessToken(config, token);
   }
   return config;
 });
@@ -42,6 +60,39 @@ function clearAndRedirect(): void {
   window.location.href = "/login";
 }
 
+function enqueueRefreshRetry(request: AxiosRequestConfig & { _retry?: boolean }) {
+  return new Promise<string>((resolve, reject) => {
+    refreshQueue.push({ resolve, reject });
+  })
+    .then((token) => {
+      attachAccessToken(request, token);
+      return axiosClient(request);
+    })
+    .catch((err) => Promise.reject(err));
+}
+
+function persistRefreshedTokens(accessToken: string, refreshToken?: string) {
+  setStoredToken(TOKEN_KEYS.ACCESS, accessToken);
+  if (refreshToken) {
+    setStoredToken(TOKEN_KEYS.REFRESH, refreshToken);
+  }
+  axiosClient.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
+}
+
+async function refreshAccessToken(refreshToken: string) {
+  const { data } = await axios.post(`${BASE_URL}/auth/refresh`, { refreshToken });
+  return {
+    accessToken: (data.data?.accessToken || data.accessToken) as string,
+    refreshToken: (data.data?.refreshToken || data.refreshToken) as
+      | string
+      | undefined,
+  };
+}
+
+function shouldHandleUnauthorized(error: AxiosError, request: { _retry?: boolean } | undefined) {
+  return error.response?.status === 401 && request && !request._retry;
+}
+
 axiosClient.interceptors.response.use(
   (response) => response,
   async (error) => {
@@ -49,26 +100,15 @@ axiosClient.interceptors.response.use(
       _retry?: boolean;
     };
 
-    if (error.response?.status === 401 && !originalRequest._retry) {
+    if (shouldHandleUnauthorized(error as AxiosError, originalRequest)) {
       if (isRefreshing) {
-        return new Promise<string>((resolve, reject) => {
-          refreshQueue.push({ resolve, reject });
-        })
-          .then((token) => {
-            if (originalRequest.headers) {
-              (
-                originalRequest.headers as Record<string, string>
-              ).Authorization = `Bearer ${token}`;
-            }
-            return axiosClient(originalRequest);
-          })
-          .catch((err) => Promise.reject(err));
+        return enqueueRefreshRetry(originalRequest);
       }
 
       originalRequest._retry = true;
       isRefreshing = true;
 
-      const refreshToken = localStorage.getItem(TOKEN_KEYS.REFRESH);
+      const refreshToken = getStoredToken(TOKEN_KEYS.REFRESH);
 
       if (!refreshToken || refreshToken === "undefined") {
         clearAndRedirect();
@@ -76,23 +116,10 @@ axiosClient.interceptors.response.use(
       }
 
       try {
-        const { data } = await axios.post(`${BASE_URL}/auth/refresh`, {
-          refreshToken,
-        });
-        const newToken: string = data.data?.accessToken || data.accessToken;
-        const newRefreshToken: string =
-          data.data?.refreshToken || data.refreshToken;
-        localStorage.setItem(TOKEN_KEYS.ACCESS, newToken);
-        if (newRefreshToken) {
-          localStorage.setItem(TOKEN_KEYS.REFRESH, newRefreshToken);
-        }
-        axiosClient.defaults.headers.common.Authorization = `Bearer ${newToken}`;
-        if (originalRequest.headers) {
-          (
-            originalRequest.headers as Record<string, string>
-          ).Authorization = `Bearer ${newToken}`;
-        }
-        processQueue(null, newToken);
+        const refreshed = await refreshAccessToken(refreshToken);
+        persistRefreshedTokens(refreshed.accessToken, refreshed.refreshToken);
+        attachAccessToken(originalRequest, refreshed.accessToken);
+        processQueue(null, refreshed.accessToken);
         return axiosClient(originalRequest);
       } catch (refreshError) {
         processQueue(refreshError, null);

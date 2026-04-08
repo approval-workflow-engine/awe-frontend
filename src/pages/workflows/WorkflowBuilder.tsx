@@ -12,10 +12,6 @@ import {
   ListItem,
   Tooltip,
   Divider,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
 } from "@mui/material";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import UndoIcon from "@mui/icons-material/Undo";
@@ -42,6 +38,7 @@ import CanvasPanel from "./builder/components/CanvasPanel";
 import ConfigPanel from "./builder/components/ConfigPanel";
 import ContextVarsPanel from "./builder/components/ContextVarsPanel";
 import ScriptTaskEditorPanel from "./builder/components/ScriptTaskEditorPanel";
+import BuilderDialogs from "./builder/components/BuilderDialogs";
 import { useBuilderCanvas } from "./builder/hooks/useBuilderCanvas";
 import { useBuilderActions } from "./builder/hooks/useBuilderActions";
 import { definitionToCanvas } from "./builder/utils/serialization";
@@ -653,151 +650,32 @@ export default function WorkflowBuilder() {
         )}
       </Box>
 
-      <Dialog open={clearConfirmOpen} onClose={() => setClearConfirmOpen(false)} maxWidth="xs" fullWidth>
-        <DialogTitle sx={{ fontFamily: "'Syne', sans-serif", fontWeight: 700, fontSize: 16 }}>
-          Clear Canvas?
-        </DialogTitle>
-        <DialogContent sx={{ pt: "8px !important" }}>
-          <Typography sx={{ fontSize: 13, color: "text.secondary" }}>
-            This will remove all nodes and edges, leaving only the Start node. This cannot be undone.
-          </Typography>
-        </DialogContent>
-        <DialogActions sx={{ px: 3, pb: 2 }}>
-          <Button size="small" onClick={() => setClearConfirmOpen(false)} sx={{ color: "text.secondary" }}>Cancel</Button>
-          <Button
-            variant="contained" size="small"
-            onClick={() => handleClearCanvas(() => setClearConfirmOpen(false))}
-            sx={{ borderRadius: "8px", fontWeight: 600, backgroundColor: "#ef4444", color: "#fff", "&:hover": { backgroundColor: "#dc2626" } }}
-          >
-            Clear
-          </Button>
-        </DialogActions>
-      </Dialog>
-
-      <Dialog open={commitConfirmOpen} onClose={() => setCommitConfirmOpen(false)} maxWidth="xs" fullWidth>
-        <DialogTitle sx={{ fontFamily: "'Syne', sans-serif", fontWeight: 700, fontSize: 16 }}>
-          Commit v{savedVersionNumber}?
-        </DialogTitle>
-        <DialogContent sx={{ pt: "8px !important" }}>
-          <Typography sx={{ fontSize: 13, color: "text.secondary" }}>
-            Locking <strong>v{savedVersionNumber}</strong> marks it as ready for activation. The version can no longer be edited after committing.
-          </Typography>
-        </DialogContent>
-        <DialogActions sx={{ px: 3, pb: 2 }}>
-          <Button size="small" onClick={() => setCommitConfirmOpen(false)} sx={{ color: "text.secondary" }}>Cancel</Button>
-          <Button
-            variant="contained" size="small" disabled={committing} onClick={handleCommit}
-            sx={{ borderRadius: "8px", fontWeight: 600, backgroundColor: "#f59e0b", color: "#fff", "&:hover": { backgroundColor: "#d97706" } }}
-          >
-            {committing ? <CircularProgress size={14} sx={{ color: "#fff" }} /> : "Commit"}
-          </Button>
-        </DialogActions>
-      </Dialog>
-
-      <Dialog open={activateConfirmOpen} onClose={() => setActivateConfirmOpen(false)} maxWidth="xs" fullWidth>
-        <DialogTitle sx={{ fontFamily: "'Syne', sans-serif", fontWeight: 700, fontSize: 16 }}>
-          Activate v{savedVersionNumber}?
-        </DialogTitle>
-        <DialogContent sx={{ pt: "8px !important" }}>
-          <Typography sx={{ fontSize: 13, color: "text.secondary" }}>
-            This will make <strong>v{savedVersionNumber}</strong> the live version for this workflow. The currently active version (if any) will be archived.
-          </Typography>
-        </DialogContent>
-        <DialogActions sx={{ px: 3, pb: 2 }}>
-          <Button size="small" onClick={() => setActivateConfirmOpen(false)} sx={{ color: "text.secondary" }}>Cancel</Button>
-          <Button
-            variant="contained" size="small" disabled={activating} onClick={handleActivate}
-            sx={{ borderRadius: "8px", fontWeight: 600, backgroundColor: "#22c55e", color: "#fff", "&:hover": { backgroundColor: "#16a34a" } }}
-          >
-            {activating ? <CircularProgress size={14} sx={{ color: "#fff" }} /> : "Activate"}
-          </Button>
-        </DialogActions>
-      </Dialog>
-
-      <Dialog open={deactivateConfirmOpen} onClose={() => setDeactivateConfirmOpen(false)} maxWidth="xs" fullWidth>
-        <DialogTitle sx={{ fontFamily: "'Syne', sans-serif", fontWeight: 700, fontSize: 16 }}>
-          Deactivate v{savedVersionNumber}?
-        </DialogTitle>
-        <DialogContent sx={{ pt: "8px !important" }}>
-          <Typography sx={{ fontSize: 13, color: "text.secondary" }}>
-            This will move <strong>v{savedVersionNumber}</strong> back to Committed status. It will no longer be the live version and no new instances can be started until another version is activated.
-          </Typography>
-        </DialogContent>
-        <DialogActions sx={{ px: 3, pb: 2 }}>
-          <Button size="small" onClick={() => setDeactivateConfirmOpen(false)} sx={{ color: "text.secondary" }}>Cancel</Button>
-          <Button
-            variant="contained" size="small" disabled={deactivating} onClick={handleDeactivate}
-            sx={{ borderRadius: "8px", fontWeight: 600, backgroundColor: "#ef4444", color: "#fff", "&:hover": { backgroundColor: "#dc2626" } }}
-          >
-            {deactivating ? <CircularProgress size={14} sx={{ color: "#fff" }} /> : "Deactivate"}
-          </Button>
-        </DialogActions>
-      </Dialog>
-
-      <Dialog
-        open={cloneConfirmOpen}
-        onClose={() => {
-          if (!cloning) setCloneConfirmOpen(false);
-        }}
-        maxWidth="xs"
-        fullWidth
-      >
-        <DialogTitle sx={{ fontFamily: "'Syne', sans-serif", fontWeight: 700, fontSize: 16 }}>
-          Clone v{savedVersionNumber}?
-        </DialogTitle>
-        <DialogContent sx={{ pt: "8px !important" }}>
-          <Typography sx={{ fontSize: 13, color: "text.secondary" }}>
-            This will create a new draft copy of this version so you can edit it safely without changing the original.
-          </Typography>
-        </DialogContent>
-        <DialogActions sx={{ px: 3, pb: 2 }}>
-          <Button
-            size="small"
-            onClick={() => setCloneConfirmOpen(false)}
-            disabled={cloning}
-            sx={{ color: "text.secondary" }}
-          >
-            Cancel
-          </Button>
-          <Button
-            variant="contained"
-            size="small"
-            disabled={cloning || !canCloneVersion}
-            onClick={handleCloneVersion}
-            sx={{
-              borderRadius: "8px",
-              fontWeight: 600,
-              backgroundColor: "#3b82f6",
-              color: "#fff",
-              "&:hover": { backgroundColor: "#2563eb" },
-            }}
-          >
-            {cloning ? <CircularProgress size={14} sx={{ color: "#fff" }} /> : "Clone"}
-          </Button>
-        </DialogActions>
-      </Dialog>
-
-      <Dialog open={blocker.state === "blocked"} onClose={() => blocker.reset?.()} maxWidth="xs" fullWidth>
-        <DialogTitle sx={{ fontFamily: "'Syne', sans-serif", fontWeight: 700, fontSize: 16 }}>
-          Unsaved Changes
-        </DialogTitle>
-        <DialogContent sx={{ pt: "8px !important" }}>
-          <Typography sx={{ fontSize: 13, color: "text.secondary" }}>
-            You have unsaved changes. Save your draft before leaving, or your work will be lost.
-          </Typography>
-        </DialogContent>
-        <DialogActions sx={{ px: 3, pb: 2 }}>
-          <Button size="small" onClick={() => blocker.reset?.()} sx={{ color: "text.secondary" }}>Stay</Button>
-          <Button size="small" onClick={() => blocker.proceed?.()} sx={{ color: "#ef4444" }}>Leave without saving</Button>
-          <Button
-            variant="contained" size="small" disabled={saving}
-            onClick={async () => { const saved = await handleSaveDraft(); if (saved) blocker.proceed?.(); }}
-            sx={{ borderRadius: "8px", fontWeight: 600 }}
-          >
-            {saving ? <CircularProgress size={14} /> : "Save & Leave"}
-          </Button>
-        </DialogActions>
-      </Dialog>
+      <BuilderDialogs
+        clearConfirmOpen={clearConfirmOpen}
+        onCloseClearConfirm={() => setClearConfirmOpen(false)}
+        onConfirmClear={() => handleClearCanvas(() => setClearConfirmOpen(false))}
+        commitConfirmOpen={commitConfirmOpen}
+        onCloseCommitConfirm={() => setCommitConfirmOpen(false)}
+        onConfirmCommit={handleCommit}
+        committing={committing}
+        activateConfirmOpen={activateConfirmOpen}
+        onCloseActivateConfirm={() => setActivateConfirmOpen(false)}
+        onConfirmActivate={handleActivate}
+        activating={activating}
+        deactivateConfirmOpen={deactivateConfirmOpen}
+        onCloseDeactivateConfirm={() => setDeactivateConfirmOpen(false)}
+        onConfirmDeactivate={handleDeactivate}
+        deactivating={deactivating}
+        cloneConfirmOpen={cloneConfirmOpen}
+        onCloseCloneConfirm={() => setCloneConfirmOpen(false)}
+        onConfirmClone={handleCloneVersion}
+        cloning={cloning}
+        canCloneVersion={canCloneVersion}
+        blocker={blocker}
+        onSaveAndLeave={handleSaveDraft}
+        saving={saving}
+        savedVersionNumber={savedVersionNumber}
+      />
     </Box>
   );
 }
