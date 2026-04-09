@@ -4,17 +4,22 @@ import {
   LoginResponseSchema,
   RegisterRequestSchema,
   RegisterResponseSchema,
+  SystemSchema,
   ApiKeysResponseSchema,
   CreateApiKeyRequestSchema,
   CreateApiKeyResponseSchema,
   RevokeApiKeyResponseSchema
 } from './schemas/auth';
+import { z } from 'zod';
 
 export const registerSystem = (data: { name: string; orgName: string; contactEmail: string; password: string; description?: string }) =>
   apiClient.post('/systems/register', data, RegisterResponseSchema, RegisterRequestSchema);
 
 export const loginSystem = (data: { email: string; password: string }) =>
   apiClient.post('/auth/login', data, LoginResponseSchema, LoginRequestSchema);
+
+export const getCurrentSystem = () =>
+  apiClient.get('/systems/me', z.object({ system: SystemSchema }));
 
 export const getApiKeys = () =>
   apiClient.get('/systems/api-keys', ApiKeysResponseSchema);

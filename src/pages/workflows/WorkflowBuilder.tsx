@@ -22,7 +22,7 @@ import SaveIcon from "@mui/icons-material/Save";
 import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
 import BoltIcon from "@mui/icons-material/Bolt";
 import PowerSettingsNewIcon from "@mui/icons-material/PowerSettingsNew";
-import CallSplitIcon from "@mui/icons-material/CallSplit";
+import ControlPointDuplicateIcon from "@mui/icons-material/ControlPointDuplicate";
 import DeleteIcon from "@mui/icons-material/Delete";
 import LayersClearIcon from "@mui/icons-material/LayersClear";
 import LightModeIcon from "@mui/icons-material/LightMode";
@@ -730,7 +730,7 @@ export default function WorkflowBuilder() {
                 cloning ? (
                   <CircularProgress size={12} />
                 ) : (
-                  <CallSplitIcon sx={{ fontSize: 14 }} />
+                  <ControlPointDuplicateIcon sx={{ fontSize: 14 }} />
                 )
               }
               sx={{
@@ -795,7 +795,7 @@ export default function WorkflowBuilder() {
                 cloning ? (
                   <CircularProgress size={12} />
                 ) : (
-                  <CallSplitIcon sx={{ fontSize: 14 }} />
+                  <ControlPointDuplicateIcon sx={{ fontSize: 14 }} />
                 )
               }
               sx={{

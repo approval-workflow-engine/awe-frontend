@@ -12,6 +12,10 @@ import {
   Divider,
   Avatar,
   Tooltip,
+  FormControl,
+  Select,
+  MenuItem,
+  Chip,
 } from "@mui/material";
 import DashboardIcon from "@mui/icons-material/Dashboard";
 import AccountTreeIcon from "@mui/icons-material/AccountTree";
@@ -26,6 +30,11 @@ import LightModeIcon from "@mui/icons-material/LightMode";
 import DarkModeIcon from "@mui/icons-material/DarkMode";
 import Logo from "../common/Logo";
 import type { ThemeMode } from "../../types";
+import {
+  ENVIRONMENT_OPTIONS,
+  getEnvironmentBadgeLabel,
+  type EnvironmentType,
+} from "../../constants/environment";
 
 const EXPANDED_WIDTH = 220;
 const COLLAPSED_WIDTH = 64;
@@ -49,10 +58,12 @@ interface AppSidebarProps {
   collapsed: boolean;
   mode: ThemeMode;
   activePath: string;
+  activeEnvironmentType: EnvironmentType;
   userName?: string;
   userOrgName?: string;
   userContactEmail?: string;
   onNavigate: (path: string) => void;
+  onEnvironmentChange: (environmentType: EnvironmentType) => void;
   onToggleCollapse: (collapsed: boolean) => void;
   onToggleTheme: () => void;
   onOpenLogout: () => void;
@@ -62,10 +73,12 @@ export default function AppSidebar({
   collapsed,
   mode,
   activePath,
+  activeEnvironmentType,
   userName,
   userOrgName,
   userContactEmail,
   onNavigate,
+  onEnvironmentChange,
   onToggleCollapse,
   onToggleTheme,
   onOpenLogout,
@@ -157,6 +170,57 @@ export default function AppSidebar({
       )}
 
       <Divider />
+
+      <Box sx={{ px: collapsed ? 1 : 1.5, py: 1 }}>
+        {collapsed ? (
+          <Tooltip title={`Environment: ${activeEnvironmentType}`} placement="right">
+            <Chip
+              size="small"
+              label={getEnvironmentBadgeLabel(activeEnvironmentType)}
+              sx={{
+                width: "100%",
+                fontSize: 10,
+                height: 22,
+                fontWeight: 700,
+                backgroundColor: "rgba(79,110,247,0.12)",
+                color: "primary.main",
+              }}
+            />
+          </Tooltip>
+        ) : (
+          <Box display="flex" alignItems="center" gap={1}>
+            <FormControl size="small" fullWidth>
+              <Select
+                value={activeEnvironmentType}
+                onChange={(e) => onEnvironmentChange(e.target.value as EnvironmentType)}
+                sx={{
+                  height: 30,
+                  fontSize: 12,
+                  borderRadius: "8px",
+                  "& .MuiSelect-select": { py: 0.5 },
+                }}
+              >
+                {ENVIRONMENT_OPTIONS.map((env) => (
+                  <MenuItem key={env} value={env} sx={{ fontSize: 12, textTransform: "capitalize" }}>
+                    {env}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+            <Chip
+              size="small"
+              label={getEnvironmentBadgeLabel(activeEnvironmentType)}
+              sx={{
+                fontSize: 10,
+                height: 22,
+                fontWeight: 700,
+                backgroundColor: "rgba(79,110,247,0.12)",
+                color: "primary.main",
+              }}
+            />
+          </Box>
+        )}
+      </Box>
 
       <Box sx={{ flex: 1, overflowY: "auto", py: 1 }}>
         <List disablePadding>

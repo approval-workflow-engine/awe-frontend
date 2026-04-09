@@ -62,7 +62,7 @@ export interface Workflow {
   id: string;
   name: string;
   description?: string;
-  latestVersion?: number | null;
+  latestVersionId?: string | null;
   status?: string | null;
   versions?: WorkflowVersion[];
   createdAt: string;

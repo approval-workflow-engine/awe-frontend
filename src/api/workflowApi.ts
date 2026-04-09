@@ -1,5 +1,6 @@
 import axiosClient from "./axiosClient";
 import type { PaginationParams } from "../types";
+import type { EnvironmentType } from "../constants/environment";
 
 export const getWorkflows = (params?: PaginationParams) =>
   axiosClient.get("/workflows", { params });
@@ -50,3 +51,13 @@ export const updateVersionStatus = (
 
 export const cloneWorkflowVersion = (versionId: string) =>
   axiosClient.post(`/workflows/versions/${versionId}/clone`);
+
+export const promoteWorkflowVersion = (
+  versionId: string,
+  targetEnvironmentType: EnvironmentType,
+) =>
+  axiosClient.post(
+    `/workflow-versions/${versionId}/promote`,
+    {},
+    { params: { environmentType: targetEnvironmentType } },
+  );
