@@ -208,7 +208,6 @@ class ApiClient {
     config?: AxiosRequestConfig
   ): Promise<TResponse> {
 
-    console.log(endpoint)
     try {
       const validatedData = requestSchema ? requestSchema.parse(data) : data;
       const response = await this.client.post(endpoint, validatedData, config);
