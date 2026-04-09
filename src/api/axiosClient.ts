@@ -6,16 +6,19 @@ import type {
   InternalAxiosRequestConfig,
 } from "axios";
 import { TOKEN_KEYS } from "../constants/tokens";
+import {
+  DEFAULT_ENVIRONMENT,
+  ENVIRONMENT_STORAGE_KEY,
+} from "../constants/environment";
+import { API_BASE_URL } from "./baseUrl";
 
 interface QueueItem {
   resolve: (token: string) => void;
   reject: (error: unknown) => void;
 }
 
-const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:3000/api/v1";
-
 const axiosClient: AxiosInstance = axios.create({
-  baseURL: BASE_URL,
+  baseURL: API_BASE_URL,
   headers: { "Content-Type": "application/json" },
 });
 
@@ -42,6 +45,27 @@ axiosClient.interceptors.request.use((config: InternalAxiosRequestConfig) => {
   if (token) {
     attachAccessToken(config, token);
   }
+
+  const activeEnvironmentType =
+    localStorage.getItem(ENVIRONMENT_STORAGE_KEY) ?? DEFAULT_ENVIRONMENT;
+
+  if (!config.params) {
+    config.params = { environmentType: activeEnvironmentType };
+  } else if (
+    !(config.params instanceof URLSearchParams) &&
+    typeof config.params === "object" &&
+    !("environmentType" in config.params)
+  ) {
+    config.params = {
+      ...(config.params as Record<string, unknown>),
+      environmentType: activeEnvironmentType,
+    };
+  } else if (config.params instanceof URLSearchParams) {
+    if (!config.params.has("environmentType")) {
+      config.params.set("environmentType", activeEnvironmentType);
+    }
+  }
+
   return config;
 });
 
@@ -83,7 +107,7 @@ function persistRefreshedTokens(accessToken: string, refreshToken?: string) {
 }
 
 async function refreshAccessToken(refreshToken: string) {
-  const { data } = await axios.post(`${BASE_URL}/auth/refresh`, {
+  const { data } = await axios.post(`${API_BASE_URL}/auth/refresh`, {
     refreshToken,
   });
   return {

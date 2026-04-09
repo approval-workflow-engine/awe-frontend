@@ -2,6 +2,7 @@ import axios, { type AxiosInstance, type AxiosResponse, type AxiosRequestConfig,
 import { z } from 'zod';
 import { TOKEN_KEYS } from '../constants/tokens';
 import { ApiErrorSchema } from './schemas';
+import { API_BASE_URL } from './baseUrl';
 
 interface QueueItem {
   resolve: (token: string) => void;
@@ -40,10 +41,8 @@ class ApiClient {
   private refreshQueue: QueueItem[] = [];
 
   constructor() {
-    const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api/v1';
-
     this.client = axios.create({
-      baseURL,
+      baseURL: API_BASE_URL,
       headers: { 'Content-Type': 'application/json' },
     });
 
@@ -208,6 +207,8 @@ class ApiClient {
     requestSchema?: z.ZodSchema<TRequest>,
     config?: AxiosRequestConfig
   ): Promise<TResponse> {
+
+    console.log(endpoint)
     try {
       const validatedData = requestSchema ? requestSchema.parse(data) : data;
       const response = await this.client.post(endpoint, validatedData, config);

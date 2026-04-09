@@ -412,10 +412,10 @@ export default function WorkflowsPage() {
                           </IconButton>
                         </Tooltip>
 
-                        <Tooltip title="Open Version History">
+                        <Tooltip title="Open Latest Version">
                           <IconButton
                             size="small"
-                            onClick={() => navigate(`/workflows/${wf.id}/versions`)}
+                            onClick={() => navigate(`/workflows/${wf.id}/builder/${wf.latestVersionId}`)}
                             sx={{
                               color: "text.disabled",
                               "&:hover": { color: "primary.main" },

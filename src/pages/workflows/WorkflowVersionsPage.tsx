@@ -20,26 +20,34 @@ import {
   DialogActions,
   Skeleton,
   Chip,
+  Menu,
+  MenuItem,
 } from "@mui/material";
 import EditIcon from "@mui/icons-material/Edit";
 import VisibilityIcon from "@mui/icons-material/Visibility";
 import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
 import BoltIcon from "@mui/icons-material/Bolt";
 import PowerSettingsNewIcon from "@mui/icons-material/PowerSettingsNew";
-import CallSplitIcon from "@mui/icons-material/CallSplit";
+import ControlPointDuplicateIcon from "@mui/icons-material/ControlPointDuplicate";
 import AddIcon from "@mui/icons-material/Add";
+import ArrowDropDownIcon from "@mui/icons-material/ArrowDropDown";
 import {
   getWorkflow,
   getWorkflowVersions,
   updateVersionStatus,
   cloneWorkflowVersion,
+  promoteWorkflowVersion,
 } from "../../api/workflowApi";
 import { useApiCall } from "../../hooks/useApiCall";
-import { useBackNavigation } from "../../hooks/useBackNavigation";
 import PageHeader from "../../components/common/PageHeader";
 import AppPagination from "../../components/common/AppPagination";
 import type { Workflow, WorkflowVersion } from "../../types";
 import type { Pagination } from "../../api/schemas/common";
+import {
+  ENVIRONMENT_OPTIONS,
+  getActiveEnvironmentType,
+  type EnvironmentType,
+} from "../../constants/environment";
 
 type LifecycleAction = "commit" | "activate" | "deactivate" | "clone";
 
@@ -96,7 +104,6 @@ export default function WorkflowVersionsPage() {
 
   const { workflowId } = useParams<{ workflowId: string }>();
   const navigate = useNavigate();
-  const { goBack } = useBackNavigation("/workflows");
   const { call } = useApiCall();
 
   const [workflow, setWorkflow] = useState<Workflow | null>(null);
@@ -113,6 +120,11 @@ export default function WorkflowVersionsPage() {
     action: LifecycleAction;
   } | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
+  const [promoteAnchorEl, setPromoteAnchorEl] = useState<null | HTMLElement>(null);
+  const [promoteTarget, setPromoteTarget] = useState<WorkflowVersion | null>(null);
+  const [promoteLoading, setPromoteLoading] = useState(false);
+
+  const activeEnvironmentType = getActiveEnvironmentType();
 
   const fetchData = useCallback(async (pageNum = 1, pageSize = 20) => {
 
@@ -186,6 +198,38 @@ export default function WorkflowVersionsPage() {
 
   const openAction = (version: WorkflowVersion, action: LifecycleAction) => {
     setActionTarget({ version, action });
+  };
+
+  const openPromoteMenu = (
+    event: React.MouseEvent<HTMLElement>,
+    version: WorkflowVersion,
+  ) => {
+    setPromoteAnchorEl(event.currentTarget);
+    setPromoteTarget(version);
+  };
+
+  const closePromoteMenu = () => {
+    if (promoteLoading) return;
+    setPromoteAnchorEl(null);
+    setPromoteTarget(null);
+  };
+
+  const handlePromote = async (targetEnvironmentType: EnvironmentType) => {
+    if (!promoteTarget) return;
+
+    setPromoteLoading(true);
+    const promoted = await call(
+      () => promoteWorkflowVersion(promoteTarget.id, targetEnvironmentType),
+      {
+        successMsg: `v${promoteTarget.versionNumber} promoted to ${targetEnvironmentType}.`,
+      },
+    );
+    setPromoteLoading(false);
+
+    if (promoted) {
+      closePromoteMenu();
+      fetchData(page + 1, limit);
+    }
   };
 
   const handleAction = async () => {
@@ -276,7 +320,7 @@ export default function WorkflowVersionsPage() {
       <PageHeader
         title={workflow?.name || "Version History"}
         subtitle={workflow?.description || undefined}
-        onBack={goBack}
+        onBack={() => navigate("/workflows")}
         chip={
           !loading && versions.length > 0 && (
             <Chip
@@ -450,8 +494,34 @@ export default function WorkflowVersionsPage() {
                           display="flex"
                           alignItems="center"
                           justifyContent="flex-end"
-                          gap={0.25}
+                          gap={0.75}
                         >
+                          {(isCommitted || isActive) && (
+                            <Button
+                              size="small"
+                              variant="outlined"
+                              endIcon={
+                                promoteLoading && promoteTarget?.id === v.id ? (
+                                  <CircularProgress size={12} />
+                                ) : (
+                                  <ArrowDropDownIcon />
+                                )
+                              }
+                              onClick={(event) => openPromoteMenu(event, v)}
+                              sx={{
+                                minWidth: 92,
+                                height: 28,
+                                borderRadius: "8px",
+                                fontSize: 11,
+                                textTransform: "none",
+                                borderColor: "divider",
+                                color: "text.secondary",
+                              }}
+                            >
+                              Promote
+                            </Button>
+                          )}
+
                           <Tooltip
                             title={
                               isDraft || isValid
@@ -540,7 +610,7 @@ export default function WorkflowVersionsPage() {
                                   "&:hover": { color: "#3b82f6" },
                                 }}
                               >
-                                <CallSplitIcon fontSize="small" />
+                                <ControlPointDuplicateIcon fontSize="small" />
                               </IconButton>
                             </Tooltip>
                           )}
@@ -648,6 +718,28 @@ export default function WorkflowVersionsPage() {
           </>
         )}
       </Dialog>
+
+      <Menu
+        anchorEl={promoteAnchorEl}
+        open={!!promoteAnchorEl}
+        onClose={closePromoteMenu}
+        anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+        transformOrigin={{ vertical: "top", horizontal: "right" }}
+      >
+        {ENVIRONMENT_OPTIONS.map((environmentType) => (
+          <MenuItem
+            key={environmentType}
+            disabled={
+              promoteLoading ||
+              environmentType === activeEnvironmentType
+            }
+            onClick={() => handlePromote(environmentType)}
+            sx={{ textTransform: "capitalize", fontSize: 13 }}
+          >
+            {environmentType}
+          </MenuItem>
+        ))}
+      </Menu>
 
     </Box>
   );

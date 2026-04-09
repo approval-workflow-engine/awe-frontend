@@ -11,11 +11,10 @@ import KeyIcon from '@mui/icons-material/Key';
 import VpnKeyOutlinedIcon from '@mui/icons-material/VpnKeyOutlined';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import CloseIcon from '@mui/icons-material/Close';
-import { createApiKey, getApiKeys, revokeApiKey } from '../../api/authApi';
+import { createApiKey, getApiKeys, getCurrentSystem, revokeApiKey } from '../../api/authApi';
 import { useApiCall } from '../../hooks/useApiCall';
-import { useApp } from '../../context/useApp';
 import PageHeader from '../../components/common/PageHeader';
-import type { ApiKey } from '../../types';
+import type { ApiKey, User } from '../../types';
 
 
 function EnvChip({ type }: { type: string }) {
@@ -79,7 +78,9 @@ function fmtDate(iso: string | null | undefined) {
 
 export default function Settings() {
   const { call } = useApiCall();
-  const { user, updateUser } = useApp();
+
+  const [systemInfo, setSystemInfo] = useState<User | null>(null);
+  const [systemLoading, setSystemLoading] = useState(true);
 
   const [idCopied, setIdCopied] = useState(false);
 
@@ -96,6 +97,31 @@ export default function Settings() {
 
   const [newKey, setNewKey] = useState<string | null>(null);
   const [keyCopied, setKeyCopied] = useState(false);
+
+  const fetchSystemInfo = useCallback(async () => {
+    setSystemLoading(true);
+    try {
+      const res = await call(() => getCurrentSystem(), { showError: false });
+      if (res) {
+        const body = res as {
+          system?: {
+            id: string;
+            name: string;
+            orgName: string;
+            contactEmail: string;
+            environmentType?: string;
+            status?: string;
+            createdAt?: string;
+          };
+        };
+        if (body.system) {
+          setSystemInfo(body.system);
+        }
+      }
+    } finally {
+      setSystemLoading(false);
+    }
+  }, [call]);
 
   const fetchApiKeys = useCallback(async () => {
     setKeysLoading(true);
@@ -114,6 +140,10 @@ export default function Settings() {
   useEffect(() => {
     fetchApiKeys();
   }, [fetchApiKeys]);
+
+  useEffect(() => {
+    fetchSystemInfo();
+  }, [fetchSystemInfo]);
 
   const handleRevoke = (key: ApiKey) => {
     setRevokeTarget(key);
@@ -150,7 +180,6 @@ export default function Settings() {
         setRegenLabel('');
         if (keyValue) setNewKey(keyValue);
         fetchApiKeys();
-        if (user) updateUser({ ...user, apiKeys: undefined });
       }
     } finally {
       setRegenLoading(false);
@@ -158,8 +187,8 @@ export default function Settings() {
   };
 
   const copyId = () => {
-    if (!user?.id) return;
-    navigator.clipboard.writeText(user.id).then(() => {
+    if (!systemInfo?.id) return;
+    navigator.clipboard.writeText(systemInfo.id).then(() => {
       setIdCopied(true);
       setTimeout(() => setIdCopied(false), 2000);
     });
@@ -188,39 +217,47 @@ export default function Settings() {
         </Box>
 
         <Box sx={{ px: 2.5 }}>
-          {user ? (
+          {systemLoading ? (
+            <Box py={2}>
+              {[0, 1, 2, 3].map((i) => (
+                <Box key={i} py={0.75}>
+                  <Skeleton height={22} />
+                </Box>
+              ))}
+            </Box>
+          ) : systemInfo ? (
             <>
               <InfoRow label="System Name">
                 <Typography sx={{ fontSize: 13, fontWeight: 500, color: 'text.primary' }}>
-                  {user.name}
+                  {systemInfo.name}
                 </Typography>
               </InfoRow>
 
               <InfoRow label="Organisation">
                 <Typography sx={{ fontSize: 13, color: 'text.primary' }}>
-                  {user.orgName}
+                  {systemInfo.orgName}
                 </Typography>
               </InfoRow>
 
               <InfoRow label="Contact Email">
                 <Typography sx={{ fontSize: 13, color: 'text.primary' }}>
-                  {user.contactEmail}
+                  {systemInfo.contactEmail}
                 </Typography>
               </InfoRow>
 
-              {user.environmentType && (
+              {systemInfo.environmentType && (
                 <InfoRow label="Environment">
-                  <EnvChip type={user.environmentType} />
+                  <EnvChip type={systemInfo.environmentType} />
                 </InfoRow>
               )}
 
-              {user.status && (
+              {systemInfo.status && (
                 <InfoRow label="Status">
                   <Typography sx={{
                     fontSize: 13, fontWeight: 500, textTransform: 'capitalize',
-                    color: user.status === 'active' ? '#22c55e' : 'text.secondary',
+                    color: systemInfo.status === 'active' ? '#22c55e' : 'text.secondary',
                   }}>
-                    {user.status}
+                    {systemInfo.status}
                   </Typography>
                 </InfoRow>
               )}
@@ -232,7 +269,7 @@ export default function Settings() {
                     fontSize: 12, color: 'text.primary',
                     overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                   }}>
-                    {user.id}
+                    {systemInfo.id}
                   </Typography>
                   <Tooltip title={idCopied ? 'Copied!' : 'Copy'}>
                     <IconButton
@@ -247,8 +284,8 @@ export default function Settings() {
 
               <InfoRow label="Created">
                 <Typography sx={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12, color: 'text.disabled' }}>
-                  {user.createdAt
-                    ? new Date(user.createdAt).toLocaleString('en-GB', {
+                  {systemInfo.createdAt
+                    ? new Date(systemInfo.createdAt).toLocaleString('en-GB', {
                         day: '2-digit', month: 'short', year: 'numeric',
                         hour: '2-digit', minute: '2-digit',
                       })
