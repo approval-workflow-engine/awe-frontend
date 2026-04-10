@@ -49,6 +49,7 @@ export const ApiKeySchema = z.object({
   isRevoked: z.boolean(),
   createdAt: z.string().datetime(),
   revokedAt: z.string().datetime().nullable(),
+  environmentType: z.enum(['production', 'development', 'staging']).optional(),
 });
 
 export const CreateApiKeyResponseSchema = z.object({
@@ -56,10 +57,12 @@ export const CreateApiKeyResponseSchema = z.object({
   label: z.string().nullable().optional(),
   apiKey: z.string(),
   createdAt: z.string().datetime(),
+  environmentType: z.enum(['production', 'development', 'staging']).optional(),
 });
 
 export const CreateApiKeyRequestSchema = z.object({
-  label: z.string().optional(),
+  label: z.string().min(1),
+  environment: z.enum(['production', 'development', 'staging']),
 });
 
 export const ApiKeysResponseSchema = z.object({

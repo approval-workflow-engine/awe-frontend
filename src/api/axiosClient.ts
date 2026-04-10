@@ -8,7 +8,7 @@ import type {
 import { TOKEN_KEYS } from "../constants/tokens";
 import {
   DEFAULT_ENVIRONMENT,
-  ENVIRONMENT_STORAGE_KEY,
+  getActiveEnvironmentTypes,
 } from "../constants/environment";
 import { API_BASE_URL } from "./baseUrl";
 
@@ -47,7 +47,7 @@ axiosClient.interceptors.request.use((config: InternalAxiosRequestConfig) => {
   }
 
   const activeEnvironmentType =
-    localStorage.getItem(ENVIRONMENT_STORAGE_KEY) ?? DEFAULT_ENVIRONMENT;
+    getActiveEnvironmentTypes().join(",") || DEFAULT_ENVIRONMENT;
 
   if (!config.params) {
     config.params = { environmentType: activeEnvironmentType };

@@ -16,6 +16,7 @@ import {
   Select,
   MenuItem,
   Chip,
+  Checkbox,
 } from "@mui/material";
 import DashboardIcon from "@mui/icons-material/Dashboard";
 import AccountTreeIcon from "@mui/icons-material/AccountTree";
@@ -34,7 +35,9 @@ import {
   ENVIRONMENT_OPTIONS,
   getEnvironmentBadgeLabel,
   type EnvironmentType,
+  getEnvironmentSelectionLabel,
 } from "../../constants/environment";
+import type { SelectChangeEvent } from "@mui/material/Select";
 
 const EXPANDED_WIDTH = 220;
 const COLLAPSED_WIDTH = 64;
@@ -58,12 +61,12 @@ interface AppSidebarProps {
   collapsed: boolean;
   mode: ThemeMode;
   activePath: string;
-  activeEnvironmentType: EnvironmentType;
+  selectedEnvironmentTypes: EnvironmentType[];
   userName?: string;
   userOrgName?: string;
   userContactEmail?: string;
   onNavigate: (path: string) => void;
-  onEnvironmentChange: (environmentType: EnvironmentType) => void;
+  onEnvironmentChange: (environmentTypes: EnvironmentType[]) => void;
   onToggleCollapse: (collapsed: boolean) => void;
   onToggleTheme: () => void;
   onOpenLogout: () => void;
@@ -73,7 +76,7 @@ export default function AppSidebar({
   collapsed,
   mode,
   activePath,
-  activeEnvironmentType,
+  selectedEnvironmentTypes,
   userName,
   userOrgName,
   userContactEmail,
@@ -86,6 +89,8 @@ export default function AppSidebar({
   const width = collapsed ? COLLAPSED_WIDTH : EXPANDED_WIDTH;
   const avatarLabel = (userName || userOrgName || "U")[0]?.toUpperCase() ?? "U";
   const displayName = userName || userOrgName || "User";
+  const activeEnvironmentType = selectedEnvironmentTypes[0] ?? ENVIRONMENT_OPTIONS[0];
+  const selectionLabel = getEnvironmentSelectionLabel(selectedEnvironmentTypes);
 
   const isActive = (path: string) => activePath.startsWith(path);
 
@@ -190,9 +195,19 @@ export default function AppSidebar({
         ) : (
           <Box display="flex" alignItems="center" gap={1}>
             <FormControl size="small" fullWidth>
-              <Select
-                value={activeEnvironmentType}
-                onChange={(e) => onEnvironmentChange(e.target.value as EnvironmentType)}
+              <Select<EnvironmentType[]>
+                multiple
+                value={selectedEnvironmentTypes}
+                onChange={(e: SelectChangeEvent<EnvironmentType[]>) =>
+                  onEnvironmentChange(
+                    typeof e.target.value === "string"
+                      ? (e.target.value
+                          .split(",")
+                          .map((value) => value.trim()) as EnvironmentType[])
+                      : (e.target.value as EnvironmentType[]),
+                  )
+                }
+                renderValue={() => selectionLabel}
                 sx={{
                   height: 30,
                   fontSize: 12,
@@ -201,15 +216,19 @@ export default function AppSidebar({
                 }}
               >
                 {ENVIRONMENT_OPTIONS.map((env) => (
-                  <MenuItem key={env} value={env} sx={{ fontSize: 12, textTransform: "capitalize" }}>
-                    {env}
+                  <MenuItem key={env} value={env} sx={{ fontSize: 12 }}>
+                    <Checkbox checked={selectedEnvironmentTypes.includes(env)} size="small" />
+                    <ListItemText
+                      primary={env}
+                      primaryTypographyProps={{ fontSize: 12, textTransform: "capitalize" }}
+                    />
                   </MenuItem>
                 ))}
               </Select>
             </FormControl>
             <Chip
               size="small"
-              label={getEnvironmentBadgeLabel(activeEnvironmentType)}
+              label={getEnvironmentSelectionLabel(selectedEnvironmentTypes)}
               sx={{
                 fontSize: 10,
                 height: 22,

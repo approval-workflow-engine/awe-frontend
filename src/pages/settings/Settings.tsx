@@ -2,7 +2,8 @@ import { useState, useEffect, useCallback, type ReactNode } from 'react';
 import {
   Box, Typography, Paper, IconButton, Tooltip, Button,
   Dialog, DialogContent, DialogTitle, DialogActions,
-  TextField, Chip, CircularProgress, Skeleton,
+  TextField, Chip, CircularProgress, Skeleton, FormControl,
+  InputLabel, Select, MenuItem,
 } from '@mui/material';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
@@ -15,6 +16,7 @@ import { createApiKey, getApiKeys, getCurrentSystem, revokeApiKey } from '../../
 import { useApiCall } from '../../hooks/useApiCall';
 import PageHeader from '../../components/common/PageHeader';
 import type { ApiKey, User } from '../../types';
+import { ENVIRONMENT_OPTIONS, type EnvironmentType } from '../../constants/environment';
 
 
 function EnvChip({ type }: { type: string }) {
@@ -75,6 +77,11 @@ function fmtDate(iso: string | null | undefined) {
   });
 }
 
+function isEnvironmentType(value: string | undefined): value is EnvironmentType {
+  if (!value) return false;
+  return ENVIRONMENT_OPTIONS.includes(value as EnvironmentType);
+}
+
 
 export default function Settings() {
   const { call } = useApiCall();
@@ -93,6 +100,7 @@ export default function Settings() {
 
   const [regenOpen, setRegenOpen] = useState(false);
   const [regenLabel, setRegenLabel] = useState('');
+  const [regenEnvironment, setRegenEnvironment] = useState<EnvironmentType>('development');
   const [regenLoading, setRegenLoading] = useState(false);
 
   const [newKey, setNewKey] = useState<string | null>(null);
@@ -167,10 +175,13 @@ export default function Settings() {
   };
 
   const handleRegenConfirm = async () => {
+    const trimmedLabel = regenLabel.trim();
+    if (!trimmedLabel) return;
+
     setRegenLoading(true);
     try {
       const res = await call(
-        () => createApiKey({ label: regenLabel.trim() || undefined }),
+        () => createApiKey({ label: trimmedLabel, environment: regenEnvironment }),
         { showError: true }
       );
       if (res) {
@@ -178,12 +189,23 @@ export default function Settings() {
         const keyValue = body.apiKey ?? null;
         setRegenOpen(false);
         setRegenLabel('');
+        setRegenEnvironment('development');
         if (keyValue) setNewKey(keyValue);
         fetchApiKeys();
       }
     } finally {
       setRegenLoading(false);
     }
+  };
+
+  const openGenerateDialog = () => {
+    setRegenLabel('');
+    if (isEnvironmentType(systemInfo?.environmentType)) {
+      setRegenEnvironment(systemInfo.environmentType);
+    } else {
+      setRegenEnvironment('development');
+    }
+    setRegenOpen(true);
   };
 
   const copyId = () => {
@@ -320,7 +342,7 @@ export default function Settings() {
           <Button
             size="small"
             startIcon={<KeyIcon sx={{ fontSize: 14 }} />}
-            onClick={() => { setRegenLabel(''); setRegenOpen(true); }}
+            onClick={openGenerateDialog}
             sx={{
               borderRadius: '8px', fontWeight: 600, fontSize: 12, height: 32,
               backgroundColor: 'rgba(79,110,247,0.1)',
@@ -411,6 +433,7 @@ export default function Settings() {
                     <Typography sx={{ fontSize: 11, color: 'text.disabled' }}>
                       Created {fmtDate(key.createdAt)}
                     </Typography>
+                    {key.environmentType && <EnvChip type={key.environmentType} />}
                     {key.isRevoked && key.revokedAt && (
                       <>
                         <Box sx={{ width: 3, height: 3, borderRadius: '50%', backgroundColor: 'text.disabled', flexShrink: 0 }} />
@@ -568,6 +591,22 @@ export default function Settings() {
             sx={{ mb: 2, '& .MuiOutlinedInput-root': { borderRadius: '8px' } }}
             autoFocus
           />
+          <FormControl fullWidth size="small">
+            <InputLabel id="api-key-environment-label">Environment</InputLabel>
+            <Select
+              labelId="api-key-environment-label"
+              value={regenEnvironment}
+              label="Environment"
+              onChange={e => setRegenEnvironment(e.target.value as EnvironmentType)}
+              sx={{ borderRadius: '8px' }}
+            >
+              {ENVIRONMENT_OPTIONS.map((environmentType) => (
+                <MenuItem key={environmentType} value={environmentType} sx={{ textTransform: 'capitalize' }}>
+                  {environmentType}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>
           <Button
@@ -581,7 +620,7 @@ export default function Settings() {
           <Button
             variant="contained"
             size="small"
-            disabled={regenLoading}
+            disabled={regenLoading || !regenLabel.trim()}
             onClick={handleRegenConfirm}
             sx={{
               borderRadius: '8px', fontWeight: 600,

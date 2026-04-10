@@ -33,6 +33,7 @@ export interface ApiKey {
   isRevoked: boolean;
   createdAt: string;
   revokedAt: string | null;
+  environmentType?: string;
 }
 
 export interface LoginPayload {
@@ -62,6 +63,7 @@ export interface Workflow {
   id: string;
   name: string;
   description?: string;
+  environmentType?: string;
   latestVersionId?: string | null;
   status?: string | null;
   versions?: WorkflowVersion[];
@@ -75,6 +77,7 @@ export interface WorkflowVersion {
   id: string;
   workflowId: string;
   versionNumber: number;
+  environmentType?: string;
   status: VersionStatus;
   definition?: WorkflowDefinition;
   nodes?: WorkflowNode[];
