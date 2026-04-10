@@ -6,8 +6,8 @@ import LogoutConfirmDialog from "./LogoutConfirmDialog";
 import { useApp } from "../../context/useApp";
 import { useThemeMode } from "../../context/useThemeMode";
 import {
-  getActiveEnvironmentTypes,
-  setActiveEnvironmentTypes,
+  getActiveEnvironmentType,
+  setActiveEnvironmentType,
   type EnvironmentType,
 } from "../../constants/environment";
 
@@ -18,8 +18,8 @@ export default function AppLayout() {
     return localStorage.getItem(COLLAPSE_KEY) === "true";
   });
   const [logoutConfirmOpen, setLogoutConfirmOpen] = useState(false);
-  const [selectedEnvironmentTypes, setSelectedEnvironmentTypesState] =
-    useState<EnvironmentType[]>(() => getActiveEnvironmentTypes());
+  const [selectedEnvironmentType, setSelectedEnvironmentType] =
+    useState<EnvironmentType>(() => getActiveEnvironmentType());
   const navigate = useNavigate();
   const location = useLocation();
   const { user, logout } = useApp();
@@ -30,9 +30,9 @@ export default function AppLayout() {
     localStorage.setItem(COLLAPSE_KEY, String(value));
   };
 
-  const handleEnvironmentChange = (environmentTypes: EnvironmentType[]) => {
-    setActiveEnvironmentTypes(environmentTypes);
-    setSelectedEnvironmentTypesState(environmentTypes);
+  const handleEnvironmentChange = (environmentType: EnvironmentType) => {
+    setActiveEnvironmentType(environmentType);
+    setSelectedEnvironmentType(environmentType);
     navigate("/workflows");
     window.location.reload();
   };
@@ -46,7 +46,7 @@ export default function AppLayout() {
         collapsed={collapsed}
         mode={mode}
         activePath={location.pathname}
-        selectedEnvironmentTypes={selectedEnvironmentTypes}
+        selectedEnvironmentType={selectedEnvironmentType}
         userName={user?.name}
         userOrgName={user?.orgName}
         userContactEmail={user?.contactEmail}

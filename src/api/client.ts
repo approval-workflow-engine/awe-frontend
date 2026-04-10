@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { TOKEN_KEYS } from '../constants/tokens';
 import { ApiErrorSchema } from './schemas';
 import { API_BASE_URL } from './baseUrl';
-import { getActiveEnvironmentTypes } from '../constants/environment';
+import { getActiveEnvironmentType } from '../constants/environment';
 
 interface QueueItem {
   resolve: (token: string) => void;
@@ -65,22 +65,47 @@ class ApiClient {
         url.startsWith('/systems/register');
 
       if (!shouldSkipEnvironmentFilter) {
-        const selectedEnvironmentTypes = getActiveEnvironmentTypes().join(',');
+        const activeEnvironmentType = getActiveEnvironmentType();
 
-        if (!config.params) {
-          config.params = { environmentType: selectedEnvironmentTypes };
-        } else if (
-          !(config.params instanceof URLSearchParams) &&
-          typeof config.params === 'object' &&
-          !('environmentType' in config.params)
-        ) {
-          config.params = {
-            ...(config.params as Record<string, unknown>),
-            environmentType: selectedEnvironmentTypes,
-          };
-        } else if (config.params instanceof URLSearchParams) {
-          if (!config.params.has('environmentType')) {
-            config.params.set('environmentType', selectedEnvironmentTypes);
+        if ((config.method ?? 'GET').toUpperCase() === 'GET') {
+          // GET: send environmentType as query parameter
+          if (!config.params) {
+            config.params = { environmentType: activeEnvironmentType };
+          } else if (
+            !(config.params instanceof URLSearchParams) &&
+            typeof config.params === 'object' &&
+            !('environmentType' in config.params)
+          ) {
+            config.params = {
+              ...(config.params as Record<string, unknown>),
+              environmentType: activeEnvironmentType,
+            };
+          } else if (config.params instanceof URLSearchParams) {
+            if (!config.params.has('environmentType')) {
+              config.params.set('environmentType', activeEnvironmentType);
+            }
+          }
+        } else {
+          // Non-GET: inject environmentType into request body
+          if (config.data == null) {
+            config.data = { environmentType: activeEnvironmentType };
+          } else if (typeof config.data === 'string') {
+            try {
+              const parsed = JSON.parse(config.data);
+              if (!('environmentType' in parsed)) {
+                parsed.environmentType = activeEnvironmentType;
+              }
+              config.data = JSON.stringify(parsed);
+            } catch {
+              // leave as-is if parsing fails
+            }
+          } else if (
+            typeof config.data === 'object' &&
+            config.data !== null &&
+            !('environmentType' in (config.data as Record<string, unknown>))
+          ) {
+            (config.data as Record<string, unknown>).environmentType =
+              activeEnvironmentType;
           }
         }
       }

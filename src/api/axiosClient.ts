@@ -7,8 +7,8 @@ import type {
 } from "axios";
 import { TOKEN_KEYS } from "../constants/tokens";
 import {
-  DEFAULT_ENVIRONMENT,
-  getActiveEnvironmentTypes,
+	DEFAULT_ENVIRONMENT,
+	getActiveEnvironmentType,
 } from "../constants/environment";
 import { API_BASE_URL } from "./baseUrl";
 
@@ -47,22 +47,45 @@ axiosClient.interceptors.request.use((config: InternalAxiosRequestConfig) => {
   }
 
   const activeEnvironmentType =
-    getActiveEnvironmentTypes().join(",") || DEFAULT_ENVIRONMENT;
+    getActiveEnvironmentType() || DEFAULT_ENVIRONMENT;
 
-  if (!config.params) {
-    config.params = { environmentType: activeEnvironmentType };
-  } else if (
-    !(config.params instanceof URLSearchParams) &&
-    typeof config.params === "object" &&
-    !("environmentType" in config.params)
-  ) {
-    config.params = {
-      ...(config.params as Record<string, unknown>),
-      environmentType: activeEnvironmentType,
-    };
-  } else if (config.params instanceof URLSearchParams) {
-    if (!config.params.has("environmentType")) {
-      config.params.set("environmentType", activeEnvironmentType);
+  if (config.method?.toUpperCase() === "GET") {
+    if (!config.params) {
+      config.params = { environmentType: activeEnvironmentType };
+    } else if (
+      !(config.params instanceof URLSearchParams) &&
+      typeof config.params === "object" &&
+      !("environmentType" in config.params)
+    ) {
+      config.params = {
+        ...(config.params as Record<string, unknown>),
+        environmentType: activeEnvironmentType,
+      };
+    } else if (config.params instanceof URLSearchParams) {
+      if (!config.params.has("environmentType")) {
+        config.params.set("environmentType", activeEnvironmentType);
+      }
+    }
+  } else {
+    if (config.data == null) {
+      config.data = { environmentType: activeEnvironmentType };
+    } else if (typeof config.data === "string") {
+      try {
+        const parsed = JSON.parse(config.data);
+        if (!("environmentType" in parsed)) {
+          parsed.environmentType = activeEnvironmentType;
+        }
+        config.data = JSON.stringify(parsed);
+      } catch {
+        // If parsing fails, leave the body as-is.
+      }
+    } else if (
+      typeof config.data === "object" &&
+      config.data !== null &&
+      !("environmentType" in (config.data as Record<string, unknown>))
+    ) {
+      (config.data as Record<string, unknown>).environmentType =
+        activeEnvironmentType;
     }
   }
 
