@@ -15,7 +15,7 @@ import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
 import { Link as RouterLink, useNavigate } from "react-router-dom";
 import LogoMark from "../../components/common/LogoMark";
 import { inputStyle } from "../../styles/authStyles";
-import { loginSystem } from "../../api/authApi";
+import { authService } from "../../api/services/auth";
 import { useApp } from "../../context/useApp";
 import { useApiCall } from "../../hooks/useApiCall";
 import type { LoginResponse, User } from "../../types";
@@ -34,7 +34,7 @@ export default function LoginPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const data = await call<LoginResponse>(() => loginSystem(form), {
+    const data = await call<LoginResponse>(() => authService.login(form), {
       errorMsg: "Invalid email or password",
     });
     if (data) {

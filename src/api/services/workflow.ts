@@ -1,4 +1,4 @@
-import { apiClient } from '../client';
+import { apiClient } from "../client";
 import {
   WorkflowsResponseSchema,
   WorkflowResponseSchema,
@@ -22,13 +22,16 @@ import {
   type UpdateVersionRequest,
   type ValidationResult,
   type PaginationParams,
-} from '../schemas';
-import { z } from 'zod';
+} from "../schemas";
+import { z } from "zod";
+import type { EnvironmentType } from "../../constants/environment";
 
 export class WorkflowService {
   async getWorkflows(params?: PaginationParams): Promise<WorkflowsResponse> {
-    const validatedParams = params ? PaginationParamsSchema.parse(params) : undefined;
-    return apiClient.get('/workflows', WorkflowsResponseSchema, {
+    const validatedParams = params
+      ? PaginationParamsSchema.parse(params)
+      : undefined;
+    return apiClient.get("/workflows", WorkflowsResponseSchema, {
       params: validatedParams,
     });
   }
@@ -39,22 +42,22 @@ export class WorkflowService {
 
   async createWorkflow(data: CreateWorkflowRequest): Promise<WorkflowResponse> {
     return apiClient.post(
-      '/workflows',
+      "/workflows",
       data,
       WorkflowResponseSchema,
-      CreateWorkflowRequestSchema
+      CreateWorkflowRequestSchema,
     );
   }
 
   async updateWorkflow(
     id: string,
-    data: UpdateWorkflowRequest
+    data: UpdateWorkflowRequest,
   ): Promise<Workflow> {
     return apiClient.patch(
       `/workflows/${id}`,
       data,
       WorkflowSchema,
-      UpdateWorkflowRequestSchema
+      UpdateWorkflowRequestSchema,
     );
   }
 
@@ -62,38 +65,42 @@ export class WorkflowService {
     return apiClient.delete(`/workflows/${id}`, z.object({}));
   }
 
-  async validateWorkflow(definition: any): Promise<ValidationResult> {
-    return apiClient.post('/workflows/validate', definition, ValidationResultSchema);
+  async validateWorkflow(definition: unknown): Promise<ValidationResult> {
+    return apiClient.post(
+      "/workflows/validate",
+      definition,
+      ValidationResultSchema,
+    );
   }
 
   async createVersion(
     workflowId: string,
-    data: CreateVersionRequest
+    data: CreateVersionRequest,
   ): Promise<VersionResponse> {
     return apiClient.post(
       `/workflows/${workflowId}/versions`,
       data,
       VersionResponseSchema,
-      CreateVersionRequestSchema
+      CreateVersionRequestSchema,
     );
   }
 
   async getVersion(versionId: string): Promise<VersionResponse> {
     return apiClient.get(
       `/workflows/versions/${versionId}`,
-      VersionResponseSchema
+      VersionResponseSchema,
     );
   }
 
   async updateVersion(
     versionId: string,
-    data: UpdateVersionRequest
+    data: UpdateVersionRequest,
   ): Promise<VersionResponse> {
     return apiClient.patch(
       `/workflows/versions/${versionId}`,
       data,
       VersionResponseSchema,
-      UpdateVersionRequestSchema
+      UpdateVersionRequestSchema,
     );
   }
 
@@ -101,7 +108,15 @@ export class WorkflowService {
     return apiClient.post(
       `/workflows/versions/${versionId}/validate`,
       {},
-      ValidationResultSchema
+      ValidationResultSchema,
+    );
+  }
+
+  async cloneWorkflowVersion(versionId: string): Promise<VersionResponse> {
+    return apiClient.post(
+      `/workflows/versions/${versionId}/clone`,
+      {},
+      VersionResponseSchema,
     );
   }
 
@@ -109,22 +124,41 @@ export class WorkflowService {
     workflowId: string,
     params?: PaginationParams,
   ): Promise<WorkflowVersionsResponse> {
-    const validatedParams = params ? PaginationParamsSchema.parse(params) : undefined;
-    return apiClient.get(`/workflows/${workflowId}/versions`, WorkflowVersionsResponseSchema, {
-      params: validatedParams,
-    });
+    const validatedParams = params
+      ? PaginationParamsSchema.parse(params)
+      : undefined;
+    return apiClient.get(
+      `/workflows/${workflowId}/versions`,
+      WorkflowVersionsResponseSchema,
+      {
+        params: validatedParams,
+      },
+    );
   }
 
   async updateVersionStatus(
     versionId: string,
-    status: 'published' | 'active'
+    status: "published" | "active",
   ): Promise<VersionResponse> {
     const endpoint =
-      status === 'active'
+      status === "active"
         ? `/workflows/versions/${versionId}/activate`
         : `/workflows/versions/${versionId}/publish`;
 
     return apiClient.post(endpoint, {}, VersionResponseSchema);
+  }
+
+  async promoteWorkflowVersion(
+    versionId: string,
+    targetEnvironmentType: EnvironmentType,
+  ): Promise<unknown> {
+    return apiClient.post(
+      `/workflow-versions/${versionId}/promote`,
+      {},
+      z.unknown(),
+      undefined,
+      { params: { environmentType: targetEnvironmentType } },
+    );
   }
 }
 

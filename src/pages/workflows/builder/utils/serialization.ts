@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import type {
   WorkflowDefinition,
   WorkflowNode,
@@ -76,20 +77,26 @@ function templateUrlToFeel(url: string): string {
 
 function feelUrlToTemplate(feel: string): string {
   if (!feel) return "";
-  if (!feel.startsWith('"') && !feel.startsWith("string(")) return feel;
-  const parts = feel.split(" + ");
-  let result = "";
-  for (const part of parts) {
-    const trimmed = part.trim();
-    if (trimmed.startsWith('"') && trimmed.endsWith('"')) {
-      result += trimmed.slice(1, -1);
-    } else if (trimmed.startsWith("string(") && trimmed.endsWith(")")) {
-      result += `{${trimmed.slice(7, -1)}}`;
-    } else {
-      return feel;
-    }
+  const trimmed = feel.trim();
+  if (trimmed.includes("{")) {
+    return templateUrlToFeel(trimmed);
   }
-  return result;
+  return trimmed;
+}
+
+function normalizeBackoff(
+  backoff: UnknownRecord,
+  retryDelayMs: unknown,
+): UnknownRecord {
+  return {
+    type: backoff.type === "exponential" ? "exponential" : "fixed",
+    delayMs:
+      typeof backoff.delayMs === "number"
+        ? backoff.delayMs
+        : typeof retryDelayMs === "number"
+          ? retryDelayMs
+          : 1000,
+  };
 }
 
 function serializeConfiguration(
@@ -144,26 +151,12 @@ function serializeConfiguration(
 
     case "script": {
       const rawBackoff = asRecord(config.backoff);
-      const backoff: UnknownRecord | undefined =
-        Object.keys(rawBackoff).length > 0
-          ? {
-              type: rawBackoff.type === "exponential" ? "exponential" : "fixed",
-              delayMs:
-                typeof rawBackoff.delayMs === "number"
-                  ? rawBackoff.delayMs
-                  : typeof config.retryDelayMs === "number"
-                    ? config.retryDelayMs
-                    : 1000,
-            }
-          : typeof config.retryDelayMs === "number"
-            ? { type: "fixed", delayMs: config.retryDelayMs }
-            : undefined;
 
       return {
         runtime: "python3" as const,
         maxAttempts:
           typeof config.maxAttempts === "number" ? config.maxAttempts : 1,
-        ...(backoff ? { backoff } : {}),
+        backoff: normalizeBackoff(rawBackoff, config.retryDelayMs),
         sourceCode:
           typeof config.sourceCode === "string" ? config.sourceCode : "",
         entryFunctionName:
@@ -211,20 +204,7 @@ function serializeConfiguration(
         svc.maxAttempts = config.maxAttempts;
       if (typeof config.timeoutMs === "number")
         svc.timeoutMs = config.timeoutMs;
-      if (Object.keys(rawBackoff).length > 0) {
-        const delay =
-          typeof rawBackoff.delayMs === "number"
-            ? rawBackoff.delayMs
-            : typeof config.retryDelayMs === "number"
-              ? config.retryDelayMs
-              : 1000;
-        svc.backoff = {
-          type: rawBackoff.type === "exponential" ? "exponential" : "fixed",
-          delayMs: delay,
-        };
-      } else if (typeof config.retryDelayMs === "number") {
-        svc.backoff = { type: "fixed", delayMs: config.retryDelayMs };
-      }
+      svc.backoff = normalizeBackoff(rawBackoff, config.retryDelayMs);
       if ("headers" in config)
         svc.headers = Array.isArray(config.headers)
           ? config.headers.map((h: any) => ({
@@ -448,24 +428,18 @@ export function definitionToCanvas(def: unknown): {
     if (typeof node.config.urlExpression === "string") {
       node.config.urlExpression = feelUrlToTemplate(node.config.urlExpression);
     }
-    // Migrate legacy retryDelayMs into backoff if needed
-    if (!node.config.backoff && typeof node.config.retryDelayMs === "number") {
-      node.config.backoff = {
-        type: "fixed",
-        delayMs: node.config.retryDelayMs,
-      };
-    }
+    node.config.backoff = normalizeBackoff(
+      asRecord(node.config.backoff),
+      node.config.retryDelayMs,
+    );
   });
 
-  // Script node: migrate legacy retryDelayMs into backoff for UI
   cNodes.forEach((node) => {
     if (node.type !== "script_task") return;
-    if (!node.config.backoff && typeof node.config.retryDelayMs === "number") {
-      node.config.backoff = {
-        type: "fixed",
-        delayMs: node.config.retryDelayMs,
-      };
-    }
+    node.config.backoff = normalizeBackoff(
+      asRecord(node.config.backoff),
+      node.config.retryDelayMs,
+    );
   });
 
   cNodes.forEach((node) => {

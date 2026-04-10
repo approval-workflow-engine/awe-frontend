@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from "react";
 import {
   Dialog,
   DialogTitle,
@@ -17,14 +17,14 @@ import {
   CircularProgress,
   Divider,
   Box,
-} from '@mui/material';
-import { useApiCall } from '../../../hooks/useApiCall';
-import { getWorkflows } from '../../../api/workflowApi';
-import { createInstance } from '../../../api/instanceApi';
-import type { Workflow } from '../../../types';
-import type { InstanceListItem } from '../../../api/schemas/instance';
+} from "@mui/material";
+import { useApiCall } from "../../../hooks/useApiCall";
+import { workflowService } from "../../../api/services/workflow";
+import { instanceService } from "../../../api/services/instance";
+import type { Workflow } from "../../../types";
+import type { InstanceListItem } from "../../../api/schemas/instance";
 
-const DEFAULT_JSON = '{}';
+const DEFAULT_JSON = "{}";
 
 interface Props {
   open: boolean;
@@ -32,14 +32,18 @@ interface Props {
   onCreated: (instance: InstanceListItem) => void;
 }
 
-export default function CreateInstanceDialog({ open, onClose, onCreated }: Props) {
+export default function CreateInstanceDialog({
+  open,
+  onClose,
+  onCreated,
+}: Props) {
   const { call, loading } = useApiCall();
 
   const [workflows, setWorkflows] = useState<Workflow[]>([]);
-  const [workflowId, setWorkflowId] = useState('');
+  const [workflowId, setWorkflowId] = useState("");
   const [contextJson, setContextJson] = useState(DEFAULT_JSON);
   const [autoAdvance, setAutoAdvance] = useState(true);
-  const [jsonError, setJsonError] = useState('');
+  const [jsonError, setJsonError] = useState("");
 
   const loadWorkflows = useCallback(async () => {
     const pageSize = 100;
@@ -49,12 +53,13 @@ export default function CreateInstanceDialog({ open, onClose, onCreated }: Props
 
     do {
       const res = await call(
-        () => getWorkflows({ page, limit: pageSize }),
+        () => workflowService.getWorkflows({ page, limit: pageSize }),
         { showError: false },
       );
-      const body = res as
-        | { workflows?: Workflow[]; pagination?: { totalPages?: number } }
-        | null;
+      const body = res as {
+        workflows?: Workflow[];
+        pagination?: { totalPages?: number };
+      } | null;
 
       aggregated.push(...(body?.workflows ?? []));
       totalPages = Number(body?.pagination?.totalPages ?? 1);
@@ -73,20 +78,20 @@ export default function CreateInstanceDialog({ open, onClose, onCreated }: Props
   }, [open, loadWorkflows]);
 
   const handleClose = () => {
-    setWorkflowId('');
+    setWorkflowId("");
     setContextJson(DEFAULT_JSON);
     setAutoAdvance(true);
-    setJsonError('');
+    setJsonError("");
     onClose();
   };
 
   const validateJson = (val: string) => {
     try {
       JSON.parse(val);
-      setJsonError('');
+      setJsonError("");
       return true;
     } catch {
-      setJsonError('Invalid JSON');
+      setJsonError("Invalid JSON");
       return false;
     }
   };
@@ -96,30 +101,32 @@ export default function CreateInstanceDialog({ open, onClose, onCreated }: Props
 
     const context = JSON.parse(contextJson) as Record<string, unknown>;
     const res = await call(
-      () => createInstance({ workflowId, context, autoAdvance }),
-      { successMsg: 'Instance created successfully' },
+      () =>
+        instanceService.createInstance({ workflowId, context, autoAdvance }),
+      { successMsg: "Instance created successfully" },
     );
 
     const instance = res;
     if (instance) {
       const selectedWorkflow = workflows.find((w) => w.id === workflowId);
+      const timestamp = instance.startedAt ?? new Date().toISOString();
       // Convert create response to InstanceListItem for consistency with list
       const enriched: InstanceListItem = {
         id: instance.id,
         auto_advance: instance.autoAdvance,
-        created_by: 'current_user', // This should come from auth context
-        created_on: instance.startedAt,
+        created_by: "current_user", // This should come from auth context
+        created_on: timestamp,
         current_node_id: null,
         current_variables: null,
         ended_on: null,
         input_variables: instance.inputVariables,
         is_deleted: false,
         output_variables: null,
-        started_on: instance.startedAt,
+        started_on: timestamp,
         status: instance.status,
         workflow_version_id: instance.workflow.id,
         version_number: instance.workflow.version,
-        workflow_name: selectedWorkflow?.name || 'Unknown',
+        workflow_name: selectedWorkflow?.name || "Unknown",
       };
       onCreated(enriched);
       handleClose();
@@ -131,7 +138,9 @@ export default function CreateInstanceDialog({ open, onClose, onCreated }: Props
       <DialogTitle sx={{ fontWeight: 700, pb: 1 }}>Create Instance</DialogTitle>
       <Divider />
 
-      <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2.5, pt: 2.5 }}>
+      <DialogContent
+        sx={{ display: "flex", flexDirection: "column", gap: 2.5, pt: 2.5 }}
+      >
         <FormControl fullWidth size="small">
           <InputLabel>Workflow</InputLabel>
           <Select
@@ -170,7 +179,12 @@ export default function CreateInstanceDialog({ open, onClose, onCreated }: Props
             onBlur={() => validateJson(contextJson)}
             error={!!jsonError}
             slotProps={{
-              htmlInput: { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 12 } },
+              htmlInput: {
+                style: {
+                  fontFamily: "'JetBrains Mono', monospace",
+                  fontSize: 12,
+                },
+              },
             }}
           />
           {jsonError && (
@@ -182,7 +196,10 @@ export default function CreateInstanceDialog({ open, onClose, onCreated }: Props
 
         <FormControlLabel
           control={
-            <Switch checked={autoAdvance} onChange={(e) => setAutoAdvance(e.target.checked)} />
+            <Switch
+              checked={autoAdvance}
+              onChange={(e) => setAutoAdvance(e.target.checked)}
+            />
           }
           label={
             <Box>

@@ -1,9 +1,17 @@
-import axios, { type AxiosInstance, type AxiosResponse, type AxiosRequestConfig, type InternalAxiosRequestConfig } from 'axios';
-import { z } from 'zod';
-import { TOKEN_KEYS } from '../constants/tokens';
-import { ApiErrorSchema } from './schemas';
-import { API_BASE_URL } from './baseUrl';
-import { getActiveEnvironmentType } from '../constants/environment';
+import axios, {
+  type AxiosInstance,
+  type AxiosResponse,
+  type AxiosRequestConfig,
+  type InternalAxiosRequestConfig,
+} from "axios";
+import { z } from "zod";
+import { TOKEN_KEYS } from "../constants/tokens";
+import { ApiErrorSchema } from "./schemas";
+import { API_BASE_URL } from "./baseUrl";
+import {
+  DEFAULT_ENVIRONMENT,
+  getActiveEnvironmentType,
+} from "../constants/environment";
 
 interface QueueItem {
   resolve: (token: string) => void;
@@ -15,7 +23,7 @@ export class ApiValidationError extends Error {
 
   constructor(message: string, validationErrors: z.ZodError) {
     super(message);
-    this.name = 'ApiValidationError';
+    this.name = "ApiValidationError";
     this.validationErrors = validationErrors;
   }
 }
@@ -24,13 +32,9 @@ export class ApiClientError extends Error {
   public status?: number;
   public response?: AxiosResponse;
 
-  constructor(
-    message: string,
-    status?: number,
-    response?: AxiosResponse
-  ) {
+  constructor(message: string, status?: number, response?: AxiosResponse) {
     super(message);
-    this.name = 'ApiClientError';
+    this.name = "ApiClientError";
     this.status = status;
     this.response = response;
   }
@@ -44,79 +48,83 @@ class ApiClient {
   constructor() {
     this.client = axios.create({
       baseURL: API_BASE_URL,
-      headers: { 'Content-Type': 'application/json' },
+      headers: { "Content-Type": "application/json" },
     });
 
     this.setupInterceptors();
   }
 
   private setupInterceptors() {
-    this.client.interceptors.request.use((config: InternalAxiosRequestConfig) => {
-      const token = localStorage.getItem(TOKEN_KEYS.ACCESS);
-      if (token) {
-        config.headers.Authorization = `Bearer ${token}`;
-      }
+    this.client.interceptors.request.use(
+      (config: InternalAxiosRequestConfig) => {
+        const token = localStorage.getItem(TOKEN_KEYS.ACCESS);
+        if (token) {
+          config.headers.Authorization = `Bearer ${token}`;
+        }
 
-      const url = config.url ?? '';
-      const shouldSkipEnvironmentFilter =
-        url.startsWith('/systems/api-keys') ||
-        url.startsWith('/systems/me') ||
-        url.startsWith('/auth/') ||
-        url.startsWith('/systems/register');
+        const activeEnvironmentType =
+          getActiveEnvironmentType() || DEFAULT_ENVIRONMENT;
+        const url = config.url ?? "";
+        const shouldSkipEnvironmentFilter =
+          url.startsWith("/systems/api-keys") ||
+          url.startsWith("/systems/me") ||
+          url.startsWith("/auth/") ||
+          url.startsWith("/systems/register");
 
-      if (!shouldSkipEnvironmentFilter) {
-        const activeEnvironmentType = getActiveEnvironmentType();
-
-        if ((config.method ?? 'GET').toUpperCase() === 'GET') {
-          // GET: send environmentType as query parameter
-          if (!config.params) {
-            config.params = { environmentType: activeEnvironmentType };
-          } else if (
-            !(config.params instanceof URLSearchParams) &&
-            typeof config.params === 'object' &&
-            !('environmentType' in config.params)
-          ) {
-            config.params = {
-              ...(config.params as Record<string, unknown>),
-              environmentType: activeEnvironmentType,
-            };
-          } else if (config.params instanceof URLSearchParams) {
-            if (!config.params.has('environmentType')) {
-              config.params.set('environmentType', activeEnvironmentType);
-            }
-          }
-        } else {
-          // Non-GET: inject environmentType into request body
-          if (config.data == null) {
-            config.data = { environmentType: activeEnvironmentType };
-          } else if (typeof config.data === 'string') {
-            try {
-              const parsed = JSON.parse(config.data);
-              if (!('environmentType' in parsed)) {
-                parsed.environmentType = activeEnvironmentType;
+        if (!shouldSkipEnvironmentFilter) {
+          if ((config.method ?? "GET").toUpperCase() === "GET") {
+            // GET: send environmentType as query parameter
+            if (!config.params) {
+              config.params = { environmentType: activeEnvironmentType };
+            } else if (
+              !(config.params instanceof URLSearchParams) &&
+              typeof config.params === "object" &&
+              !("environmentType" in config.params)
+            ) {
+              config.params = {
+                ...(config.params as Record<string, unknown>),
+                environmentType: activeEnvironmentType,
+              };
+            } else if (config.params instanceof URLSearchParams) {
+              if (!config.params.has("environmentType")) {
+                config.params.set("environmentType", activeEnvironmentType);
               }
-              config.data = JSON.stringify(parsed);
-            } catch {
-              // leave as-is if parsing fails
             }
-          } else if (
-            typeof config.data === 'object' &&
-            config.data !== null &&
-            !('environmentType' in (config.data as Record<string, unknown>))
-          ) {
-            (config.data as Record<string, unknown>).environmentType =
-              activeEnvironmentType;
+          } else {
+            // Non-GET: inject environmentType into request body
+            if (config.data == null) {
+              config.data = { environmentType: activeEnvironmentType };
+            } else if (typeof config.data === "string") {
+              try {
+                const parsed = JSON.parse(config.data);
+                if (!("environmentType" in parsed)) {
+                  parsed.environmentType = activeEnvironmentType;
+                }
+                config.data = JSON.stringify(parsed);
+              } catch {
+                // leave as-is if parsing fails
+              }
+            } else if (
+              typeof config.data === "object" &&
+              config.data !== null &&
+              !("environmentType" in (config.data as Record<string, unknown>))
+            ) {
+              (config.data as Record<string, unknown>).environmentType =
+                activeEnvironmentType;
+            }
           }
         }
-      }
 
-      return config;
-    });
+        return config;
+      },
+    );
 
     this.client.interceptors.response.use(
       (response) => response,
       async (error) => {
-        const originalRequest = error.config as AxiosRequestConfig & { _retry?: boolean };
+        const originalRequest = error.config as AxiosRequestConfig & {
+          _retry?: boolean;
+        };
 
         if (error.response?.status === 401 && !originalRequest._retry) {
           if (this.isRefreshing) {
@@ -125,7 +133,9 @@ class ApiClient {
             })
               .then((token) => {
                 if (originalRequest.headers) {
-                  (originalRequest.headers as Record<string, string>).Authorization = `Bearer ${token}`;
+                  (
+                    originalRequest.headers as Record<string, string>
+                  ).Authorization = `Bearer ${token}`;
                 }
                 return this.client(originalRequest);
               })
@@ -137,18 +147,22 @@ class ApiClient {
 
           const refreshToken = localStorage.getItem(TOKEN_KEYS.REFRESH);
 
-          if (!refreshToken || refreshToken === 'undefined') {
+          if (!refreshToken || refreshToken === "undefined") {
             this.clearAndRedirect();
             return Promise.reject(error);
           }
 
           try {
-            const { data } = await axios.post(`${this.client.defaults.baseURL}/auth/refresh`, {
-              refreshToken,
-            });
+            const { data } = await axios.post(
+              `${this.client.defaults.baseURL}/auth/refresh`,
+              {
+                refreshToken,
+              },
+            );
 
             const newToken: string = data.data?.accessToken || data.accessToken;
-            const newRefreshToken: string = data.data?.refreshToken || data.refreshToken;
+            const newRefreshToken: string =
+              data.data?.refreshToken || data.refreshToken;
 
             localStorage.setItem(TOKEN_KEYS.ACCESS, newToken);
             if (newRefreshToken) {
@@ -157,7 +171,9 @@ class ApiClient {
 
             this.client.defaults.headers.common.Authorization = `Bearer ${newToken}`;
             if (originalRequest.headers) {
-              (originalRequest.headers as Record<string, string>).Authorization = `Bearer ${newToken}`;
+              (
+                originalRequest.headers as Record<string, string>
+              ).Authorization = `Bearer ${newToken}`;
             }
 
             this.processQueue(null, newToken);
@@ -171,7 +187,7 @@ class ApiClient {
           }
         }
         return Promise.reject(error);
-      }
+      },
     );
   }
 
@@ -185,16 +201,16 @@ class ApiClient {
 
   private clearAndRedirect(): void {
     Object.values(TOKEN_KEYS).forEach((k) => localStorage.removeItem(k));
-    window.location.href = '/login';
+    window.location.href = "/login";
   }
 
   private validateResponse<T>(data: unknown, schema: z.ZodSchema<T>): T {
     let unwrappedData = data;
     if (
       data &&
-      typeof data === 'object' &&
-      'success' in data &&
-      'data' in data &&
+      typeof data === "object" &&
+      "success" in data &&
+      "data" in data &&
       (data as { success: boolean }).success === true
     ) {
       unwrappedData = (data as { data: unknown }).data;
@@ -204,15 +220,17 @@ class ApiClient {
       return schema.parse(unwrappedData);
     } catch (error) {
       if (error instanceof z.ZodError) {
-        console.group('Schema Validation Failed');
-        console.error('Original response:', data);
-        console.error('Unwrapped data:', unwrappedData);
-        console.error('Validation issues:');
+        console.group("Schema Validation Failed");
+        console.error("Original response:", data);
+        console.error("Unwrapped data:", unwrappedData);
+        console.error("Validation issues:");
         error.issues.forEach((issue, index) => {
-          console.error(`  ${index + 1}. Path: ${issue.path.join('.')} | Code: ${issue.code} | Message: ${issue.message}`);
+          console.error(
+            `  ${index + 1}. Path: ${issue.path.join(".")} | Code: ${issue.code} | Message: ${issue.message}`,
+          );
         });
         console.groupEnd();
-        throw new ApiValidationError('Response validation failed', error);
+        throw new ApiValidationError("Response validation failed", error);
       }
       throw error;
     }
@@ -223,13 +241,13 @@ class ApiClient {
       const status = error.response?.status;
       const data = error.response?.data;
 
-      let message = 'An error occurred';
+      let message = "An error occurred";
 
       if (data) {
         const validatedError = ApiErrorSchema.safeParse(data);
         if (validatedError.success) {
           message = validatedError.data.message;
-        } else if (typeof data === 'string') {
+        } else if (typeof data === "string") {
           message = data;
         } else if (data.message) {
           message = data.message;
@@ -245,7 +263,7 @@ class ApiClient {
   async get<T>(
     endpoint: string,
     responseSchema: z.ZodSchema<T>,
-    config?: AxiosRequestConfig
+    config?: AxiosRequestConfig,
   ): Promise<T> {
     try {
       const response = await this.client.get(endpoint, config);
@@ -260,9 +278,8 @@ class ApiClient {
     data: TRequest,
     responseSchema: z.ZodSchema<TResponse>,
     requestSchema?: z.ZodSchema<TRequest>,
-    config?: AxiosRequestConfig
+    config?: AxiosRequestConfig,
   ): Promise<TResponse> {
-
     try {
       const validatedData = requestSchema ? requestSchema.parse(data) : data;
       const response = await this.client.post(endpoint, validatedData, config);
@@ -277,7 +294,7 @@ class ApiClient {
     data: TRequest,
     responseSchema: z.ZodSchema<TResponse>,
     requestSchema?: z.ZodSchema<TRequest>,
-    config?: AxiosRequestConfig
+    config?: AxiosRequestConfig,
   ): Promise<TResponse> {
     try {
       const validatedData = requestSchema ? requestSchema.parse(data) : data;
@@ -293,7 +310,7 @@ class ApiClient {
     data: TRequest,
     responseSchema: z.ZodSchema<TResponse>,
     requestSchema?: z.ZodSchema<TRequest>,
-    config?: AxiosRequestConfig
+    config?: AxiosRequestConfig,
   ): Promise<TResponse> {
     try {
       const validatedData = requestSchema ? requestSchema.parse(data) : data;
@@ -307,7 +324,7 @@ class ApiClient {
   async delete<T>(
     endpoint: string,
     responseSchema: z.ZodSchema<T>,
-    config?: AxiosRequestConfig
+    config?: AxiosRequestConfig,
   ): Promise<T> {
     try {
       const response = await this.client.delete(endpoint, config);

@@ -30,11 +30,7 @@ import DarkModeIcon from "@mui/icons-material/DarkMode";
 import VisibilityIcon from "@mui/icons-material/Visibility";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 
-import {
-  cloneWorkflowVersion,
-  getWorkflow,
-  getWorkflowVersion,
-} from "../../api/workflowApi";
+import { workflowService } from "../../api/services/workflow";
 import { useApiCall } from "../../hooks/useApiCall";
 import { useThemeMode } from "../../context/useThemeMode";
 import NodePalette from "./builder/components/NodePalette";
@@ -214,7 +210,7 @@ export default function WorkflowBuilder() {
     if (!workflowId) return;
     setMarkDirtyEnabled(false);
     (async () => {
-      const wfRes = await call(() => getWorkflow(workflowId), {
+      const wfRes = await call(() => workflowService.getWorkflow(workflowId), {
         showError: false,
       });
       if (wfRes) {
@@ -223,7 +219,7 @@ export default function WorkflowBuilder() {
       }
 
       if (versionId) {
-        const vRes = await call(() => getWorkflowVersion(versionId), {
+        const vRes = await call(() => workflowService.getVersion(versionId), {
           showError: false,
         });
         if (vRes) {
@@ -318,9 +314,12 @@ export default function WorkflowBuilder() {
     if (!workflowId || !savedVersionId) return;
 
     setCloning(true);
-    const cloned = await call(() => cloneWorkflowVersion(savedVersionId), {
-      successMsg: `v${savedVersionNumber ?? "-"} cloned as a new draft.`,
-    });
+    const cloned = await call(
+      () => workflowService.cloneWorkflowVersion(savedVersionId),
+      {
+        successMsg: `v${savedVersionNumber ?? "-"} cloned as a new draft.`,
+      },
+    );
     setCloning(false);
     setCloneConfirmOpen(false);
 

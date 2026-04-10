@@ -1,14 +1,9 @@
-import { useState, useCallback } from 'react';
-import { useApiCall } from '../../../hooks/useApiCall';
-import {
-  getInstance,
-  pauseInstance as pauseApi,
-  resumeInstance as resumeApi,
-  terminateInstance as terminateApi,
-} from '../../../api/instanceApi';
-import type { Instance } from '../../../api/schemas/instance';
+import { useState, useCallback } from "react";
+import { useApiCall } from "../../../hooks/useApiCall";
+import { instanceService } from "../../../api/services/instance";
+import type { Instance } from "../../../api/schemas/instance";
 
-const TERMINAL_STATUSES = new Set(['completed', 'failed', 'terminated']);
+const TERMINAL_STATUSES = new Set(["completed", "failed", "terminated"]);
 
 export function useInstance() {
   const { loading, error, call } = useApiCall();
@@ -16,7 +11,7 @@ export function useInstance() {
 
   const fetch = useCallback(
     async (id: string) => {
-      const res = await call(() => getInstance(id));
+      const res = await call(() => instanceService.getInstance(id));
       setInstance(res);
       return res;
     },
@@ -25,7 +20,9 @@ export function useInstance() {
 
   const silentFetch = useCallback(
     async (id: string) => {
-      const res = await call(() => getInstance(id), { silent: true });
+      const res = await call(() => instanceService.getInstance(id), {
+        silent: true,
+      });
       setInstance(res);
       return res;
     },
@@ -48,24 +45,50 @@ export function useInstance() {
   );
 
   const resume = useCallback(
-    async (id: string) => runAction(resumeApi, 'Instance resumed successfully', id),
+    async (id: string) =>
+      runAction(
+        (targetId) => instanceService.resumeInstance(targetId),
+        "Instance resumed successfully",
+        id,
+      ),
     [runAction],
   );
 
   const pause = useCallback(
-    async (id: string) => runAction(pauseApi, 'Instance paused successfully', id),
+    async (id: string) =>
+      runAction(
+        (targetId) => instanceService.pauseInstance(targetId),
+        "Instance paused successfully",
+        id,
+      ),
     [runAction],
   );
 
   const terminate = useCallback(
-    async (id: string) => runAction(terminateApi, 'Instance terminated successfully', id),
+    async (id: string) =>
+      runAction(
+        (targetId) => instanceService.terminateInstance(targetId),
+        "Instance terminated successfully",
+        id,
+      ),
     [runAction],
   );
 
   const isTerminal = useCallback(
-    (status: string | undefined) => (status ? TERMINAL_STATUSES.has(status) : false),
+    (status: string | undefined) =>
+      status ? TERMINAL_STATUSES.has(status) : false,
     [],
   );
 
-  return { instance, loading, error, fetch, silentFetch, resume, pause, terminate, isTerminal };
+  return {
+    instance,
+    loading,
+    error,
+    fetch,
+    silentFetch,
+    resume,
+    pause,
+    terminate,
+    isTerminal,
+  };
 }

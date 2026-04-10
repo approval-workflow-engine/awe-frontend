@@ -2,12 +2,7 @@ import { useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useSnackbar } from "notistack";
 import { useApiCall } from "../../../../hooks/useApiCall";
-import {
-  validateVersion,
-  createWorkflowVersion,
-  updateWorkflowVersion,
-  updateVersionStatus,
-} from "../../../../api/workflowApi";
+import { workflowService } from "../../../../api/services/workflow";
 import { canvasToVersionPayload } from "../utils/serialization";
 import type { CanvasNode, CanvasEdge } from "../type/types";
 import type { ValidationResult } from "../../../../types";
@@ -32,7 +27,9 @@ interface UseBuilderActionsReturn {
   activating: boolean;
   deactivating: boolean;
   validationResult: ValidationResult | null;
-  setValidationResult: React.Dispatch<React.SetStateAction<ValidationResult | null>>;
+  setValidationResult: React.Dispatch<
+    React.SetStateAction<ValidationResult | null>
+  >;
   errorsPopoverOpen: boolean;
   setErrorsPopoverOpen: React.Dispatch<React.SetStateAction<boolean>>;
   saveAnchorEl: HTMLButtonElement | null;
@@ -71,23 +68,32 @@ export function useBuilderActions({
   const [committing, setCommitting] = useState(false);
   const [activating, setActivating] = useState(false);
   const [deactivating, setDeactivating] = useState(false);
-  const [validationResult, setValidationResult] = useState<ValidationResult | null>(null);
+  const [validationResult, setValidationResult] =
+    useState<ValidationResult | null>(null);
   const [errorsPopoverOpen, setErrorsPopoverOpen] = useState(false);
-  const [saveAnchorEl, setSaveAnchorEl] = useState<HTMLButtonElement | null>(null);
-  const saveButtonRef = useCallback((el: HTMLButtonElement | null) => setSaveAnchorEl(el), []);
+  const [saveAnchorEl, setSaveAnchorEl] = useState<HTMLButtonElement | null>(
+    null,
+  );
+  const saveButtonRef = useCallback(
+    (el: HTMLButtonElement | null) => setSaveAnchorEl(el),
+    [],
+  );
   const [commitConfirmOpen, setCommitConfirmOpen] = useState(false);
   const [activateConfirmOpen, setActivateConfirmOpen] = useState(false);
   const [deactivateConfirmOpen, setDeactivateConfirmOpen] = useState(false);
 
-  const saveDraft = async (): Promise<{ versionId: string | null; versionNumber: number | null }> => {
+  const saveDraft = async (): Promise<{
+    versionId: string | null;
+    versionNumber: number | null;
+  }> => {
     if (!workflowId) return { versionId: null, versionNumber: null };
     const payload = canvasToVersionPayload(nodes, edges);
 
     const res = await call(
       () =>
         savedVersionId
-          ? updateWorkflowVersion(savedVersionId, payload as Record<string, unknown>)
-          : createWorkflowVersion(workflowId, payload as Record<string, unknown>),
+          ? workflowService.updateVersion(savedVersionId, payload as never)
+          : workflowService.createVersion(workflowId, payload as never),
       { showError: true },
     );
 
@@ -131,15 +137,22 @@ export function useBuilderActions({
       return false;
     }
 
-    const res = await call(() => validateVersion(versionId), { showError: false });
+    const res = await call(() => workflowService.validateVersion(versionId), {
+      showError: false,
+    });
     const result = res
       ? (res as ValidationResult)
-      : { valid: false, errors: [{ code: -1, message: "Validation request failed" }] };
+      : {
+          valid: false,
+          errors: [{ code: -1, message: "Validation request failed" }],
+        };
 
     setValidationResult(result);
     setVersionStatus(result.valid ? "valid" : "draft");
     enqueueSnackbar(
-      result.valid ? "Saved - No validation errors" : "Saved - Validation errors present",
+      result.valid
+        ? "Saved - No validation errors"
+        : "Saved - Validation errors present",
       { variant: result.valid ? "success" : "warning" },
     );
 
@@ -159,8 +172,11 @@ export function useBuilderActions({
 
     setCommitting(true);
     const res = await call(
-      () => updateVersionStatus(savedVersionId, "published"),
-      { successMsg: `v${savedVersionNumber ?? "-"} committed.`, showError: true },
+      () => workflowService.updateVersionStatus(savedVersionId, "published"),
+      {
+        successMsg: `v${savedVersionNumber ?? "-"} committed.`,
+        showError: true,
+      },
     );
     setCommitting(false);
     setCommitConfirmOpen(false);
@@ -172,8 +188,11 @@ export function useBuilderActions({
 
     setActivating(true);
     const res = await call(
-      () => updateVersionStatus(savedVersionId, "active"),
-      { successMsg: `v${savedVersionNumber ?? "-"} is now active.`, showError: true },
+      () => workflowService.updateVersionStatus(savedVersionId, "active"),
+      {
+        successMsg: `v${savedVersionNumber ?? "-"} is now active.`,
+        showError: true,
+      },
     );
     setActivating(false);
     setActivateConfirmOpen(false);
@@ -185,8 +204,11 @@ export function useBuilderActions({
 
     setDeactivating(true);
     const res = await call(
-      () => updateVersionStatus(savedVersionId, "published"),
-      { successMsg: `v${savedVersionNumber ?? "-"} deactivated.`, showError: true },
+      () => workflowService.updateVersionStatus(savedVersionId, "published"),
+      {
+        successMsg: `v${savedVersionNumber ?? "-"} deactivated.`,
+        showError: true,
+      },
     );
     setDeactivating(false);
     setDeactivateConfirmOpen(false);
@@ -199,7 +221,9 @@ export function useBuilderActions({
     navigator.clipboard
       .writeText(json)
       .then(() => {
-        enqueueSnackbar("Workflow JSON copied to clipboard", { variant: "success" });
+        enqueueSnackbar("Workflow JSON copied to clipboard", {
+          variant: "success",
+        });
       })
       .catch(() => {
         enqueueSnackbar("Failed to copy to clipboard", { variant: "error" });

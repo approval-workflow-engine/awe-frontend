@@ -6,7 +6,7 @@ export function flattenJsonToBody(
     return prefix ? [{ jsonPath: prefix, valueExpression: "null" }] : [];
   }
   if (typeof obj === "string") {
-    const m = obj.match(/^\{(context\.\w+(?:\.\w+)*)\}$/);
+    const m = obj.match(/^(context\.\w+(?:\.\w+)*)$/);
     const valueExpression = m ? m[1] : JSON.stringify(obj);
     return prefix ? [{ jsonPath: prefix, valueExpression }] : [];
   }
@@ -42,7 +42,7 @@ export function bodyToJson(
     const last = parts[parts.length - 1];
     if (!last) continue;
     if (valueExpression.startsWith("context.")) {
-      cur[last] = `{${valueExpression}}`;
+      cur[last] = valueExpression;
     } else {
       try {
         cur[last] = JSON.parse(valueExpression);

@@ -126,7 +126,9 @@ export default function ServiceTaskConfig({
             label="URL"
             value={(c.urlExpression as string) ?? ""}
             onChange={(v) => set("urlExpression", v)}
-            placeholder={'"https://api.example.com/items" or "https://api.example.com/" + context.id'}
+            placeholder={
+              '"https://api.example.com/items" or "https://api.example.com/" + context.id'
+            }
             availableContext={availableContext}
             hint='FEEL expression: use "url" for static URLs, "url/" + context.var for dynamic paths'
           />
@@ -202,7 +204,7 @@ export default function ServiceTaskConfig({
             <Typography
               sx={{ fontSize: 9, color: "text.secondary", opacity: 0.8 }}
             >
-              JSON body - use {"{"}context.varName{"}"} for dynamic values
+              JSON body - use context.varName for dynamic values
             </Typography>
             <Box
               sx={{
@@ -217,7 +219,7 @@ export default function ServiceTaskConfig({
                 onChange={(e) => handleBodyChange(e.target.value)}
                 rows={5}
                 spellCheck={false}
-                placeholder={'{\n  "key": "{context.value}"\n}'}
+                placeholder={'{\n  "key": "context.value"\n}'}
                 style={{
                   width: "100%",
                   boxSizing: "border-box",
@@ -330,9 +332,7 @@ export default function ServiceTaskConfig({
                     fontWeight: 700,
                     textTransform: "none",
                     backgroundColor:
-                      backoff.type === t
-                        ? "action.selected"
-                        : "transparent",
+                      backoff.type === t ? "action.selected" : "transparent",
                     color:
                       backoff.type === t ? "text.primary" : "text.disabled",
                     border: "1px solid",

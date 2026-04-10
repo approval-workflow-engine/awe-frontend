@@ -1,8 +1,8 @@
-import { useState, useCallback } from 'react';
-import { useApiCall } from '../../../hooks/useApiCall';
-import { getInstances } from '../../../api/instanceApi';
-import type { InstanceListItem } from '../../../api/schemas/instance';
-import type { PaginationParams, Pagination } from '../../../api/schemas/common';
+import { useState, useCallback } from "react";
+import { useApiCall } from "../../../hooks/useApiCall";
+import { instanceService } from "../../../api/services/instance";
+import type { InstanceListItem } from "../../../api/schemas/instance";
+import type { PaginationParams, Pagination } from "../../../api/schemas/common";
 
 interface FetchResult {
   instances: InstanceListItem[];
@@ -15,7 +15,7 @@ export function useInstances() {
 
   const fetch = useCallback(
     async (params?: PaginationParams): Promise<FetchResult | null> => {
-      const res = await call(() => getInstances(params));
+      const res = await call(() => instanceService.getInstances(params));
       const instances_ = res?.instances ?? [];
       setInstances(instances_);
       return res as FetchResult | null;
@@ -25,7 +25,9 @@ export function useInstances() {
 
   const silentFetch = useCallback(
     async (params?: PaginationParams) => {
-      const res = await call(() => getInstances(params), { silent: true });
+      const res = await call(() => instanceService.getInstances(params), {
+        silent: true,
+      });
       const instances_ = res?.instances ?? [];
       setInstances(instances_);
       return res as FetchResult | null;
