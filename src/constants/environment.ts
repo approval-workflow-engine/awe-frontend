@@ -10,50 +10,41 @@ export const ENVIRONMENT_OPTIONS: EnvironmentType[] = [
 
 export const DEFAULT_ENVIRONMENT: EnvironmentType = "development";
 
-function normalizeEnvironmentTypes(values: string[]): EnvironmentType[] {
-  return values.filter((value): value is EnvironmentType =>
-    ENVIRONMENT_OPTIONS.includes(value as EnvironmentType),
-  );
-}
-
-export function getActiveEnvironmentTypes(): EnvironmentType[] {
+export function getActiveEnvironmentType(): EnvironmentType {
   const storedValue = localStorage.getItem(ENVIRONMENT_STORAGE_KEY);
 
   if (!storedValue) {
-    return [...ENVIRONMENT_OPTIONS];
+    return DEFAULT_ENVIRONMENT;
   }
 
-  const parsedValues = normalizeEnvironmentTypes(
-    storedValue.split(",").map((value) => value.trim()),
-  );
+  const first = storedValue.split(",")[0]?.trim();
 
-  if (parsedValues.length > 0) {
-    return parsedValues;
+  if (first && ENVIRONMENT_OPTIONS.includes(first as EnvironmentType)) {
+    return first as EnvironmentType;
   }
 
-  if (ENVIRONMENT_OPTIONS.includes(storedValue as EnvironmentType)) {
-    return [storedValue as EnvironmentType];
-  }
-
-  return [...ENVIRONMENT_OPTIONS];
+  return DEFAULT_ENVIRONMENT;
 }
 
-export function getActiveEnvironmentType(): EnvironmentType {
-  return getActiveEnvironmentTypes()[0] ?? DEFAULT_ENVIRONMENT;
+export function getActiveEnvironmentTypes(): EnvironmentType[] {
+  return [getActiveEnvironmentType()];
+}
+
+export function setActiveEnvironmentType(environmentType: EnvironmentType): void {
+  localStorage.setItem(ENVIRONMENT_STORAGE_KEY, environmentType);
 }
 
 export function setActiveEnvironmentTypes(environmentTypes: EnvironmentType[]): void {
-  const normalized = normalizeEnvironmentTypes(environmentTypes);
-  const nextValue = normalized.length > 0 ? normalized : [...ENVIRONMENT_OPTIONS];
-  localStorage.setItem(ENVIRONMENT_STORAGE_KEY, nextValue.join(","));
+  const next = environmentTypes[0] ?? DEFAULT_ENVIRONMENT;
+  setActiveEnvironmentType(next);
 }
 
 export function getEnvironmentSelectionLabel(environmentTypes: EnvironmentType[]): string {
-  if (environmentTypes.length === ENVIRONMENT_OPTIONS.length) {
-    return "All Environments";
+  if (environmentTypes.length === 0) {
+    return getEnvironmentBadgeLabel(DEFAULT_ENVIRONMENT);
   }
 
-  return environmentTypes.map(getEnvironmentBadgeLabel).join(" + ");
+  return getEnvironmentBadgeLabel(environmentTypes[0]);
 }
 
 export function getEnvironmentBadgeLabel(environmentType: EnvironmentType): string {
