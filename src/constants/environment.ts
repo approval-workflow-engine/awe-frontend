@@ -10,12 +10,50 @@ export const ENVIRONMENT_OPTIONS: EnvironmentType[] = [
 
 export const DEFAULT_ENVIRONMENT: EnvironmentType = "development";
 
-export function getActiveEnvironmentType(): EnvironmentType {
-  const value = localStorage.getItem(ENVIRONMENT_STORAGE_KEY) as EnvironmentType | null;
-  if (value && ENVIRONMENT_OPTIONS.includes(value)) {
-    return value;
+function normalizeEnvironmentTypes(values: string[]): EnvironmentType[] {
+  return values.filter((value): value is EnvironmentType =>
+    ENVIRONMENT_OPTIONS.includes(value as EnvironmentType),
+  );
+}
+
+export function getActiveEnvironmentTypes(): EnvironmentType[] {
+  const storedValue = localStorage.getItem(ENVIRONMENT_STORAGE_KEY);
+
+  if (!storedValue) {
+    return [...ENVIRONMENT_OPTIONS];
   }
-  return DEFAULT_ENVIRONMENT;
+
+  const parsedValues = normalizeEnvironmentTypes(
+    storedValue.split(",").map((value) => value.trim()),
+  );
+
+  if (parsedValues.length > 0) {
+    return parsedValues;
+  }
+
+  if (ENVIRONMENT_OPTIONS.includes(storedValue as EnvironmentType)) {
+    return [storedValue as EnvironmentType];
+  }
+
+  return [...ENVIRONMENT_OPTIONS];
+}
+
+export function getActiveEnvironmentType(): EnvironmentType {
+  return getActiveEnvironmentTypes()[0] ?? DEFAULT_ENVIRONMENT;
+}
+
+export function setActiveEnvironmentTypes(environmentTypes: EnvironmentType[]): void {
+  const normalized = normalizeEnvironmentTypes(environmentTypes);
+  const nextValue = normalized.length > 0 ? normalized : [...ENVIRONMENT_OPTIONS];
+  localStorage.setItem(ENVIRONMENT_STORAGE_KEY, nextValue.join(","));
+}
+
+export function getEnvironmentSelectionLabel(environmentTypes: EnvironmentType[]): string {
+  if (environmentTypes.length === ENVIRONMENT_OPTIONS.length) {
+    return "All Environments";
+  }
+
+  return environmentTypes.map(getEnvironmentBadgeLabel).join(" + ");
 }
 
 export function getEnvironmentBadgeLabel(environmentType: EnvironmentType): string {

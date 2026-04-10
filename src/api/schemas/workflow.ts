@@ -35,6 +35,7 @@ export const WorkflowSchema = z.object({
   id: z.string(),
   name: z.string(),
   description: z.string().nullable().optional(),
+  environmentType: z.enum(['production', 'development', 'staging']).optional(),
   createdAt: z.string().datetime(),
   updatedAt: z.string().datetime().optional(),
   latestVersion: z.number().nullable().optional(),
@@ -57,6 +58,7 @@ export const WorkflowVersionSchema = z.object({
   status: WorkflowVersionStatusSchema,
   description: z.string().nullable().optional(),
   publishedAt: z.string().datetime().nullable().optional(),
+  environmentType: z.enum(['production', 'development', 'staging']).optional(),
   createdAt: z.string().datetime(),
   modifiedAt: z.string().datetime().optional(),
   updatedAt: z.string().datetime().optional(),
@@ -92,6 +94,7 @@ export const WorkflowVersionListItemSchema = z.object({
   status: WorkflowVersionStatusSchema,
   description: z.string().nullable().optional(),
   publishedAt: z.string().datetime().nullable().optional(),
+  environmentType: z.enum(['production', 'development', 'staging']).optional(),
   createdAt: z.string().datetime(),
   updatedAt: z.string().datetime(),
 });

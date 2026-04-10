@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { TOKEN_KEYS } from '../constants/tokens';
 import { ApiErrorSchema } from './schemas';
 import { API_BASE_URL } from './baseUrl';
+import { getActiveEnvironmentTypes } from '../constants/environment';
 
 interface QueueItem {
   resolve: (token: string) => void;
@@ -55,6 +56,35 @@ class ApiClient {
       if (token) {
         config.headers.Authorization = `Bearer ${token}`;
       }
+
+      const url = config.url ?? '';
+      const shouldSkipEnvironmentFilter =
+        url.startsWith('/systems/api-keys') ||
+        url.startsWith('/systems/me') ||
+        url.startsWith('/auth/') ||
+        url.startsWith('/systems/register');
+
+      if (!shouldSkipEnvironmentFilter) {
+        const selectedEnvironmentTypes = getActiveEnvironmentTypes().join(',');
+
+        if (!config.params) {
+          config.params = { environmentType: selectedEnvironmentTypes };
+        } else if (
+          !(config.params instanceof URLSearchParams) &&
+          typeof config.params === 'object' &&
+          !('environmentType' in config.params)
+        ) {
+          config.params = {
+            ...(config.params as Record<string, unknown>),
+            environmentType: selectedEnvironmentTypes,
+          };
+        } else if (config.params instanceof URLSearchParams) {
+          if (!config.params.has('environmentType')) {
+            config.params.set('environmentType', selectedEnvironmentTypes);
+          }
+        }
+      }
+
       return config;
     });
 
