@@ -46,20 +46,26 @@ export function useApiCall(): UseApiCallReturn {
       try {
         const response = await apiFn();
 
-        // Handle new apiClient response (direct data) vs old axiosClient response (AxiosResponse)
-        const isAxiosResponse = response && typeof response === 'object' && 'data' in response;
+        // Handle typed service responses (direct data) as well as raw Axios responses.
+        const isAxiosResponse =
+          response && typeof response === "object" && "data" in response;
 
         let payload: T;
         if (isAxiosResponse) {
           const axiosResponse = response as AxiosResponse<T>;
-          const raw = axiosResponse.data as { success?: boolean; data?: unknown };
+          const raw = axiosResponse.data as {
+            success?: boolean;
+            data?: unknown;
+          };
 
-          payload = (raw !== null &&
+          payload = (
+            raw !== null &&
             typeof raw === "object" &&
             typeof raw.success === "boolean" &&
             "data" in raw
               ? (raw.data as T)
-              : axiosResponse.data) as T;
+              : axiosResponse.data
+          ) as T;
         } else {
           payload = response as T;
         }

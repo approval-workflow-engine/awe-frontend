@@ -12,10 +12,6 @@ import {
   Divider,
   Avatar,
   Tooltip,
-  FormControl,
-  Select,
-  MenuItem,
-  Chip,
 } from "@mui/material";
 import DashboardIcon from "@mui/icons-material/Dashboard";
 import AccountTreeIcon from "@mui/icons-material/AccountTree";
@@ -25,21 +21,10 @@ import SecurityIcon from "@mui/icons-material/Security";
 import SettingsIcon from "@mui/icons-material/Settings";
 import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
 import MenuIcon from "@mui/icons-material/Menu";
-import LogoutIcon from "@mui/icons-material/Logout";
-import LightModeIcon from "@mui/icons-material/LightMode";
-import DarkModeIcon from "@mui/icons-material/DarkMode";
 import Logo from "../common/Logo";
-import type { ThemeMode } from "../../types";
-import {
-  ENVIRONMENT_OPTIONS,
-  getEnvironmentBadgeLabel,
-  type EnvironmentType,
-  getEnvironmentSelectionLabel,
-} from "../../constants/environment";
-import type { SelectChangeEvent } from "@mui/material/Select";
 
-const EXPANDED_WIDTH = 220;
-const COLLAPSED_WIDTH = 64;
+const EXPANDED_WIDTH = 196;
+const COLLAPSED_WIDTH = 60;
 
 interface NavItem {
   label: string;
@@ -58,38 +43,26 @@ const NAV_ITEMS: NavItem[] = [
 
 interface AppSidebarProps {
   collapsed: boolean;
-  mode: ThemeMode;
   activePath: string;
-  selectedEnvironmentType: EnvironmentType;
   userName?: string;
   userOrgName?: string;
   userContactEmail?: string;
   onNavigate: (path: string) => void;
-  onEnvironmentChange: (environmentType: EnvironmentType) => void;
   onToggleCollapse: (collapsed: boolean) => void;
-  onToggleTheme: () => void;
-  onOpenLogout: () => void;
 }
 
 export default function AppSidebar({
   collapsed,
-  mode,
   activePath,
-  selectedEnvironmentType,
   userName,
   userOrgName,
   userContactEmail,
   onNavigate,
-  onEnvironmentChange,
   onToggleCollapse,
-  onToggleTheme,
-  onOpenLogout,
 }: AppSidebarProps) {
   const width = collapsed ? COLLAPSED_WIDTH : EXPANDED_WIDTH;
   const avatarLabel = (userName || userOrgName || "U")[0]?.toUpperCase() ?? "U";
   const displayName = userName || userOrgName || "User";
-  const activeEnvironmentType = selectedEnvironmentType ?? ENVIRONMENT_OPTIONS[0];
-  const selectionLabel = getEnvironmentSelectionLabel([activeEnvironmentType]);
 
   const isActive = (path: string) => activePath.startsWith(path);
 
@@ -107,6 +80,9 @@ export default function AppSidebar({
           display: "flex",
           flexDirection: "column",
           borderRadius: 0,
+          borderRight: "1px solid",
+          borderColor: "divider",
+          backgroundColor: "background.paper",
         },
       }}
     >
@@ -173,65 +149,6 @@ export default function AppSidebar({
         </Box>
       )}
 
-      <Divider />
-
-      <Box sx={{ px: collapsed ? 1 : 1.5, py: 1 }}>
-        {collapsed ? (
-          <Tooltip title={`Environment: ${activeEnvironmentType}`} placement="right">
-            <Chip
-              size="small"
-              label={getEnvironmentBadgeLabel(activeEnvironmentType)}
-              sx={{
-                width: "100%",
-                fontSize: 10,
-                height: 22,
-                fontWeight: 700,
-                backgroundColor: "rgba(79,110,247,0.12)",
-                color: "primary.main",
-              }}
-            />
-          </Tooltip>
-        ) : (
-          <Box display="flex" alignItems="center" gap={1}>
-            <FormControl size="small" fullWidth>
-              <Select<EnvironmentType>
-                value={activeEnvironmentType}
-                onChange={(e: SelectChangeEvent<EnvironmentType>) =>
-                  onEnvironmentChange(e.target.value as EnvironmentType)
-                }
-                renderValue={() => selectionLabel}
-                sx={{
-                  height: 30,
-                  fontSize: 12,
-                  borderRadius: "8px",
-                  "& .MuiSelect-select": { py: 0.5 },
-                }}
-              >
-                {ENVIRONMENT_OPTIONS.map((env) => (
-                  <MenuItem key={env} value={env} sx={{ fontSize: 12 }}>
-                    <ListItemText
-                      primary={env}
-                      primaryTypographyProps={{ fontSize: 12, textTransform: "capitalize" }}
-                    />
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-            <Chip
-              size="small"
-              label={getEnvironmentSelectionLabel([activeEnvironmentType])}
-              sx={{
-                fontSize: 10,
-                height: 22,
-                fontWeight: 700,
-                backgroundColor: "rgba(79,110,247,0.12)",
-                color: "primary.main",
-              }}
-            />
-          </Box>
-        )}
-      </Box>
-
       <Box sx={{ flex: 1, overflowY: "auto", py: 1 }}>
         <List disablePadding>
           {NAV_ITEMS.map((item) => {
@@ -297,39 +214,6 @@ export default function AppSidebar({
       <Box
         sx={{
           display: "flex",
-          justifyContent: collapsed ? "center" : "flex-end",
-          px: collapsed ? 0 : 1.5,
-          py: 0.75,
-        }}
-      >
-        <Tooltip
-          title={
-            mode === "dark" ? "Switch to light mode" : "Switch to dark mode"
-          }
-          placement="right"
-        >
-          <IconButton
-            size="small"
-            onClick={onToggleTheme}
-            sx={{
-              color: "text.disabled",
-              "&:hover": { color: "text.primary" },
-            }}
-          >
-            {mode === "dark" ? (
-              <LightModeIcon fontSize="small" />
-            ) : (
-              <DarkModeIcon fontSize="small" />
-            )}
-          </IconButton>
-        </Tooltip>
-      </Box>
-
-      <Divider />
-
-      <Box
-        sx={{
-          display: "flex",
           alignItems: "center",
           gap: 1.5,
           px: collapsed ? 1 : 2,
@@ -382,15 +266,6 @@ export default function AppSidebar({
                 {userContactEmail || ""}
               </Typography>
             </Box>
-            <LogoutIcon
-              sx={{
-                fontSize: 16,
-                color: "text.disabled",
-                flexShrink: 0,
-                cursor: "pointer",
-              }}
-              onClick={onOpenLogout}
-            />
           </>
         )}
       </Box>

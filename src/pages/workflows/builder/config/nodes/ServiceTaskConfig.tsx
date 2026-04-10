@@ -27,7 +27,8 @@ interface HeaderRow {
 
 interface Backoff {
   type: "fixed" | "exponential";
-  delayMs: number;
+  delay: number;
+  unit: "millisecond" | "second" | "minute";
 }
 
 interface Props {
@@ -88,7 +89,7 @@ export default function ServiceTaskConfig({
     );
 
   const method = (c.method as string) || "GET";
-  const backoff = (c.backoff as Backoff) ?? { type: "fixed", delayMs: 1000 };
+  const backoff = (c.backoff as Backoff) ?? { type: "fixed", delay: 1, unit: "second" };
   const setBackoff = (patch: Partial<Backoff>) =>
     set("backoff", { ...backoff, ...patch });
 
@@ -126,7 +127,9 @@ export default function ServiceTaskConfig({
             label="URL"
             value={(c.urlExpression as string) ?? ""}
             onChange={(v) => set("urlExpression", v)}
-            placeholder={'"https://api.example.com/items" or "https://api.example.com/" + context.id'}
+            placeholder={
+              '"https://api.example.com/items" or "https://api.example.com/" + context.id'
+            }
             availableContext={availableContext}
             hint='FEEL expression: use "url" for static URLs, "url/" + context.var for dynamic paths'
           />
@@ -202,7 +205,7 @@ export default function ServiceTaskConfig({
             <Typography
               sx={{ fontSize: 9, color: "text.secondary", opacity: 0.8 }}
             >
-              JSON body - use {"{"}context.varName{"}"} for dynamic values
+              JSON body - use context.varName for dynamic values
             </Typography>
             <Box
               sx={{
@@ -217,7 +220,7 @@ export default function ServiceTaskConfig({
                 onChange={(e) => handleBodyChange(e.target.value)}
                 rows={5}
                 spellCheck={false}
-                placeholder={'{\n  "key": "{context.value}"\n}'}
+                placeholder={'{\n  "key": "context.value"\n}'}
                 style={{
                   width: "100%",
                   boxSizing: "border-box",
@@ -297,14 +300,46 @@ export default function ServiceTaskConfig({
             justifyContent="space-between"
           >
             <Typography sx={{ fontSize: 11, color: "text.secondary" }}>
-              Retry Delay (ms)
+              Retry Delay
             </Typography>
-            <Box sx={{ width: 100 }}>
+            <Box display="flex" gap={0.5} sx={{ width: 140 }}>
               <NumberInput
-                value={backoff.delayMs}
-                onChange={(v) => setBackoff({ delayMs: v ?? 1000 })}
-                min={0}
+                value={backoff.delay}
+                onChange={(v) => setBackoff({ delay: v ?? 1 })}
+                min={1}
+                allowEmpty={false}
               />
+              <Box display="flex" gap={0.25}>
+                {(["millisecond", "second", "minute"] as const).map((u) => (
+                  <Button
+                    key={u}
+                    size="small"
+                    onClick={() => setBackoff({ unit: u })}
+                    title={u}
+                    sx={{
+                      fontSize: 8,
+                      height: 22,
+                      borderRadius: "4px",
+                      minWidth: 30,
+                      px: 0.5,
+                      fontWeight: 600,
+                      textTransform: "none",
+                      backgroundColor:
+                        backoff.unit === u ? "action.selected" : "transparent",
+                      color:
+                        backoff.unit === u ? "text.primary" : "text.disabled",
+                      border: "1px solid",
+                      borderColor:
+                        backoff.unit === u ? "action.focus" : "divider",
+                      "&:hover": {
+                        backgroundColor: "action.hover",
+                      },
+                    }}
+                  >
+                    {u === "millisecond" ? "ms" : u === "second" ? "s" : "m"}
+                  </Button>
+                ))}
+              </Box>
             </Box>
           </Box>
           <Box
@@ -330,9 +365,7 @@ export default function ServiceTaskConfig({
                     fontWeight: 700,
                     textTransform: "none",
                     backgroundColor:
-                      backoff.type === t
-                        ? "action.selected"
-                        : "transparent",
+                      backoff.type === t ? "action.selected" : "transparent",
                     color:
                       backoff.type === t ? "text.primary" : "text.disabled",
                     border: "1px solid",

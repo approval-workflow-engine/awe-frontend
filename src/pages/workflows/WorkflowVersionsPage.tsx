@@ -31,16 +31,11 @@ import PowerSettingsNewIcon from "@mui/icons-material/PowerSettingsNew";
 import ControlPointDuplicateIcon from "@mui/icons-material/ControlPointDuplicate";
 import AddIcon from "@mui/icons-material/Add";
 import ArrowDropDownIcon from "@mui/icons-material/ArrowDropDown";
-import {
-  getWorkflow,
-  getWorkflowVersions,
-  updateVersionStatus,
-  cloneWorkflowVersion,
-  promoteWorkflowVersion,
-} from "../../api/workflowApi";
+import { workflowService } from "../../api/services/workflow";
 import { useApiCall } from "../../hooks/useApiCall";
 import PageHeader from "../../components/common/PageHeader";
 import AppPagination from "../../components/common/AppPagination";
+import { useBackNavigation } from "../../hooks/useBackNavigation";
 import type { Workflow, WorkflowVersion } from "../../types";
 import type { Pagination } from "../../api/schemas/common";
 import {
@@ -52,17 +47,17 @@ import {
 type LifecycleAction = "commit" | "activate" | "deactivate" | "clone";
 
 const STATUS_COLORS: Record<string, { bg: string; color: string }> = {
-  draft:     { bg: "rgba(59,130,246,0.12)",  color: "#3b82f6" },
-  valid:     { bg: "rgba(6,182,212,0.12)",   color: "#06b6d4" },
-  published: { bg: "rgba(245,158,11,0.12)",  color: "#f59e0b" },
-  active:    { bg: "rgba(34,197,94,0.12)",   color: "#22c55e" },
+  draft: { bg: "rgba(59,130,246,0.12)", color: "#3b82f6" },
+  valid: { bg: "rgba(6,182,212,0.12)", color: "#06b6d4" },
+  published: { bg: "rgba(245,158,11,0.12)", color: "#f59e0b" },
+  active: { bg: "rgba(34,197,94,0.12)", color: "#22c55e" },
 };
 
 const STATUS_LABELS: Record<string, string> = {
-  draft:     "Draft",
-  valid:     "Valid",
+  draft: "Draft",
+  valid: "Valid",
   published: "Committed",
-  active:    "Active",
+  active: "Active",
 };
 
 const ACTION_CONFIG: Record<
@@ -100,11 +95,23 @@ const ACTION_CONFIG: Record<
   },
 };
 
-export default function WorkflowVersionsPage() {
+const ALLOWED_PROMOTION_TARGETS: Record<EnvironmentType, EnvironmentType[]> = {
+  development: ["staging", "production"],
+  staging: ["production"],
+  production: [],
+};
 
+const ENV_DISPLAY: Record<EnvironmentType, string> = {
+  development: "Development",
+  staging: "Staging",
+  production: "Production",
+};
+
+export default function WorkflowVersionsPage() {
   const { workflowId } = useParams<{ workflowId: string }>();
   const navigate = useNavigate();
   const { call } = useApiCall();
+  const { goBack } = useBackNavigation("/workflows");
 
   const [workflow, setWorkflow] = useState<Workflow | null>(null);
   const [versions, setVersions] = useState<WorkflowVersion[]>([]);
@@ -120,61 +127,86 @@ export default function WorkflowVersionsPage() {
     action: LifecycleAction;
   } | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
-  const [promoteAnchorEl, setPromoteAnchorEl] = useState<null | HTMLElement>(null);
-  const [promoteTarget, setPromoteTarget] = useState<WorkflowVersion | null>(null);
+  const [promoteAnchorEl, setPromoteAnchorEl] = useState<null | HTMLElement>(
+    null,
+  );
+  const [promoteTarget, setPromoteTarget] = useState<WorkflowVersion | null>(
+    null,
+  );
   const [promoteLoading, setPromoteLoading] = useState(false);
 
   const activeEnvironmentType = getActiveEnvironmentType();
+  const allowedPromotionTargets =
+    ALLOWED_PROMOTION_TARGETS[activeEnvironmentType] ?? [];
 
-  const fetchData = useCallback(async (pageNum = 1, pageSize = 20) => {
+  const fetchData = useCallback(
+    async (pageNum = 1, pageSize = 20) => {
+      if (!workflowId) return;
 
-    if (!workflowId) return;
+      setLoading(true);
 
-    setLoading(true);
-
-    try {
-      const workflowRes = await call(() => getWorkflow(workflowId), {
-        showError: false,
-      });
-      const versionsRes = await call(
-        () => getWorkflowVersions(workflowId, { page: pageNum, limit: pageSize }),
-        { showError: false },
-      );
-
-      if (workflowRes) {
-        const wfBody = workflowRes as { workflow?: Workflow } | Workflow;
-        const wf =
-          (wfBody as { workflow?: Workflow }).workflow ?? (wfBody as Workflow);
-        setWorkflow(wf || null);
-
-        const workflowVersions =
-          (wf as { versions?: Array<{ status?: string; version?: number; versionNumber?: number }> })?.versions ?? [];
-        setHasDraftInWorkflow(
-          workflowVersions.some((v) => {
-            const status = v.status?.toLowerCase?.() ?? "";
-            return status === "draft" || status === "valid";
-          }),
+      try {
+        const workflowRes = await call(
+          () => workflowService.getWorkflow(workflowId),
+          {
+            showError: false,
+          },
         );
+        const versionsRes = await call(
+          () =>
+            workflowService.getWorkflowVersions(workflowId, {
+              page: pageNum,
+              limit: pageSize,
+            }),
+          { showError: false },
+        );
+
+        if (workflowRes) {
+          const wfBody = workflowRes as { workflow?: Workflow } | Workflow;
+          const wf =
+            (wfBody as { workflow?: Workflow }).workflow ??
+            (wfBody as Workflow);
+          setWorkflow(wf || null);
+
+          const workflowVersions =
+            (
+              wf as {
+                versions?: Array<{
+                  status?: string;
+                  version?: number;
+                  versionNumber?: number;
+                }>;
+              }
+            )?.versions ?? [];
+          setHasDraftInWorkflow(
+            workflowVersions.some((v) => {
+              const status = v.status?.toLowerCase?.() ?? "";
+              return status === "draft" || status === "valid";
+            }),
+          );
+        } else {
+          goBack();
+          return;
+        }
+
+        if (versionsRes) {
+          const body = versionsRes as {
+            versions?: WorkflowVersion[];
+            pagination?: Pagination;
+          };
+          setVersions(body.versions ?? []);
+          setPagination(body.pagination ?? null);
+        }
+      } finally {
+        setLoading(false);
       }
-
-      if (versionsRes) {
-        const body = versionsRes as {
-          versions?: WorkflowVersion[];
-          pagination?: Pagination;
-        };
-        setVersions(body.versions ?? []);
-        setPagination(body.pagination ?? null);
-      }
-
-    } finally {
-      setLoading(false);
-    }
-
-  }, [workflowId, call]);
+    },
+    [workflowId, call, goBack],
+  );
 
   useEffect(() => {
     fetchData(page + 1, limit);
-  }, [fetchData]);
+  }, [fetchData, page, limit]);
 
   const normalizeStatus = (v: WorkflowVersion) =>
     v.status?.toLowerCase?.() || "draft";
@@ -182,9 +214,7 @@ export default function WorkflowVersionsPage() {
   const hasDraft = hasDraftInWorkflow;
 
   const handlePageChange = (_event: unknown, newPage: number) => {
-    const newPageNum = newPage + 1;
     setPage(newPage);
-    fetchData(newPageNum, limit);
   };
 
   const handleChangeRowsPerPage = (
@@ -193,7 +223,6 @@ export default function WorkflowVersionsPage() {
     const newLimit = parseInt(event.target.value, 10);
     setLimit(newLimit);
     setPage(0);
-    fetchData(1, newLimit);
   };
 
   const openAction = (version: WorkflowVersion, action: LifecycleAction) => {
@@ -219,7 +248,11 @@ export default function WorkflowVersionsPage() {
 
     setPromoteLoading(true);
     const promoted = await call(
-      () => promoteWorkflowVersion(promoteTarget.id, targetEnvironmentType),
+      () =>
+        workflowService.promoteWorkflowVersion(
+          promoteTarget.id,
+          targetEnvironmentType,
+        ),
       {
         successMsg: `v${promoteTarget.versionNumber} promoted to ${targetEnvironmentType}.`,
       },
@@ -233,7 +266,6 @@ export default function WorkflowVersionsPage() {
   };
 
   const handleAction = async () => {
-
     if (!workflowId || !actionTarget) return;
 
     const { version, action } = actionTarget;
@@ -243,30 +275,30 @@ export default function WorkflowVersionsPage() {
     try {
       if (action === "commit") {
         await call(
-          () => updateVersionStatus(version.id, "published"),
-          { successMsg: `v${version.versionNumber} committed.` }
+          () => workflowService.updateVersionStatus(version.id, "published"),
+          { successMsg: `v${version.versionNumber} committed.` },
         );
         setActionTarget(null);
         fetchData();
       } else if (action === "activate") {
         await call(
-          () => updateVersionStatus(version.id, "active"),
-          { successMsg: `v${version.versionNumber} is now active.` }
+          () => workflowService.updateVersionStatus(version.id, "active"),
+          { successMsg: `v${version.versionNumber} is now active.` },
         );
         setActionTarget(null);
         fetchData();
       } else if (action === "deactivate") {
         await call(
-          () => updateVersionStatus(version.id, "published"),
+          () => workflowService.updateVersionStatus(version.id, "published"),
           {
             successMsg: `v${version.versionNumber} deactivated and moved back to Committed.`,
-          }
+          },
         );
         setActionTarget(null);
         fetchData();
       } else if (action === "clone") {
         const cloned = await call(
-          () => cloneWorkflowVersion(version.id),
+          () => workflowService.cloneWorkflowVersion(version.id),
           { successMsg: `v${version.versionNumber} cloned as a new draft.` },
         );
 
@@ -296,7 +328,6 @@ export default function WorkflowVersionsPage() {
       day: "2-digit",
       month: "short",
       year: "numeric",
-
     });
   };
 
@@ -316,13 +347,13 @@ export default function WorkflowVersionsPage() {
 
   return (
     <Box>
-
       <PageHeader
         title={workflow?.name || "Version History"}
         subtitle={workflow?.description || undefined}
         onBack={() => navigate("/workflows")}
         chip={
-          !loading && versions.length > 0 && (
+          !loading &&
+          versions.length > 0 && (
             <Chip
               label={`${versions.length} version${versions.length !== 1 ? "s" : ""}`}
               size="small"
@@ -341,14 +372,25 @@ export default function WorkflowVersionsPage() {
         onSearchChange={setSearchQuery}
         searchPlaceholder="Search versions…"
         action={
-          <Tooltip title={hasDraft ? "A draft version already exists. Complete it before creating a new one." : ""}>
+          <Tooltip
+            title={
+              hasDraft
+                ? "A draft version already exists. Complete it before creating a new one."
+                : ""
+            }
+          >
             <span>
               <Button
                 variant="contained"
                 startIcon={<AddIcon />}
                 disabled={hasDraft}
                 onClick={() => navigate(`/workflows/${workflowId}/builder`)}
-                sx={{ borderRadius: "8px", fontWeight: 600, height: 36, flexShrink: 0 }}
+                sx={{
+                  borderRadius: "8px",
+                  fontWeight: 600,
+                  height: 36,
+                  flexShrink: 0,
+                }}
               >
                 New Draft
               </Button>
@@ -359,9 +401,7 @@ export default function WorkflowVersionsPage() {
 
       <Paper sx={{ overflow: "hidden" }}>
         <TableContainer>
-
           <Table size="small">
-
             <TableHead>
               <TableRow>
                 <TableCell>Version</TableCell>
@@ -374,7 +414,6 @@ export default function WorkflowVersionsPage() {
             </TableHead>
 
             <TableBody>
-
               {loading ? (
                 [0, 1, 2].map((i) => (
                   <TableRow key={i}>
@@ -442,12 +481,13 @@ export default function WorkflowVersionsPage() {
                   const isCommitted = st === "published";
                   const isActive = st === "active";
                   const canClone = isCommitted || isActive;
-                  const statusStyle = STATUS_COLORS[st] ?? { bg: "action.selected", color: "text.secondary" };
+                  const statusStyle = STATUS_COLORS[st] ?? {
+                    bg: "action.selected",
+                    color: "text.secondary",
+                  };
 
                   return (
-
                     <TableRow key={v.id} hover>
-
                       <TableCell>
                         <Typography
                           sx={{
@@ -496,10 +536,14 @@ export default function WorkflowVersionsPage() {
                           justifyContent="flex-end"
                           gap={0.75}
                         >
-                          {(isCommitted || isActive) && (
+                          {(isCommitted || isActive) &&
+                            allowedPromotionTargets.length > 0 && (
                             <Button
                               size="small"
                               variant="outlined"
+                              disabled={
+                                promoteLoading || allowedPromotionTargets.length === 0
+                              }
                               endIcon={
                                 promoteLoading && promoteTarget?.id === v.id ? (
                                   <CircularProgress size={12} />
@@ -516,6 +560,10 @@ export default function WorkflowVersionsPage() {
                                 textTransform: "none",
                                 borderColor: "divider",
                                 color: "text.secondary",
+                                "&.Mui-disabled": {
+                                  color: "text.disabled",
+                                  borderColor: "divider",
+                                },
                               }}
                             >
                               Promote
@@ -532,7 +580,9 @@ export default function WorkflowVersionsPage() {
                             <IconButton
                               size="small"
                               onClick={() =>
-                                navigate(`/workflows/${workflowId}/builder/${v.id}`)
+                                navigate(
+                                  `/workflows/${workflowId}/builder/${v.id}`,
+                                )
                               }
                               sx={{
                                 color: "text.disabled",
@@ -551,9 +601,7 @@ export default function WorkflowVersionsPage() {
                             <Tooltip title="Commit (lock for activation)">
                               <IconButton
                                 size="small"
-                                onClick={() =>
-                                  openAction(v, "commit")
-                                }
+                                onClick={() => openAction(v, "commit")}
                                 sx={{
                                   color: "text.disabled",
                                   "&:hover": { color: "#f59e0b" },
@@ -568,9 +616,7 @@ export default function WorkflowVersionsPage() {
                             <Tooltip title="Activate (make live)">
                               <IconButton
                                 size="small"
-                                onClick={() =>
-                                  openAction(v, "activate")
-                                }
+                                onClick={() => openAction(v, "activate")}
                                 sx={{
                                   color: "text.disabled",
                                   "&:hover": { color: "#22c55e" },
@@ -585,9 +631,7 @@ export default function WorkflowVersionsPage() {
                             <Tooltip title="Deactivate (move back to Committed)">
                               <IconButton
                                 size="small"
-                                onClick={() =>
-                                  openAction(v, "deactivate")
-                                }
+                                onClick={() => openAction(v, "deactivate")}
                                 sx={{
                                   color: "text.disabled",
                                   "&:hover": { color: "#ef4444" },
@@ -602,9 +646,7 @@ export default function WorkflowVersionsPage() {
                             <Tooltip title="Clone as new draft">
                               <IconButton
                                 size="small"
-                                onClick={() =>
-                                  openAction(v, "clone")
-                                }
+                                onClick={() => openAction(v, "clone")}
                                 sx={{
                                   color: "text.disabled",
                                   "&:hover": { color: "#3b82f6" },
@@ -614,20 +656,14 @@ export default function WorkflowVersionsPage() {
                               </IconButton>
                             </Tooltip>
                           )}
-
                         </Box>
                       </TableCell>
-
                     </TableRow>
                   );
                 })
-
               )}
-
             </TableBody>
-
           </Table>
-
         </TableContainer>
 
         {!loading && versions.length > 0 && (
@@ -713,7 +749,6 @@ export default function WorkflowVersionsPage() {
                   cfg.confirmLabel
                 )}
               </Button>
-
             </DialogActions>
           </>
         )}
@@ -725,22 +760,63 @@ export default function WorkflowVersionsPage() {
         onClose={closePromoteMenu}
         anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
         transformOrigin={{ vertical: "top", horizontal: "right" }}
+        PaperProps={{
+          sx: {
+            minWidth: 240,
+            borderRadius: "10px",
+            border: "1px solid",
+            borderColor: "divider",
+            mt: 0.5,
+          },
+        }}
       >
-        {ENVIRONMENT_OPTIONS.map((environmentType) => (
+        <MenuItem disabled sx={{ opacity: 1, py: 1.1 }}>
+          <Box>
+            <Typography sx={{ fontSize: 11, color: "text.disabled" }}>
+              Promote from
+            </Typography>
+            <Typography sx={{ fontSize: 12.5, fontWeight: 600 }}>
+              {ENV_DISPLAY[activeEnvironmentType]}
+            </Typography>
+          </Box>
+        </MenuItem>
+
+        {allowedPromotionTargets.length === 0 && (
+          <MenuItem disabled sx={{ opacity: 1 }}>
+            <Typography sx={{ fontSize: 12, color: "text.secondary" }}>
+              No valid promotion targets available.
+            </Typography>
+          </MenuItem>
+        )}
+
+        {ENVIRONMENT_OPTIONS.filter((environmentType) =>
+          allowedPromotionTargets.includes(environmentType),
+        ).map((environmentType) => (
           <MenuItem
             key={environmentType}
-            disabled={
-              promoteLoading ||
-              environmentType === activeEnvironmentType
-            }
+            disabled={promoteLoading}
             onClick={() => handlePromote(environmentType)}
-            sx={{ textTransform: "capitalize", fontSize: 13 }}
+            sx={{
+              py: 1,
+              textTransform: "capitalize",
+              fontSize: 13,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: 1,
+            }}
           >
-            {environmentType}
+            <Box>
+              <Typography sx={{ fontSize: 13, fontWeight: 500 }}>
+                {ENV_DISPLAY[environmentType]}
+              </Typography>
+              <Typography sx={{ fontSize: 11, color: "text.disabled" }}>
+                {ENV_DISPLAY[activeEnvironmentType]} -&gt; {ENV_DISPLAY[environmentType]}
+              </Typography>
+            </Box>
           </MenuItem>
         ))}
       </Menu>
-
     </Box>
   );
 }

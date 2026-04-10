@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { usePolling } from "../../../hooks/usePolling";
-import { getInstanceExecutions } from "../../../api/instanceApi";
+import { instanceService } from "../../../api/services/instance";
 import type { ExecutionNode, Instance } from "../../../api/schemas/instance";
 
 const DEFAULT_POLL_INTERVAL_MS = 3000;
@@ -33,7 +33,8 @@ export function useExecutionLogs({
       }
 
       try {
-        const response = await getInstanceExecutions(targetInstanceId);
+        const response =
+          await instanceService.getExecutionLogs(targetInstanceId);
         setExecutions(response?.data?.executions ?? []);
       } catch (error) {
         console.error("Failed to fetch execution logs:", error);

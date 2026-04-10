@@ -30,11 +30,7 @@ import DarkModeIcon from "@mui/icons-material/DarkMode";
 import VisibilityIcon from "@mui/icons-material/Visibility";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 
-import {
-  cloneWorkflowVersion,
-  getWorkflow,
-  getWorkflowVersion,
-} from "../../api/workflowApi";
+import { workflowService } from "../../api/services/workflow";
 import { useApiCall } from "../../hooks/useApiCall";
 import { useThemeMode } from "../../context/useThemeMode";
 import NodePalette from "./builder/components/NodePalette";
@@ -47,6 +43,7 @@ import { useBuilderCanvas } from "./builder/hooks/useBuilderCanvas";
 import { useBuilderActions } from "./builder/hooks/useBuilderActions";
 import { definitionToCanvas } from "./builder/utils/serialization";
 import { buildStartNode } from "./builder/utils/nodeHelpers";
+import { useBackNavigation } from "../../hooks/useBackNavigation";
 import {
   VERSION_STATUS_COLOR,
   VERSION_STATUS_BG,
@@ -67,6 +64,7 @@ export default function WorkflowBuilder() {
   const navigate = useNavigate();
   const { call } = useApiCall();
   const { mode, toggleTheme } = useThemeMode();
+  const { goBack } = useBackNavigation("/workflows");
 
   const [workflowName, setWorkflowName] = useState("");
   const [loadedVersionNumber, setLoadedVersionNumber] = useState<number | null>(
@@ -214,18 +212,26 @@ export default function WorkflowBuilder() {
     if (!workflowId) return;
     setMarkDirtyEnabled(false);
     (async () => {
-      const wfRes = await call(() => getWorkflow(workflowId), {
+      const wfRes = await call(() => workflowService.getWorkflow(workflowId), {
         showError: false,
       });
+      if (!wfRes) {
+        goBack();
+        return;
+      }
       if (wfRes) {
         const body = wfRes as { name?: string; workflow?: { name?: string } };
         setWorkflowName(body?.workflow?.name ?? body?.name ?? "Workflow");
       }
 
       if (versionId) {
-        const vRes = await call(() => getWorkflowVersion(versionId), {
+        const vRes = await call(() => workflowService.getVersion(versionId), {
           showError: false,
         });
+        if (!vRes) {
+          goBack();
+          return;
+        }
         if (vRes) {
           const vRaw = vRes as Record<string, unknown>;
           const vData: Record<string, unknown> =
@@ -258,6 +264,8 @@ export default function WorkflowBuilder() {
     workflowId,
     versionId,
     call,
+    navigate,
+    goBack,
     setMarkDirtyEnabled,
     setWorkflowName,
     hydrateCanvas,
@@ -318,9 +326,12 @@ export default function WorkflowBuilder() {
     if (!workflowId || !savedVersionId) return;
 
     setCloning(true);
-    const cloned = await call(() => cloneWorkflowVersion(savedVersionId), {
-      successMsg: `v${savedVersionNumber ?? "-"} cloned as a new draft.`,
-    });
+    const cloned = await call(
+      () => workflowService.cloneWorkflowVersion(savedVersionId),
+      {
+        successMsg: `v${savedVersionNumber ?? "-"} cloned as a new draft.`,
+      },
+    );
     setCloning(false);
     setCloneConfirmOpen(false);
 

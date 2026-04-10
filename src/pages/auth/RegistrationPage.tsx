@@ -15,7 +15,7 @@ import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
 import { Link as RouterLink, useNavigate } from "react-router-dom";
 import LogoMark from "../../components/common/LogoMark";
 import { inputStyle } from "../../styles/authStyles";
-import { registerSystem } from "../../api/authApi";
+import { authService } from "../../api/services/auth";
 import { useApiCall } from "../../hooks/useApiCall";
 
 export default function RegisterPage() {
@@ -52,7 +52,7 @@ export default function RegisterPage() {
       password: form.password,
       ...(form.description ? { description: form.description } : {}),
     };
-    const data = await call(() => registerSystem(payload), {
+    const data = await call(() => authService.register(payload), {
       showError: true,
       successMsg: "Registration successful. You can now sign in.",
     });

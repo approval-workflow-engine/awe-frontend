@@ -27,12 +27,7 @@ import HistoryIcon from "@mui/icons-material/History";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 import RefreshIcon from "@mui/icons-material/Refresh";
-import {
-  getWorkflows,
-  createWorkflow,
-  updateWorkflow,
-  deleteWorkflow,
-} from "../../api/workflowApi";
+import { workflowService } from "../../api/services/workflow";
 import { useApiCall } from "../../hooks/useApiCall";
 import { extractApiError } from "../../utils/apiError";
 import DialogErrorAlert from "../../components/common/DialogErrorAlert";
@@ -69,40 +64,47 @@ export default function WorkflowsPage() {
   const [deleteError, setDeleteError] = useState("");
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
 
-  const fetchWorkflows = useCallback(async (pageNum = 1, pageSize = 20) => {
-    setListLoading(true);
-    try {
-      const res = await call(() => getWorkflows({ page: pageNum, limit: pageSize }));
-      if (res) {
-        const body = res as { workflows?: Workflow[]; pagination?: Pagination };
-        const list =
-          body?.workflows ??
-          (Array.isArray(body) ? (body as unknown as Workflow[]) : []);
-        setWorkflows(list);
-        if (body?.pagination) {
-          setPagination(body.pagination);
+  const fetchWorkflows = useCallback(
+    async (pageNum = 1, pageSize = 20) => {
+      setListLoading(true);
+      try {
+        const res = await call(() =>
+          workflowService.getWorkflows({ page: pageNum, limit: pageSize }),
+        );
+        if (res) {
+          const body = res as {
+            workflows?: Workflow[];
+            pagination?: Pagination;
+          };
+          const list =
+            body?.workflows ??
+            (Array.isArray(body) ? (body as unknown as Workflow[]) : []);
+          setWorkflows(list);
+          if (body?.pagination) {
+            setPagination(body.pagination);
+          }
         }
+      } finally {
+        setListLoading(false);
       }
-    } finally {
-      setListLoading(false);
-    }
-  }, [call]);
+    },
+    [call],
+  );
 
   useEffect(() => {
     fetchWorkflows(page + 1, limit);
-  }, []);
+  }, [fetchWorkflows, page, limit]);
 
   const handlePageChange = (_event: unknown, newPage: number) => {
-    const newPageNum = newPage + 1;
     setPage(newPage);
-    fetchWorkflows(newPageNum, limit);
   };
 
-  const handleChangeRowsPerPage = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleChangeRowsPerPage = (
+    event: React.ChangeEvent<HTMLInputElement>,
+  ) => {
     const newLimit = parseInt(event.target.value, 10);
     setLimit(newLimit);
     setPage(0);
-    fetchWorkflows(1, newLimit);
   };
 
   const handleNewSubmit = async () => {
@@ -111,7 +113,7 @@ export default function WorkflowsPage() {
     setNewError("");
     const res = await call(
       () =>
-        createWorkflow({
+        workflowService.createWorkflow({
           name: newForm.name.trim(),
           description: newForm.description.trim() || undefined,
         }),
@@ -143,7 +145,7 @@ export default function WorkflowsPage() {
     setEditError("");
     const res = await call(
       () =>
-        updateWorkflow(editTarget.id, {
+        workflowService.updateWorkflow(editTarget.id, {
           name: editForm.name.trim(),
           description: editForm.description.trim() || undefined,
         }),
@@ -174,7 +176,7 @@ export default function WorkflowsPage() {
     setDeleteError("");
     let succeeded = false;
     let errMsg = "";
-    await call(() => deleteWorkflow(deleteTarget.id), {
+    await call(() => workflowService.deleteWorkflow(deleteTarget.id), {
       showError: false,
       onSuccess: () => {
         succeeded = true;
@@ -199,7 +201,6 @@ export default function WorkflowsPage() {
       day: "2-digit",
       month: "short",
       year: "numeric",
-
     });
   };
 
@@ -401,9 +402,10 @@ export default function WorkflowsPage() {
                             onClick={() =>
                               navigate(`/workflows/${wf.id}/builder`)
                             }
-                           disabled={wf.status === "valid" || wf.status === "draft"}
+                            disabled={
+                              wf.status === "valid" || wf.status === "draft"
+                            }
                             sx={{
-
                               color: "text.disabled",
                               "&:hover": { color: "primary.main" },
                             }}
@@ -415,7 +417,11 @@ export default function WorkflowsPage() {
                         <Tooltip title="Open Latest Version">
                           <IconButton
                             size="small"
-                            onClick={() => navigate(`/workflows/${wf.id}/builder/${wf.latestVersionId}`)}
+                            onClick={() =>
+                              navigate(
+                                `/workflows/${wf.id}/builder/${wf.latestVersionId}`,
+                              )
+                            }
                             sx={{
                               color: "text.disabled",
                               "&:hover": { color: "primary.main" },
