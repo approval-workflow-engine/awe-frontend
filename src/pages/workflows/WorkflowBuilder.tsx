@@ -43,6 +43,7 @@ import { useBuilderCanvas } from "./builder/hooks/useBuilderCanvas";
 import { useBuilderActions } from "./builder/hooks/useBuilderActions";
 import { definitionToCanvas } from "./builder/utils/serialization";
 import { buildStartNode } from "./builder/utils/nodeHelpers";
+import { useBackNavigation } from "../../hooks/useBackNavigation";
 import {
   VERSION_STATUS_COLOR,
   VERSION_STATUS_BG,
@@ -63,6 +64,7 @@ export default function WorkflowBuilder() {
   const navigate = useNavigate();
   const { call } = useApiCall();
   const { mode, toggleTheme } = useThemeMode();
+  const { goBack } = useBackNavigation("/workflows");
 
   const [workflowName, setWorkflowName] = useState("");
   const [loadedVersionNumber, setLoadedVersionNumber] = useState<number | null>(
@@ -213,6 +215,10 @@ export default function WorkflowBuilder() {
       const wfRes = await call(() => workflowService.getWorkflow(workflowId), {
         showError: false,
       });
+      if (!wfRes) {
+        goBack();
+        return;
+      }
       if (wfRes) {
         const body = wfRes as { name?: string; workflow?: { name?: string } };
         setWorkflowName(body?.workflow?.name ?? body?.name ?? "Workflow");
@@ -222,6 +228,10 @@ export default function WorkflowBuilder() {
         const vRes = await call(() => workflowService.getVersion(versionId), {
           showError: false,
         });
+        if (!vRes) {
+          goBack();
+          return;
+        }
         if (vRes) {
           const vRaw = vRes as Record<string, unknown>;
           const vData: Record<string, unknown> =
@@ -254,6 +264,8 @@ export default function WorkflowBuilder() {
     workflowId,
     versionId,
     call,
+    navigate,
+    goBack,
     setMarkDirtyEnabled,
     setWorkflowName,
     hydrateCanvas,

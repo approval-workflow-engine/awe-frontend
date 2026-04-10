@@ -89,13 +89,15 @@ export function useBuilderActions({
     if (!workflowId) return { versionId: null, versionNumber: null };
     const payload = canvasToVersionPayload(nodes, edges);
 
-    const res = await call(
-      () =>
-        savedVersionId
-          ? workflowService.updateVersion(savedVersionId, payload as never)
-          : workflowService.createVersion(workflowId, payload as never),
-      { showError: true },
-    );
+    const res = savedVersionId
+      ? await call(
+          () => workflowService.updateVersion(savedVersionId, payload as never),
+          { showError: true },
+        )
+      : await call(
+          () => workflowService.createVersion(workflowId, payload as never),
+          { showError: true },
+        );
 
     if (!res) return { versionId: null, versionNumber: null };
 

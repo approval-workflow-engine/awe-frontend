@@ -23,6 +23,7 @@ import { workflowService } from "../../../api/services/workflow";
 import { instanceService } from "../../../api/services/instance";
 import type { Workflow } from "../../../types";
 import type { InstanceListItem } from "../../../api/schemas/instance";
+import { extractApiError } from "../../../utils/apiError";
 
 const DEFAULT_JSON = "{}";
 
@@ -44,6 +45,7 @@ export default function CreateInstanceDialog({
   const [contextJson, setContextJson] = useState(DEFAULT_JSON);
   const [autoAdvance, setAutoAdvance] = useState(true);
   const [jsonError, setJsonError] = useState("");
+  const [submitError, setSubmitError] = useState("");
 
   const loadWorkflows = useCallback(async () => {
     const pageSize = 100;
@@ -82,6 +84,7 @@ export default function CreateInstanceDialog({
     setContextJson(DEFAULT_JSON);
     setAutoAdvance(true);
     setJsonError("");
+    setSubmitError("");
     onClose();
   };
 
@@ -99,11 +102,19 @@ export default function CreateInstanceDialog({
   const handleSubmit = async () => {
     if (!workflowId || !validateJson(contextJson)) return;
 
+    setSubmitError("");
+
     const context = JSON.parse(contextJson) as Record<string, unknown>;
     const res = await call(
       () =>
         instanceService.createInstance({ workflowId, context, autoAdvance }),
-      { successMsg: "Instance created successfully" },
+      {
+        successMsg: "Instance created successfully",
+        showError: false,
+        onError: (err) => {
+          setSubmitError(extractApiError(err, "Failed to create instance"));
+        },
+      },
     );
 
     const instance = res;
@@ -187,6 +198,11 @@ export default function CreateInstanceDialog({
               },
             }}
           />
+          {submitError && (
+            <Alert severity="error" sx={{ mt: 0.5, py: 0.25, fontSize: 12 }}>
+              {submitError}
+            </Alert>
+          )}
           {jsonError && (
             <Alert severity="error" sx={{ mt: 0.5, py: 0.25, fontSize: 12 }}>
               {jsonError}

@@ -2,12 +2,14 @@ import { apiClient } from '../client';
 import {
   InstancesResponseSchema,
   InstanceResponseSchema,
+  CreateInstanceResponseSchema,
   CreateInstanceRequestSchema,
   InstanceActionResponseSchema,
   ExecutionLogsResponseSchema,
   PaginationParamsSchema,
   type InstancesResponse,
   type InstanceResponse,
+  type CreateInstanceResponse,
   type CreateInstanceRequest,
   type InstanceActionResponse,
   type ExecutionLogsResponse,
@@ -26,11 +28,11 @@ export class InstanceService {
     return apiClient.get(`/instances/${id}`, InstanceResponseSchema);
   }
 
-  async createInstance(data: CreateInstanceRequest): Promise<InstanceResponse> {
+  async createInstance(data: CreateInstanceRequest): Promise<CreateInstanceResponse> {
     return apiClient.post(
       '/instances',
       data,
-      InstanceResponseSchema,
+      CreateInstanceResponseSchema,
       CreateInstanceRequestSchema
     );
   }

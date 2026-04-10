@@ -35,6 +35,7 @@ import { workflowService } from "../../api/services/workflow";
 import { useApiCall } from "../../hooks/useApiCall";
 import PageHeader from "../../components/common/PageHeader";
 import AppPagination from "../../components/common/AppPagination";
+import { useBackNavigation } from "../../hooks/useBackNavigation";
 import type { Workflow, WorkflowVersion } from "../../types";
 import type { Pagination } from "../../api/schemas/common";
 import {
@@ -94,10 +95,23 @@ const ACTION_CONFIG: Record<
   },
 };
 
+const ALLOWED_PROMOTION_TARGETS: Record<EnvironmentType, EnvironmentType[]> = {
+  development: ["staging", "production"],
+  staging: ["production"],
+  production: [],
+};
+
+const ENV_DISPLAY: Record<EnvironmentType, string> = {
+  development: "Development",
+  staging: "Staging",
+  production: "Production",
+};
+
 export default function WorkflowVersionsPage() {
   const { workflowId } = useParams<{ workflowId: string }>();
   const navigate = useNavigate();
   const { call } = useApiCall();
+  const { goBack } = useBackNavigation("/workflows");
 
   const [workflow, setWorkflow] = useState<Workflow | null>(null);
   const [versions, setVersions] = useState<WorkflowVersion[]>([]);
@@ -122,6 +136,8 @@ export default function WorkflowVersionsPage() {
   const [promoteLoading, setPromoteLoading] = useState(false);
 
   const activeEnvironmentType = getActiveEnvironmentType();
+  const allowedPromotionTargets =
+    ALLOWED_PROMOTION_TARGETS[activeEnvironmentType] ?? [];
 
   const fetchData = useCallback(
     async (pageNum = 1, pageSize = 20) => {
@@ -168,6 +184,9 @@ export default function WorkflowVersionsPage() {
               return status === "draft" || status === "valid";
             }),
           );
+        } else {
+          goBack();
+          return;
         }
 
         if (versionsRes) {
@@ -182,12 +201,12 @@ export default function WorkflowVersionsPage() {
         setLoading(false);
       }
     },
-    [workflowId, call],
+    [workflowId, call, goBack],
   );
 
   useEffect(() => {
     fetchData(page + 1, limit);
-  }, [fetchData]);
+  }, [fetchData, page, limit]);
 
   const normalizeStatus = (v: WorkflowVersion) =>
     v.status?.toLowerCase?.() || "draft";
@@ -195,9 +214,7 @@ export default function WorkflowVersionsPage() {
   const hasDraft = hasDraftInWorkflow;
 
   const handlePageChange = (_event: unknown, newPage: number) => {
-    const newPageNum = newPage + 1;
     setPage(newPage);
-    fetchData(newPageNum, limit);
   };
 
   const handleChangeRowsPerPage = (
@@ -206,7 +223,6 @@ export default function WorkflowVersionsPage() {
     const newLimit = parseInt(event.target.value, 10);
     setLimit(newLimit);
     setPage(0);
-    fetchData(1, newLimit);
   };
 
   const openAction = (version: WorkflowVersion, action: LifecycleAction) => {
@@ -520,10 +536,14 @@ export default function WorkflowVersionsPage() {
                           justifyContent="flex-end"
                           gap={0.75}
                         >
-                          {(isCommitted || isActive) && (
+                          {(isCommitted || isActive) &&
+                            allowedPromotionTargets.length > 0 && (
                             <Button
                               size="small"
                               variant="outlined"
+                              disabled={
+                                promoteLoading || allowedPromotionTargets.length === 0
+                              }
                               endIcon={
                                 promoteLoading && promoteTarget?.id === v.id ? (
                                   <CircularProgress size={12} />
@@ -540,6 +560,10 @@ export default function WorkflowVersionsPage() {
                                 textTransform: "none",
                                 borderColor: "divider",
                                 color: "text.secondary",
+                                "&.Mui-disabled": {
+                                  color: "text.disabled",
+                                  borderColor: "divider",
+                                },
                               }}
                             >
                               Promote
@@ -736,17 +760,60 @@ export default function WorkflowVersionsPage() {
         onClose={closePromoteMenu}
         anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
         transformOrigin={{ vertical: "top", horizontal: "right" }}
+        PaperProps={{
+          sx: {
+            minWidth: 240,
+            borderRadius: "10px",
+            border: "1px solid",
+            borderColor: "divider",
+            mt: 0.5,
+          },
+        }}
       >
-        {ENVIRONMENT_OPTIONS.map((environmentType) => (
+        <MenuItem disabled sx={{ opacity: 1, py: 1.1 }}>
+          <Box>
+            <Typography sx={{ fontSize: 11, color: "text.disabled" }}>
+              Promote from
+            </Typography>
+            <Typography sx={{ fontSize: 12.5, fontWeight: 600 }}>
+              {ENV_DISPLAY[activeEnvironmentType]}
+            </Typography>
+          </Box>
+        </MenuItem>
+
+        {allowedPromotionTargets.length === 0 && (
+          <MenuItem disabled sx={{ opacity: 1 }}>
+            <Typography sx={{ fontSize: 12, color: "text.secondary" }}>
+              No valid promotion targets available.
+            </Typography>
+          </MenuItem>
+        )}
+
+        {ENVIRONMENT_OPTIONS.filter((environmentType) =>
+          allowedPromotionTargets.includes(environmentType),
+        ).map((environmentType) => (
           <MenuItem
             key={environmentType}
-            disabled={
-              promoteLoading || environmentType === activeEnvironmentType
-            }
+            disabled={promoteLoading}
             onClick={() => handlePromote(environmentType)}
-            sx={{ textTransform: "capitalize", fontSize: 13 }}
+            sx={{
+              py: 1,
+              textTransform: "capitalize",
+              fontSize: 13,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: 1,
+            }}
           >
-            {environmentType}
+            <Box>
+              <Typography sx={{ fontSize: 13, fontWeight: 500 }}>
+                {ENV_DISPLAY[environmentType]}
+              </Typography>
+              <Typography sx={{ fontSize: 11, color: "text.disabled" }}>
+                {ENV_DISPLAY[activeEnvironmentType]} -&gt; {ENV_DISPLAY[environmentType]}
+              </Typography>
+            </Box>
           </MenuItem>
         ))}
       </Menu>

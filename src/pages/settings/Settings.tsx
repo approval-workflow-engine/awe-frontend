@@ -32,8 +32,30 @@ import PageHeader from "../../components/common/PageHeader";
 import type { ApiKey, User } from "../../types";
 import {
   ENVIRONMENT_OPTIONS,
+  getActiveEnvironmentType,
   type EnvironmentType,
 } from "../../constants/environment";
+
+function KeyStatusChip({ isRevoked }: { isRevoked: boolean }) {
+  return (
+    <Chip
+      label={isRevoked ? "revoked" : "active"}
+      size="small"
+      sx={{
+        fontSize: 11,
+        height: 20,
+        borderRadius: "99px",
+        fontWeight: 600,
+        textTransform: "capitalize",
+        backgroundColor: isRevoked
+          ? "rgba(239,68,68,0.10)"
+          : "rgba(34,197,94,0.10)",
+        color: isRevoked ? "#ef4444" : "#22c55e",
+        border: `1px solid ${isRevoked ? "rgba(239,68,68,0.25)" : "rgba(34,197,94,0.25)"}`,
+      }}
+    />
+  );
+}
 
 function EnvChip({ type }: { type: string }) {
   const lower = type?.toLowerCase() || "";
@@ -55,27 +77,6 @@ function EnvChip({ type }: { type: string }) {
         border: `1px solid ${color}40`,
         fontWeight: 600,
         textTransform: "capitalize",
-      }}
-    />
-  );
-}
-
-function KeyStatusChip({ isRevoked }: { isRevoked: boolean }) {
-  return (
-    <Chip
-      label={isRevoked ? "revoked" : "active"}
-      size="small"
-      sx={{
-        fontSize: 11,
-        height: 20,
-        borderRadius: "99px",
-        fontWeight: 600,
-        textTransform: "capitalize",
-        backgroundColor: isRevoked
-          ? "rgba(239,68,68,0.10)"
-          : "rgba(34,197,94,0.10)",
-        color: isRevoked ? "#ef4444" : "#22c55e",
-        border: `1px solid ${isRevoked ? "rgba(239,68,68,0.25)" : "rgba(34,197,94,0.25)"}`,
       }}
     />
   );
@@ -117,13 +118,6 @@ function fmtDate(iso: string | null | undefined) {
   });
 }
 
-function isEnvironmentType(
-  value: string | undefined,
-): value is EnvironmentType {
-  if (!value) return false;
-  return ENVIRONMENT_OPTIONS.includes(value as EnvironmentType);
-}
-
 export default function Settings() {
   const { call } = useApiCall();
 
@@ -142,7 +136,7 @@ export default function Settings() {
   const [regenOpen, setRegenOpen] = useState(false);
   const [regenLabel, setRegenLabel] = useState("");
   const [regenEnvironment, setRegenEnvironment] =
-    useState<EnvironmentType>("development");
+    useState<EnvironmentType>(getActiveEnvironmentType());
   const [regenLoading, setRegenLoading] = useState(false);
 
   const [newKey, setNewKey] = useState<string | null>(null);
@@ -241,7 +235,6 @@ export default function Settings() {
         const keyValue = body.apiKey ?? null;
         setRegenOpen(false);
         setRegenLabel("");
-        setRegenEnvironment("development");
         if (keyValue) setNewKey(keyValue);
         fetchApiKeys();
       }
@@ -252,11 +245,7 @@ export default function Settings() {
 
   const openGenerateDialog = () => {
     setRegenLabel("");
-    if (isEnvironmentType(systemInfo?.environmentType)) {
-      setRegenEnvironment(systemInfo.environmentType);
-    } else {
-      setRegenEnvironment("development");
-    }
+    setRegenEnvironment(getActiveEnvironmentType());
     setRegenOpen(true);
   };
 
@@ -337,12 +326,6 @@ export default function Settings() {
                   {systemInfo.contactEmail}
                 </Typography>
               </InfoRow>
-
-              {systemInfo.environmentType && (
-                <InfoRow label="Environment">
-                  <EnvChip type={systemInfo.environmentType} />
-                </InfoRow>
-              )}
 
               {systemInfo.status && (
                 <InfoRow label="Status">
@@ -857,16 +840,16 @@ export default function Settings() {
             sx={{ mb: 2, "& .MuiOutlinedInput-root": { borderRadius: "8px" } }}
             autoFocus
           />
-          <FormControl fullWidth size="small">
+          <FormControl fullWidth size="small" sx={{ mb: 1.25 }}>
             <InputLabel id="api-key-environment-label">Environment</InputLabel>
             <Select
               labelId="api-key-environment-label"
               value={regenEnvironment}
               label="Environment"
-              onChange={(e) =>
-                setRegenEnvironment(e.target.value as EnvironmentType)
+              onChange={(event) =>
+                setRegenEnvironment(event.target.value as EnvironmentType)
               }
-              sx={{ borderRadius: "8px" }}
+              sx={{ borderRadius: "8px", textTransform: "capitalize" }}
             >
               {ENVIRONMENT_OPTIONS.map((environmentType) => (
                 <MenuItem
@@ -879,6 +862,9 @@ export default function Settings() {
               ))}
             </Select>
           </FormControl>
+          <Typography sx={{ fontSize: 12, color: "text.secondary" }}>
+            Select which environment this key should belong to.
+          </Typography>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>
           <Button

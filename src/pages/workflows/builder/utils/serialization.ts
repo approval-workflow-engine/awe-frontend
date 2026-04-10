@@ -84,21 +84,6 @@ function feelUrlToTemplate(feel: string): string {
   return trimmed;
 }
 
-function normalizeBackoff(
-  backoff: UnknownRecord,
-  retryDelayMs: unknown,
-): UnknownRecord {
-  return {
-    type: backoff.type === "exponential" ? "exponential" : "fixed",
-    delayMs:
-      typeof backoff.delayMs === "number"
-        ? backoff.delayMs
-        : typeof retryDelayMs === "number"
-          ? retryDelayMs
-          : 1000,
-  };
-}
-
 function serializeConfiguration(
   apiType: string,
   config: UnknownRecord,
@@ -156,7 +141,7 @@ function serializeConfiguration(
         runtime: "python3" as const,
         maxAttempts:
           typeof config.maxAttempts === "number" ? config.maxAttempts : 1,
-        backoff: normalizeBackoff(rawBackoff, config.retryDelayMs),
+        backoff: rawBackoff,
         sourceCode:
           typeof config.sourceCode === "string" ? config.sourceCode : "",
         entryFunctionName:
@@ -204,7 +189,7 @@ function serializeConfiguration(
         svc.maxAttempts = config.maxAttempts;
       if (typeof config.timeoutMs === "number")
         svc.timeoutMs = config.timeoutMs;
-      svc.backoff = normalizeBackoff(rawBackoff, config.retryDelayMs);
+      svc.backoff = rawBackoff;
       if ("headers" in config)
         svc.headers = Array.isArray(config.headers)
           ? config.headers.map((h: any) => ({
@@ -428,18 +413,12 @@ export function definitionToCanvas(def: unknown): {
     if (typeof node.config.urlExpression === "string") {
       node.config.urlExpression = feelUrlToTemplate(node.config.urlExpression);
     }
-    node.config.backoff = normalizeBackoff(
-      asRecord(node.config.backoff),
-      node.config.retryDelayMs,
-    );
+    node.config.backoff = asRecord(node.config.backoff);
   });
 
   cNodes.forEach((node) => {
     if (node.type !== "script_task") return;
-    node.config.backoff = normalizeBackoff(
-      asRecord(node.config.backoff),
-      node.config.retryDelayMs,
-    );
+    node.config.backoff = asRecord(node.config.backoff);
   });
 
   cNodes.forEach((node) => {
