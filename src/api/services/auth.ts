@@ -8,7 +8,7 @@ import {
   RegisterResponseSchema,
   ApiKeysResponseSchema,
   CreateApiKeyRequestSchema,
-  ApiKeySchema,
+  CreateApiKeyResponseSchema,
   RevokeApiKeyResponseSchema,
   SystemSchema,
   type LoginRequest,
@@ -19,7 +19,7 @@ import {
   type RegisterResponse,
   type ApiKeysResponse,
   type CreateApiKeyRequest,
-  type ApiKey,
+  type CreateApiKeyResponse,
   type RevokeApiKeyResponse,
   type System,
 } from '../schemas';
@@ -65,11 +65,11 @@ export class AuthService {
     return apiClient.get('/systems/api-keys', ApiKeysResponseSchema);
   }
 
-  async createApiKey(data: CreateApiKeyRequest): Promise<ApiKey> {
+  async createApiKey(data: CreateApiKeyRequest): Promise<CreateApiKeyResponse> {
     return apiClient.post(
       '/systems/api-keys',
       data,
-      ApiKeySchema,
+      CreateApiKeyResponseSchema,
       CreateApiKeyRequestSchema
     );
   }

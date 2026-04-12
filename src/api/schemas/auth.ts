@@ -1,11 +1,12 @@
 import { z } from 'zod';
+import { EnvironmentTypeSchema } from './common';
 
 export const SystemSchema = z.object({
   id: z.string().uuidv4(),
   name: z.string(),
   orgName: z.string(),
   contactEmail: z.string().email(),
-  environmentType: z.enum(['production', 'development', 'staging']),
+  environmentType: EnvironmentTypeSchema,
   status: z.literal('active').optional(),
   createdAt: z.string().datetime().optional(),
   updatedAt: z.string().datetime().optional(),
@@ -49,20 +50,21 @@ export const ApiKeySchema = z.object({
   isRevoked: z.boolean(),
   createdAt: z.string().datetime(),
   revokedAt: z.string().datetime().nullable(),
-  environmentType: z.enum(['production', 'development', 'staging']).optional(),
+  environmentType: EnvironmentTypeSchema.optional(),
 });
 
 export const CreateApiKeyResponseSchema = z.object({
   id: z.string().uuidv4(),
   label: z.string().nullable().optional(),
   apiKey: z.string(),
+  environment: EnvironmentTypeSchema.optional(),
+  environmentType: EnvironmentTypeSchema.optional(),
   createdAt: z.string().datetime(),
-  environmentType: z.enum(['production', 'development', 'staging']).optional(),
 });
 
 export const CreateApiKeyRequestSchema = z.object({
   label: z.string().min(1),
-  environment: z.enum(['production', 'development', 'staging']),
+  environment: EnvironmentTypeSchema,
 });
 
 export const ApiKeysResponseSchema = z.object({

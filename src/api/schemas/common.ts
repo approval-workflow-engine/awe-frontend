@@ -1,5 +1,14 @@
 import { z } from 'zod';
 
+export const EnvironmentTypeValues = [
+  'production',
+  'development',
+  'staging',
+] as const;
+
+export const EnvironmentTypeSchema = z.enum(EnvironmentTypeValues);
+export type EnvironmentType = z.infer<typeof EnvironmentTypeSchema>;
+
 export const PaginationSchema = z.object({
   total: z.number(),
   page: z.number(),

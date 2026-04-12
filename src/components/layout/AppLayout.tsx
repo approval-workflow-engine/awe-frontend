@@ -145,7 +145,7 @@ export default function AppLayout() {
                     color: isActive ? "text.primary" : "text.secondary",
                     fontSize: 12.5,
                     fontWeight: 500,
-                    cursor: "pointer",
+                    cursor: canSwitchEnvironment ? "pointer" : "not-allowed",
                     textTransform: "capitalize",
                     transition: "all 0.15s",
                     opacity: canSwitchEnvironment ? 1 : 0.45,
