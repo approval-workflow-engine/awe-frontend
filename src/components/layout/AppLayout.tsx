@@ -27,7 +27,8 @@ function isEnvironmentSwitchEnabled(pathname: string): boolean {
     pathname === "/workflows" ||
     pathname === "/instances" ||
     pathname === "/tasks" ||
-    pathname === "/audit"
+    pathname === "/audit" ||
+    pathname === "/dashboard"
   );
 }
 
