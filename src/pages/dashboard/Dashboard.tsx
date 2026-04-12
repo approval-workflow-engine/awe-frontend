@@ -7,13 +7,15 @@ import SpeedIcon from "@mui/icons-material/Speed";
 import AssignmentIcon from "@mui/icons-material/Assignment";
 import StatusChip from "../../components/common/StatusChip";
 import PageHeader from "../../components/common/PageHeader";
-import type { BackendInstance, BackendTask } from "../../types";
-import { workflowService } from "../../api/services/workflow";
-import { instanceService } from "../../api/services/instance";
-import { taskService } from "../../api/services/task";
+import { dashboardService } from "../../api/services/dashboard";
+import type {
+  DashboardStats,
+  InstanceListItem,
+  PendingUserTask,
+} from "../../api/schemas";
 
 interface StatCardDef {
-  key: string;
+  key: keyof DashboardStats;
   label: string;
   icon: ElementType;
   color: string;
@@ -120,79 +122,31 @@ function StatCard({ card, value }: StatCardProps) {
 export default function Dashboard() {
   const navigate = useNavigate();
 
-  const [stats, setStats] = useState<Record<string, number | null>>({
-    workflows: null,
-    instances: null,
-    running: null,
-    pending: null,
-  });
-  const [instances, setInstances] = useState<BackendInstance[] | null>(null);
-  const [tasks, setTasks] = useState<BackendTask[] | null>(null);
+  const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [instances, setInstances] = useState<InstanceListItem[] | null>(null);
+  const [tasks, setTasks] = useState<PendingUserTask[] | null>(null);
 
   useEffect(() => {
     let cancelled = false;
+
     (async () => {
       try {
-        const [wfRes, instRes, taskRes] = await Promise.allSettled([
-          workflowService.getWorkflows({ page: 1, limit: 100 }),
-          instanceService.getInstances({ page: 1, limit: 100 }),
-          taskService.getPendingTasks({ page: 1, limit: 100 }),
-        ]);
+        const response = await dashboardService.getDashboard();
 
         if (cancelled) return;
 
-        const wfData = (wfRes.status === "fulfilled" ? wfRes.value : {}) as {
-          workflows?: unknown[];
-          pagination?: { total?: number };
-        };
-        const instData = (
-          instRes.status === "fulfilled" ? instRes.value : {}
-        ) as {
-          instances?: BackendInstance[];
-          pagination?: { total?: number };
-        };
-        const taskData = (
-          taskRes.status === "fulfilled" ? taskRes.value : {}
-        ) as {
-          tasks?: BackendTask[];
-          pagination?: { total?: number };
-        };
+        setStats(response.stats);
+        setInstances(response.instances);
+        setTasks(response.tasks);
+      } catch{
+        if (cancelled) return;
 
-        const allWorkflows = (wfData.workflows as unknown[]) ?? [];
-        const allInstances = (instData.instances as BackendInstance[]) ?? [];
-        const allTasks = (taskData.tasks as BackendTask[]) ?? [];
-        const workflowTotal = Number(
-          (wfData.pagination as { total?: number } | undefined)?.total ??
-            allWorkflows.length,
-        );
-        const instanceTotal = Number(
-          (instData.pagination as { total?: number } | undefined)?.total ??
-            allInstances.length,
-        );
-        const taskTotal = Number(
-          (taskData.pagination as { total?: number } | undefined)?.total ??
-            allTasks.length,
-        );
-
-        const runningCount = allInstances.filter(
-          (inst) => inst.status === "in_progress",
-        ).length;
-
-        setStats({
-          workflows: workflowTotal,
-          instances: instanceTotal,
-          running: runningCount,
-          pending: taskTotal,
-        });
-
-        setInstances(allInstances.slice(0, 5));
-        setTasks(allTasks.slice(0, 5));
-      } catch {
         setStats({ workflows: 0, instances: 0, running: 0, pending: 0 });
         setInstances([]);
         setTasks([]);
       }
     })();
+
     return () => {
       cancelled = true;
     };
@@ -208,7 +162,7 @@ export default function Dashboard() {
       <Grid container spacing={2} mb={4}>
         {STAT_CARDS.map((card) => (
           <Grid size={{ xs: 12, sm: 6, lg: 3 }} key={card.key}>
-            <StatCard card={card} value={stats[card.key]} />
+            <StatCard card={card} value={stats ? stats[card.key] : null} />
           </Grid>
         ))}
       </Grid>
@@ -429,9 +383,7 @@ export default function Dashboard() {
                           textOverflow: "ellipsis",
                         }}
                       >
-                        {task.node_configuration?.title ||
-                          task.node_id ||
-                          "Untitled Task"}
+                        {task.title || task.workflow.name || "Untitled Task"}
                       </Typography>
                       <Typography
                         sx={{
@@ -442,7 +394,7 @@ export default function Dashboard() {
                           textOverflow: "ellipsis",
                         }}
                       >
-                        {task.node_configuration?.assignee || "-"}
+                        {task.assignee || "-"}
                       </Typography>
                     </Box>
                     <Typography
@@ -453,7 +405,7 @@ export default function Dashboard() {
                         flexShrink: 0,
                       }}
                     >
-                      {formatDate(task.created_on)}
+                      {formatDate(task.createdAt)}
                     </Typography>
                   </Box>
                 ))

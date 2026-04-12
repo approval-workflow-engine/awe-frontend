@@ -4,3 +4,4 @@ export * from "./workflow";
 export * from "./instance";
 export * from "./task";
 export * from "./audit";
+export * from "./dashboard";

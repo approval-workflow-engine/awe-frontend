@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { PaginationSchema } from "./common";
+import { PaginationSchema, EnvironmentTypeSchema } from "./common";
 
 export const WorkflowVersionStatusSchema = z.enum([
   "draft",
@@ -53,7 +53,7 @@ export const WorkflowVersionDetailResponseSchema = z.object({
   publishedAt: z.string().datetime().nullable().optional(),
   createdAt: z.string().datetime(),
   modifiedAt: z.string().datetime(),
-  environmentType: z.enum(["production", "development", "staging"]).optional(),
+  environmentType: EnvironmentTypeSchema.optional(),
   nodes: z.array(WorkflowVersionDetailNodeSchema),
   edges: z.array(WorkflowVersionDetailEdgeSchema),
   startVariables: z
@@ -113,7 +113,7 @@ export const WorkflowSchema = z.object({
   id: z.string(),
   name: z.string(),
   description: z.string().nullable().optional(),
-  environmentType: z.enum(["production", "development", "staging"]).optional(),
+  environmentType: EnvironmentTypeSchema.optional(),
   createdAt: z.string().datetime(),
   updatedAt: z.string().datetime().optional(),
   latestVersion: z.number().nullable().optional(),
@@ -149,7 +149,7 @@ export const UpdateWorkflowResponseSchema = z.object({
   id: z.string(),
   name: z.string(),
   description: z.string().nullable().optional(),
-  environmentType: z.enum(["production", "development", "staging"]).optional(),
+  environmentType: EnvironmentTypeSchema.optional(),
   updatedAt: z.string().datetime(),
 });
 
@@ -169,7 +169,7 @@ export const WorkflowVersionListItemSchema = z.object({
   status: WorkflowVersionStatusSchema,
   description: z.string().nullable().optional(),
   publishedAt: z.string().datetime().nullable().optional(),
-  environmentType: z.enum(["production", "development", "staging"]).optional(),
+  environmentType: EnvironmentTypeSchema.optional(),
   createdAt: z.string().datetime(),
   updatedAt: z.string().datetime(),
 });
