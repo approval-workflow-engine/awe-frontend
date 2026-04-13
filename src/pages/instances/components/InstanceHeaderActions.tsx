@@ -9,16 +9,19 @@ import PauseIcon from "@mui/icons-material/Pause";
 import PlayArrowIcon from "@mui/icons-material/PlayArrow";
 import StopCircleOutlinedIcon from "@mui/icons-material/StopCircleOutlined";
 import RefreshIcon from "@mui/icons-material/Refresh";
+import ReplayIcon from "@mui/icons-material/Replay";
 
 interface InstanceHeaderActionsProps {
   loading: boolean;
   canPause: boolean;
   canResume: boolean;
   canTerminate: boolean;
+  canRetry?: boolean;
   onReload: () => void;
   onPause: () => Promise<void>;
   onResume: () => Promise<void>;
   onTerminate: () => Promise<void>;
+  onRetry?: () => Promise<void>;
 }
 
 export default function InstanceHeaderActions({
@@ -26,10 +29,12 @@ export default function InstanceHeaderActions({
   canPause,
   canResume,
   canTerminate,
+  canRetry,
   onReload,
   onPause,
   onResume,
   onTerminate,
+  onRetry,
 }: InstanceHeaderActionsProps) {
   return (
     <Box display="flex" alignItems="center" gap={1}>
@@ -53,6 +58,19 @@ export default function InstanceHeaderActions({
           disabled={loading}
         >
           Pause Instance
+        </Button>
+      )}
+
+      {canRetry && onRetry && (
+        <Button
+          variant="contained"
+          color="warning"
+          size="small"
+          startIcon={loading ? <CircularProgress size={14} /> : <ReplayIcon />}
+          onClick={onRetry}
+          disabled={loading}
+        >
+          Retry Instance
         </Button>
       )}
 
