@@ -24,6 +24,7 @@ import type {
   WorkflowInput,
 } from "../../type/types";
 import { DataType } from "../../type/types";
+import type { AvailableCtxVar } from "../context";
 
 interface FetchableConfig {
   id: string;
@@ -40,10 +41,16 @@ interface InputDataMapRow {
   fetchableId?: string;
 }
 
+interface SecretDataMapRow {
+  secretKey: string;
+  secretId: string;
+}
+
 interface Props {
   node: CanvasNode;
   onUpdateConfig: (c: Record<string, unknown>) => void;
   onChangeInputs: (v: WorkflowInput[]) => void;
+  allAvailableSecrets?: AvailableCtxVar[];
 }
 
 const VALID_IDENT = /^[a-zA-Z_][a-zA-Z0-9_.]*$/;
@@ -70,11 +77,14 @@ export default function StartConfig({
   node,
   onUpdateConfig,
   onChangeInputs,
+  allAvailableSecrets = [],
 }: Props) {
   const rows: InputDataMapRow[] =
     (node.config.inputDataMap as InputDataMapRow[]) ?? [];
   const fetchables: FetchableConfig[] =
     (node.config.fetchables as FetchableConfig[]) ?? [];
+  const secretRows: SecretDataMapRow[] =
+    (node.config.secretDataMap as SecretDataMapRow[]) ?? [];
 
   const [addInputType, setAddInputType] = useState<"direct" | "fetched">(
     "direct",
@@ -167,6 +177,28 @@ export default function StartConfig({
         headers: [],
       },
     ]);
+
+  const updateSecretRow = (idx: number, patch: Partial<SecretDataMapRow>) => {
+    const newSecrets = secretRows.map((s, i) => (i === idx ? { ...s, ...patch } : s));
+    onUpdateConfig({
+      ...node.config,
+      secretDataMap: newSecrets,
+    });
+  };
+
+  const addSecretRow = () => {
+    onUpdateConfig({
+      ...node.config,
+      secretDataMap: [...secretRows, { secretKey: "", secretId: "" }],
+    });
+  };
+
+  const removeSecretRow = (idx: number) => {
+    onUpdateConfig({
+      ...node.config,
+      secretDataMap: secretRows.filter((_, i) => i !== idx),
+    });
+  };
 
   const directRows = rows
     .map((r, i) => ({ row: r, idx: i }))
@@ -306,6 +338,53 @@ export default function StartConfig({
               }
             />
           </Box>
+        </Box>
+      </CollapsibleSection>
+
+      <Divider sx={{ borderColor: "divider" }} />
+
+      <CollapsibleSection title="Secrets (Declaration)" defaultOpen count={secretRows.length}>
+        <Box display="flex" flexDirection="column" gap={1}>
+          {secretRows.length === 0 && (
+            <Typography sx={{ fontSize: 11, color: "text.disabled", fontStyle: "italic" }}>
+              No secrets mapped to this workflow
+            </Typography>
+          )}
+          {secretRows.map((s, idx) => (
+            <Box key={idx} sx={{ display: 'flex', gap: 0.5, alignItems: 'center', p: 0.5, border: '1px solid', borderColor: 'divider', borderRadius: '6px', backgroundColor: 'action.hover' }}>
+               <TextField
+                size="small"
+                placeholder="Key (e.g. DB_PASS)"
+                value={s.secretKey}
+                onChange={(e) => updateSecretRow(idx, { secretKey: e.target.value })}
+                sx={{ flex: 1, ...ROW_FIELD_SX }}
+                inputProps={ROW_INPUT_PROPS}
+              />
+              <Typography sx={{ fontSize: 11, color: 'text.disabled' }}>=</Typography>
+              <FormControl size="small" sx={{ flex: 1.5, ...ROW_FIELD_SX }}>
+                <Select
+                  value={s.secretId}
+                  onChange={(e) => updateSecretRow(idx, { secretId: e.target.value })}
+                  displayEmpty
+                  sx={{ fontSize: 11, borderRadius: "6px" }}
+                >
+                  <MenuItem value="" disabled sx={{ fontSize: 11 }}>Select Secret</MenuItem>
+                  {allAvailableSecrets?.map((sec: any) => (
+                    <MenuItem key={sec.id} value={sec.id} sx={{ fontSize: 11 }}>
+                      {sec.name}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+              <IconButton size="small" onClick={() => removeSecretRow(idx)} sx={{ p: 0.25, color: 'text.disabled', '&:hover': { color: '#ef4444' } }}>
+                <DeleteOutlineIcon sx={{ fontSize: 13 }} />
+              </IconButton>
+            </Box>
+          ))}
+          <AddRowButton label="Add Secret Mapping" onClick={addSecretRow} />
+          <Typography sx={{ fontSize: 9, color: 'text.secondary', fontStyle: 'italic', px: 0.5 }}>
+            Mapped secrets will be available as <b>secret.KEY</b> in downstream nodes.
+          </Typography>
         </Box>
       </CollapsibleSection>
     </Box>

@@ -19,6 +19,7 @@ import PlayCircleIcon from "@mui/icons-material/PlayCircle";
 import AssignmentIcon from "@mui/icons-material/Assignment";
 import SecurityIcon from "@mui/icons-material/Security";
 import SettingsIcon from "@mui/icons-material/Settings";
+import LockIcon from "@mui/icons-material/Lock";
 import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
 import MenuIcon from "@mui/icons-material/Menu";
 import Logo from "../common/Logo";
@@ -38,6 +39,7 @@ const NAV_ITEMS: NavItem[] = [
   { label: "Instances", path: "/instances", icon: PlayCircleIcon },
   { label: "Pending Tasks", path: "/tasks", icon: AssignmentIcon },
   { label: "Audit", path: "/audit", icon: SecurityIcon },
+  { label: "Secrets", path: "/secrets", icon: LockIcon },
   { label: "Settings", path: "/settings", icon: SettingsIcon },
 ];
 

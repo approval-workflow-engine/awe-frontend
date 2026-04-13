@@ -14,6 +14,7 @@ import TasksPage from "../pages/tasks/TasksPage";
 import TaskReviewPage from "../pages/tasks/TaskReviewPage";
 import AuditPage from "../pages/audit/AuditPage";
 import InstanceAuditPage from "../pages/audit/InstanceAuditPage";
+import SecretsPage from "../pages/secrets/SecretsPage";
 
 function ProtectedLayout() {
   const { isAuthenticated } = useApp();
@@ -60,6 +61,7 @@ const router = createBrowserRouter([
       { path: "/tasks/:id", element: <TaskReviewPage /> },
       { path: "/audit", element: <AuditPage /> },
       { path: "/audit/:instanceId", element: <InstanceAuditPage /> },
+      { path: "/secrets", element: <SecretsPage /> },
       { path: "/settings", element: <Settings /> },
     ],
   },

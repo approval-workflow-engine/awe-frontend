@@ -25,6 +25,7 @@ import UserTaskConfig from "../config/nodes/UserTaskConfig";
 import ServiceTaskConfig from "../config/nodes/ServiceTaskConfig";
 import ScriptTaskConfig from "../config/nodes/ScriptTaskConfig";
 import GatewayConfig from "../config/nodes/GatewayConfig";
+import type { AvailableCtxVar } from "../config/context";
 
 interface Props {
   selectedItem: SelectedItem;
@@ -39,6 +40,8 @@ interface Props {
   onChangeInputs: (inputs: WorkflowInput[]) => void;
   onOpenCodeEditor: () => void;
   width?: number;
+  availableSecrets?: AvailableCtxVar[];
+  allAvailableSecrets?: AvailableCtxVar[];
 }
 
 export default function ConfigPanel({
@@ -54,8 +57,11 @@ export default function ConfigPanel({
   onChangeInputs,
   onOpenCodeEditor,
   width,
+  availableSecrets = [],
+  allAvailableSecrets = [],
 }: Props) {
   const panelWidth = width ?? 260;
+
   if (!selectedItem) return null;
 
   if (selectedItem.type === "edge") {
@@ -87,8 +93,9 @@ export default function ConfigPanel({
         return (
           <StartConfig
             node={node}
-            onUpdateConfig={updateConfig}
+            onUpdateConfig={(config) => onUpdateNode(node.id, { config })}
             onChangeInputs={onChangeInputs}
+            allAvailableSecrets={allAvailableSecrets}
           />
         );
       case "end":
@@ -97,6 +104,7 @@ export default function ConfigPanel({
             node={node}
             onUpdateConfig={updateConfig}
             availableContext={availableContext}
+            availableSecrets={availableSecrets}
           />
         );
       case "user_task":
@@ -105,6 +113,7 @@ export default function ConfigPanel({
             node={node}
             onUpdateConfig={updateConfig}
             availableContext={availableContext}
+            availableSecrets={availableSecrets}
           />
         );
       case "service_task":
@@ -113,6 +122,7 @@ export default function ConfigPanel({
             node={node}
             onUpdateConfig={updateConfig}
             availableContext={availableContext}
+            availableSecrets={availableSecrets}
           />
         );
       case "script_task":
@@ -121,6 +131,7 @@ export default function ConfigPanel({
             node={node}
             onUpdateConfig={updateConfig}
             availableContext={availableContext}
+            availableSecrets={availableSecrets}
             onOpenCodeEditor={onOpenCodeEditor}
           />
         );
@@ -130,6 +141,7 @@ export default function ConfigPanel({
             node={node}
             onUpdateConfig={updateConfig}
             availableContext={availableContext}
+            availableSecrets={availableSecrets}
             edges={edges}
             onUpdateEdge={onUpdateEdge}
             onDeleteEdge={onDeleteEdge}
@@ -285,6 +297,44 @@ export default function ConfigPanel({
             </pre>
           </Box>
         </Box>
+
+        {availableSecrets.length > 0 && (
+          <Box sx={{ mt: 1, pt: 1, borderTop: "1px dashed", borderColor: "divider" }}>
+            <Typography
+              sx={{
+                fontSize: 10,
+                fontWeight: 600,
+                color: "primary.main",
+                mb: 1,
+                letterSpacing: "0.05em",
+                textTransform: "uppercase",
+              }}
+            >
+              Available Secrets
+            </Typography>
+            <Box display="flex" flexWrap="wrap" gap={0.5}>
+              {availableSecrets.map((s) => (
+                <Tooltip key={s.name} title={`Use as secret.${s.name}`}>
+                  <Chip
+                    label={s.name}
+                    size="small"
+                    sx={{
+                      fontSize: 9,
+                      height: 18,
+                      borderRadius: "4px",
+                      backgroundColor: "rgba(79,110,247,0.08)",
+                      color: "primary.main",
+                      border: "1px solid rgba(79,110,247,0.2)",
+                    }}
+                  />
+                </Tooltip>
+              ))}
+            </Box>
+            <Typography variant="caption" sx={{ fontSize: 8, color: "text.secondary", mt: 0.5, display: "block" }}>
+              Reference these using <b>secret.NAME</b> in any field.
+            </Typography>
+          </Box>
+        )}
       </Box>
     </Box>
   );

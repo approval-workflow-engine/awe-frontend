@@ -85,6 +85,14 @@ export const InstanceActionResponseSchema = z.object({
   instance: z.unknown(),
 });
 
+export const RetryConstantsResponseSchema = z.object({
+  constants: z.record(z.string(), z.unknown()),
+});
+
+export const RetryInstanceRequestSchema = z.object({
+  constants: z.record(z.string(), z.unknown()).default({}),
+});
+
 export const ExecutionConnectionSchema = z.object({
   destinationNodeId: z.string().nullable(),
   destinationNodeClientId: z.string().nullable(),
@@ -139,6 +147,10 @@ export type AdvanceInstanceResponse = z.infer<
 export type InstanceActionResponse = z.infer<
   typeof InstanceActionResponseSchema
 >;
+export type RetryConstantsResponse = z.infer<
+  typeof RetryConstantsResponseSchema
+>;
+export type RetryInstanceRequest = z.infer<typeof RetryInstanceRequestSchema>;
 export type ExecutionConnection = z.infer<typeof ExecutionConnectionSchema>;
 export type ExecutionNode = z.infer<typeof ExecutionNodeSchema>;
 export type ExecutionLog = z.infer<typeof ExecutionLogSchema>;

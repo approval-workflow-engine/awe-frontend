@@ -75,9 +75,12 @@ export function useInstance() {
   );
 
   const retry = useCallback(
-    async (id: string) =>
+    async (id: string, constants?: Record<string, unknown>) =>
       runAction(
-        (targetId) => instanceService.retryInstance(targetId),
+        (targetId) =>
+          instanceService.retryInstance(targetId, {
+            constants: constants ?? {},
+          }),
         "Instance retried successfully",
         id,
       ),
