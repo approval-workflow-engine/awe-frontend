@@ -18,9 +18,9 @@ function JsonAccordion({ title, data }: { title: string; data: Record<string, un
     <Accordion
       disableGutters
       elevation={0}
-      sx={{ border: '1px solid', borderColor: 'divider', borderRadius: '8px !important', mt: 1.5 }}
+      sx={{ border: '1px solid', borderColor: 'divider', borderRadius: '8px !important', mt: 0.5 }}
     >
-      <AccordionSummary expandIcon={<ExpandMoreIcon sx={{ fontSize: 16 }} />} sx={{ minHeight: 40 }}>
+      <AccordionSummary expandIcon={<ExpandMoreIcon sx={{ fontSize: 16 }} />} sx={{ minHeight: 32, '& .MuiAccordionSummary-content': { margin: '8px 0' } }}>
         <Typography fontSize={13} fontWeight={600}>
           {title}
         </Typography>
@@ -115,16 +115,18 @@ export default function DetailInfoSection({ instance }: Props) {
   }
 
   return (
-    <Paper variant="outlined" sx={{ p: 2.5 }}>
-      <Typography fontWeight={700} fontSize={14} mb={1.5}>
-        Instance Details
-      </Typography>
+    <Paper variant="outlined" sx={{ p: 2, pb: 1.5 }}>
+      <Box display="flex" alignItems="center" justifyContent="space-between" mb={1}>
+        <Typography fontWeight={700} fontSize={14}>
+          Instance Details
+        </Typography>
+      </Box>
 
       <Box
         sx={{
-          display: 'grid',
-          gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, minmax(0, 1fr))', lg: 'repeat(3, minmax(0, 1fr))' },
-          columnGap: 2,
+          display: 'flex',
+          flexWrap: 'wrap',
+          gap: 2,
           rowGap: 1,
         }}
       >
@@ -132,13 +134,16 @@ export default function DetailInfoSection({ instance }: Props) {
           <Box
             key={item.label}
             sx={{
-              borderBottom: '1px solid',
+              display: 'flex',
+              flexDirection: 'column',
+              minWidth: item.fullWidth ? '100%' : '140px',
+              borderRight: !item.fullWidth ? '1px solid' : 'none',
               borderColor: 'divider',
-              pb: 0.75,
-              gridColumn: item.fullWidth ? '1 / -1' : undefined,
+              pr: 2,
+              '&:last-child': { borderRight: 'none' }
             }}
           >
-            <Typography sx={{ fontSize: 11, color: 'text.secondary', mb: 0.25 }}>
+            <Typography sx={{ fontSize: 10, color: 'text.secondary', textTransform: 'uppercase', fontWeight: 600, mb: 0.25 }}>
               {item.label}
             </Typography>
             <Box>{item.value}</Box>
@@ -146,13 +151,13 @@ export default function DetailInfoSection({ instance }: Props) {
         ))}
       </Box>
 
-      <Accordion disableGutters elevation={0} sx={{ border: '1px solid', borderColor: 'divider', borderRadius: '8px !important', mt: 2 }}>
-        <AccordionSummary expandIcon={<ExpandMoreIcon sx={{ fontSize: 16 }} />} sx={{ minHeight: 36 }}>
+      <Accordion disableGutters elevation={0} sx={{ border: '1px solid', borderColor: 'divider', borderRadius: '8px !important', mt: 1.5, mb: 1 }}>
+        <AccordionSummary expandIcon={<ExpandMoreIcon sx={{ fontSize: 16 }} />} sx={{ minHeight: 32, '& .MuiAccordionSummary-content': { margin: '8px 0' } }}>
           <Typography fontSize={12} fontWeight={600}>
-            Variables
+            Instance Variables
           </Typography>
         </AccordionSummary>
-        <AccordionDetails sx={{ display: 'flex', flexDirection: 'column', gap: 1.5, p: 2 }}>
+        <AccordionDetails sx={{ display: 'flex', flexDirection: 'column', gap: 1, p: 1.5, pt: 0 }}>
           <JsonAccordion title="Input Variables" data={instance.inputVariables} />
           <JsonAccordion title="Current Variables" data={instance.currentVariables} />
           <JsonAccordion title="Output Variables" data={instance.outputVariables} />

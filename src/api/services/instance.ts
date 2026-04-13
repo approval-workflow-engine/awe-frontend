@@ -49,6 +49,10 @@ export class InstanceService {
     return apiClient.post(`/instances/${id}/terminate`, {}, InstanceActionResponseSchema);
   }
 
+  async retryInstance(id: string): Promise<InstanceActionResponse> {
+    return apiClient.post(`/instances/${id}/retry`, {}, InstanceActionResponseSchema);
+  }
+
   async getExecutionLogs(id: string): Promise<ExecutionLogsResponse> {
     return apiClient.get(`/instances/${id}/executions`, ExecutionLogsResponseSchema);
   }

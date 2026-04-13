@@ -96,6 +96,7 @@ export const ExecutionNodeSchema = z.object({
   nodeClientId: z.string(),
   nodeType: z.string(),
   nodeName: z.string().nullable(),
+  nodeConfiguration: z.any().nullable().optional(),
   order: z.number(),
   status: z.enum([
     "completed",
@@ -103,6 +104,7 @@ export const ExecutionNodeSchema = z.object({
     "in_progress",
     "terminated",
     "pending",
+    "discarded",
   ]),
   startedOn: optionalDateTransform,
   endedOn: optionalDateTransform,
@@ -110,6 +112,7 @@ export const ExecutionNodeSchema = z.object({
   outputVariables: z.record(z.string(), z.any()).nullable(),
   outgoingConnections: z.array(ExecutionConnectionSchema),
   userTaskExecutionId: z.string().nullable().optional(),
+  taskId: z.string().nullable().optional(),
 });
 
 export const ExecutionLogSchema = ExecutionNodeSchema;

@@ -1,10 +1,13 @@
-import { useMemo } from 'react';
-import { Box, Typography, Paper, Chip, Button } from '@mui/material';
+import { useMemo, useState, useEffect } from 'react';
+import { Box, Typography, Paper, Chip, Button, Tabs, Tab, CircularProgress } from '@mui/material';
 import TimelineIcon from '@mui/icons-material/Timeline';
+import HighlightOffIcon from '@mui/icons-material/HighlightOff';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import ErrorIcon from '@mui/icons-material/Error';
+import PendingIcon from '@mui/icons-material/Pending';
 import HourglassEmptyIcon from '@mui/icons-material/HourglassEmpty';
 import type { ExecutionNode } from '../../../api/schemas/instance';
+import { NodeConfigurationDisplay } from './NodeConfigurationDisplay';
 
 const MONO = "'JetBrains Mono', monospace";
 
@@ -24,6 +27,10 @@ function getStatusIcon(status: NodeStatus) {
       return <ErrorIcon sx={{ fontSize: 16, color: '#ef4444' }} />;
     case 'in_progress':
       return <HourglassEmptyIcon sx={{ fontSize: 16, color: '#06b6d4' }} />;
+    case 'discarded':
+      return <HighlightOffIcon sx={{ fontSize: 16, color: '#9ca3af' }} />;
+    case 'pending':
+      return <PendingIcon sx={{ fontSize: 16, color: '#9ca3af' }} />;
     default:
       return null;
   }
@@ -38,6 +45,8 @@ function getStatusColor(status: NodeStatus) {
       return '#ef4444';
     case 'in_progress':
       return '#06b6d4';
+    case 'discarded':
+      return '#9ca3af';
     default:
       return '#6b7280';
   }
@@ -84,7 +93,7 @@ function JsonDisplay({ title, data }: { title: string; data: Record<string, unkn
           overflowX: 'auto',
           whiteSpace: 'pre-wrap',
           wordBreak: 'break-word',
-          maxHeight: 320,
+          maxHeight: 200,
           overflowY: 'auto',
         }}
       >
@@ -112,8 +121,112 @@ export function ExecutionFlowCard({
   const totalNodes = nodes.length;
   const completedNodes = nodes.filter((node) => node.status === 'completed').length;
 
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
+
+  const groupedNodes = useMemo(() => {
+    const groups: Array<ExecutionNode | { isGroup: true; id: string; nodes: ExecutionNode[] }> = [];
+    let currentDiscardedGroup: ExecutionNode[] = [];
+
+    for (const node of nodes) {
+      if (node.status === 'discarded') {
+        currentDiscardedGroup.push(node);
+      } else {
+        if (currentDiscardedGroup.length > 0) {
+          groups.push({
+            isGroup: true,
+            id: `discarded-group-${currentDiscardedGroup[0].nodeId}`,
+            nodes: currentDiscardedGroup,
+          });
+          currentDiscardedGroup = [];
+        }
+        groups.push(node);
+      }
+    }
+    if (currentDiscardedGroup.length > 0) {
+      groups.push({
+        isGroup: true,
+        id: `discarded-group-${currentDiscardedGroup[0].nodeId}`,
+        nodes: currentDiscardedGroup,
+      });
+    }
+
+    return groups;
+  }, [nodes]);
+
+  const toggleGroup = (groupId: string) => {
+    setExpandedGroups(prev => {
+      const next = new Set(prev);
+      if (next.has(groupId)) {
+        next.delete(groupId);
+      } else {
+        next.add(groupId);
+      }
+      return next;
+    });
+  };
+
+  const renderNode = (node: ExecutionNode) => {
+    const isSelected = node.nodeId === selectedNodeId;
+    const isReviewable =
+      !!currentTaskNodeClientId &&
+      node.nodeClientId === currentTaskNodeClientId &&
+      isUserTaskType(node.nodeType) &&
+      node.status === 'in_progress';
+
+    return (
+      <Box
+        key={node.nodeId}
+        role="button"
+        tabIndex={0}
+        onClick={() => onSelectNode(node.nodeId)}
+        sx={{
+          border: '2px solid',
+          borderColor: isSelected ? 'primary.main' : isReviewable ? '#f97316' : 'transparent',
+          backgroundColor: isSelected ? 'rgba(59, 130, 246, 0.05)' : isReviewable ? 'rgba(249,115,22,0.05)' : node.status === 'pending' ? 'action.hover' : 'background.paper',
+          boxShadow: isSelected ? 'none' : '0 1px 3px rgba(0,0,0,0.05)',
+          borderRadius: 2,
+          p: 1.25,
+          opacity: node.status === 'pending' ? 0.65 : 1,
+          cursor: 'pointer',
+          transition: 'all .2s ease',
+          '&:hover': {
+            borderColor: !isSelected && !isReviewable ? 'divider' : undefined,
+          }
+        }}
+      >
+        <Box display="flex" alignItems="center" gap={1.5} width="100%">
+          <Typography sx={{ fontFamily: MONO, fontSize: 11, color: 'text.secondary', minWidth: 20, textAlign: 'center' }}>
+            {node.order}
+          </Typography>
+
+          <Box display="flex" alignItems="center" gap={0.5}>
+            {getStatusIcon(node.status)}
+          </Box>
+
+          <Box flex={1} minWidth={0}>
+            <Typography fontSize={13} fontWeight={isSelected ? 700 : 500} noWrap>
+              {node.nodeName || `${node.nodeType} Node`}
+            </Typography>
+            <Typography fontSize={11} color="text.secondary" sx={{ fontFamily: MONO }}>
+              {node.nodeType} • {node.nodeClientId}
+            </Typography>
+          </Box>
+
+          <Box textAlign="right">
+            <Typography sx={{ fontFamily: MONO, fontSize: 10, fontWeight: 600, color: getStatusColor(node.status), textTransform: 'uppercase' }}>
+              {node.status}
+            </Typography>
+            <Typography fontSize={11} color="text.secondary" sx={{ fontFamily: MONO }}>
+              {formatDuration(node.startedOn, node.endedOn)}
+            </Typography>
+          </Box>
+        </Box>
+      </Box>
+    );
+  };
+
   return (
-    <Paper variant="outlined" sx={{ p: 3, display: 'flex', flexDirection: 'column', height: '100%' }}>
+    <Paper variant="outlined" sx={{ p: 2, display: 'flex', flexDirection: 'column', height: '100%' }}>
       <Box display="flex" alignItems="center" gap={1} mb={2} flexShrink={0}>
         <TimelineIcon sx={{ fontSize: 18, color: 'text.secondary' }} />
         <Typography fontWeight={700} fontSize={15}>
@@ -124,79 +237,79 @@ export function ExecutionFlowCard({
         )}
       </Box>
 
-      <Box sx={{ flex: 1, minHeight: 0, overflowY: 'auto' }}>
+      <Box sx={{ flex: 1, minHeight: 0, overflowY: 'auto', pr: 1 }}>
         {loading && (
-          <Box sx={{ py: 6, textAlign: 'center', border: '1px dashed', borderColor: 'divider', borderRadius: 2 }}>
+          <Box sx={{ py: 4, textAlign: 'center', border: '1px dashed', borderColor: 'divider', borderRadius: 2 }}>
             <Typography color="text.secondary" fontSize={13}>Loading execution workflow...</Typography>
           </Box>
         )}
 
         {!loading && nodes.length === 0 && (
-          <Box sx={{ py: 6, textAlign: 'center', border: '1px dashed', borderColor: 'divider', borderRadius: 2 }}>
+          <Box sx={{ py: 4, textAlign: 'center', border: '1px dashed', borderColor: 'divider', borderRadius: 2 }}>
             <Typography color="text.secondary" fontSize={13}>No workflow tasks found for this instance.</Typography>
           </Box>
         )}
 
         {!loading && nodes.length > 0 && (
-          <Box display="flex" flexDirection="column" gap={1.2}>
-            {nodes.map((node) => {
-              const isSelected = node.nodeId === selectedNodeId;
-              const isReviewable =
-                !!currentTaskNodeClientId &&
-                node.nodeClientId === currentTaskNodeClientId &&
-                isUserTaskType(node.nodeType) &&
-                node.status === 'in_progress';
+          <Box display="flex" flexDirection="column" gap={1}>
+            {groupedNodes.map((item) => {
+              if ('isGroup' in item) {
+                const isExpanded = expandedGroups.has(item.id);
 
-              return (
-                <Box
-                  key={node.nodeId}
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => onSelectNode(node.nodeId)}
-                  sx={{
-                    border: '2px solid',
-                    borderColor: isSelected ? 'primary.main' : isReviewable ? '#f97316' : 'divider',
-                    backgroundColor: isReviewable ? 'rgba(249,115,22,0.08)' : node.status === 'pending' ? 'action.hover' : 'transparent',
-                    borderRadius: 2,
-                    p: 1.25,
-                    opacity: node.status === 'pending' ? 0.65 : 1,
-                    cursor: 'pointer',
-                    transition: 'all .2s ease',
-                  }}
-                >
-                  <Box display="flex" alignItems="center" gap={2} width="100%">
-                    <Typography sx={{ fontFamily: MONO, fontSize: 11, color: 'text.secondary', minWidth: 24, textAlign: 'center' }}>
-                      {node.order}
-                    </Typography>
-
-                    <Box display="flex" alignItems="center" gap={1}>
-                      {getStatusIcon(node.status)}
-                      <Typography sx={{ fontFamily: MONO, fontSize: 11, fontWeight: 600, color: getStatusColor(node.status), textTransform: 'uppercase', minWidth: 90 }}>
-                        {node.status}
+                if (!isExpanded) {
+                  return (
+                    <Box
+                      key={item.id}
+                      onClick={() => toggleGroup(item.id)}
+                      sx={{
+                        p: 1,
+                        cursor: 'pointer',
+                        textAlign: 'center',
+                        backgroundColor: 'action.hover',
+                        borderRadius: 2,
+                        border: '1px dashed',
+                        borderColor: 'divider',
+                        transition: 'all .2s ease',
+                        '&:hover': { backgroundColor: 'action.focus' }
+                      }}
+                    >
+                      <Typography fontSize={11} color="text.secondary" fontWeight={600}>
+                        {item.nodes.length} discarded task{item.nodes.length > 1 ? 's' : ''} ... Click to expand
                       </Typography>
                     </Box>
+                  );
+                }
 
-                    <Box flex={1} minWidth={0}>
-                      <Typography fontSize={13} fontWeight={600} noWrap>
-                        {node.nodeName || `${node.nodeType} Node`}
-                      </Typography>
-                      <Typography fontSize={11} color="text.secondary" sx={{ fontFamily: MONO }}>
-                        {node.nodeType} • {node.nodeClientId}
+                return (
+                  <Box key={item.id} sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                    <Box
+                      onClick={() => toggleGroup(item.id)}
+                      sx={{
+                        p: 1,
+                        cursor: 'pointer',
+                        textAlign: 'center',
+                        backgroundColor: 'action.hover',
+                        borderRadius: 2,
+                        border: '1px dashed',
+                        borderColor: 'divider',
+                        transition: 'all .2s ease',
+                        '&:hover': { backgroundColor: 'action.focus' }
+                      }}
+                    >
+                      <Typography fontSize={11} color="text.secondary" fontWeight={600}>
+                        Collapse discarded tasks
                       </Typography>
                     </Box>
-
-                    <Box textAlign="right">
-                      <Typography fontSize={11} color="text.secondary">
-                        {formatDuration(node.startedOn, node.endedOn)}
-                      </Typography>
-                    </Box>
+                    {item.nodes.map((node) => renderNode(node))}
                   </Box>
-                </Box>
-              );
+                );
+              }
+
+              return renderNode(item);
             })}
 
-            <Box sx={{ border: '1px dashed', borderColor: 'divider', borderRadius: 2, p: 1.5 }}>
-              <Typography fontSize={12} color="text.secondary">
+            <Box sx={{ border: '1px dashed', borderColor: 'divider', borderRadius: 2, p: 1, mt: 1, textAlign: 'center' }}>
+              <Typography fontSize={11} color="text.secondary">
                 Executions recorded: {nodes.filter((item) => item.status !== 'pending').length}
               </Typography>
             </Box>
@@ -211,6 +324,7 @@ interface NodeExecutionDetailsCardProps {
   nodes: ExecutionNode[];
   selectedNodeId: string | null;
   onReviewTask?: () => void;
+  onRetryTask?: () => void | Promise<void>;
   loading?: boolean;
 }
 
@@ -218,8 +332,27 @@ export function NodeExecutionDetailsCard({
   nodes,
   selectedNodeId,
   onReviewTask,
+  onRetryTask,
   loading,
 }: NodeExecutionDetailsCardProps) {
+  const [tabIndex, setTabIndex] = useState(0);
+  const [isRetrying, setIsRetrying] = useState(false);
+
+  useEffect(() => {
+    setTabIndex(0);
+    setIsRetrying(false);
+  }, [selectedNodeId]);
+
+  const handleRetry = async () => {
+    if (!onRetryTask) return;
+    setIsRetrying(true);
+    try {
+      await onRetryTask();
+    } finally {
+      setIsRetrying(false);
+    }
+  };
+
   const selectedNode = nodes.find((node) => node.nodeId === selectedNodeId) ?? null;
 
   const nodeStatusById = useMemo(() => new Map(nodes.map((node) => [node.nodeId, node.status])), [nodes]);
@@ -232,12 +365,14 @@ export function NodeExecutionDetailsCard({
     !!selectedNode.userTaskExecutionId;
 
   return (
-    <Paper variant="outlined" sx={{ p: 3, borderRadius: 2, display: 'flex', flexDirection: 'column', height: '100%' }}>
+    <Paper variant="outlined" sx={{ p: 2.5, borderRadius: 2, display: 'flex', flexDirection: 'column', height: '100%' }}>
       <Box sx={{ flex: 1, minHeight: 0, overflowY: 'auto' }}>
         {!selectedNode && (
-          <Typography fontSize={12} color="text.secondary">
-            {loading ? 'Loading execution details...' : 'Select a workflow node to view execution details.'}
-          </Typography>
+          <Box display="flex" alignItems="center" justifyContent="center" height="100%">
+            <Typography fontSize={13} color="text.secondary">
+              {loading ? 'Loading execution details...' : 'Select a workflow node to view execution details.'}
+            </Typography>
+          </Box>
         )}
 
         {selectedNode && (
@@ -251,25 +386,38 @@ export function NodeExecutionDetailsCard({
                   {selectedNode.nodeType} • {selectedNode.nodeClientId}
                 </Typography>
               </Box>
-              {isReviewableNode && onReviewTask && (
-                <Button size="small" variant="contained" onClick={onReviewTask} sx={{ borderRadius: '8px', fontWeight: 600 }}>
-                  Review Task
-                </Button>
-              )}
+              <Box display="flex" gap={1}>
+                {selectedNode.status === 'failed' && onRetryTask && (
+                  <Button disabled={isRetrying} size="small" variant="outlined" color="warning" onClick={handleRetry} sx={{ borderRadius: '8px', fontWeight: 600 }}>
+                    {isRetrying && <CircularProgress size={14} color="inherit" sx={{ mr: 1 }} />}
+                    Retry Task
+                  </Button>
+                )}
+                {isReviewableNode && onReviewTask && (
+                  <Button size="small" variant="contained" onClick={onReviewTask} sx={{ borderRadius: '8px', fontWeight: 600 }}>
+                    Review Task
+                  </Button>
+                )}
+              </Box>
             </Box>
 
-            <Box sx={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: 1.5, py: 1, borderTop: '1px solid', borderColor: 'divider' }}>
-              <Typography fontSize={12} color="text.secondary" fontWeight={600}>Status:</Typography>
-              <Typography fontSize={12} sx={{ fontFamily: MONO, color: getStatusColor(selectedNode.status) }}>{selectedNode.status}</Typography>
-
-              <Typography fontSize={12} color="text.secondary" fontWeight={600}>Started:</Typography>
-              <Typography fontSize={12}>{formatTimestamp(selectedNode.startedOn)}</Typography>
-
-              <Typography fontSize={12} color="text.secondary" fontWeight={600}>Ended:</Typography>
-              <Typography fontSize={12}>{formatTimestamp(selectedNode.endedOn)}</Typography>
-
-              <Typography fontSize={12} color="text.secondary" fontWeight={600}>Duration:</Typography>
-              <Typography fontSize={12} sx={{ fontFamily: MONO }}>{formatDuration(selectedNode.startedOn, selectedNode.endedOn)}</Typography>
+            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, rowGap: 1.5, py: 1.5, borderTop: '1px solid', borderColor: 'divider' }}>
+              <Box>
+                <Typography fontSize={11} color="text.secondary" fontWeight={600} mb={0.25}>STATUS</Typography>
+                <Typography fontSize={12} sx={{ fontFamily: MONO, color: getStatusColor(selectedNode.status) }}>{selectedNode.status}</Typography>
+              </Box>
+              <Box>
+                <Typography fontSize={11} color="text.secondary" fontWeight={600} mb={0.25}>STARTED</Typography>
+                <Typography fontSize={12}>{formatTimestamp(selectedNode.startedOn)}</Typography>
+              </Box>
+              <Box>
+                <Typography fontSize={11} color="text.secondary" fontWeight={600} mb={0.25}>ENDED</Typography>
+                <Typography fontSize={12}>{formatTimestamp(selectedNode.endedOn)}</Typography>
+              </Box>
+              <Box>
+                <Typography fontSize={11} color="text.secondary" fontWeight={600} mb={0.25}>DURATION</Typography>
+                <Typography fontSize={12} sx={{ fontFamily: MONO }}>{formatDuration(selectedNode.startedOn, selectedNode.endedOn)}</Typography>
+              </Box>
             </Box>
 
             <Box sx={{ mt: 1.5 }}>
@@ -311,8 +459,25 @@ export function NodeExecutionDetailsCard({
               )}
             </Box>
 
-            <JsonDisplay title="Input Variables" data={selectedNode.inputVariables} />
-            <JsonDisplay title="Output Variables" data={selectedNode.outputVariables} />
+            <Box sx={{ borderBottom: 1, borderColor: 'divider', mt: 2 }}>
+              <Tabs value={tabIndex} onChange={(_, nv) => setTabIndex(nv)} sx={{ minHeight: 40 }}>
+                <Tab label="Execution Data" sx={{ minHeight: 40, py: 1, fontSize: 13, textTransform: 'none', fontWeight: 600 }} />
+                <Tab label="Configuration" sx={{ minHeight: 40, py: 1, fontSize: 13, textTransform: 'none', fontWeight: 600 }} />
+              </Tabs>
+            </Box>
+
+            {tabIndex === 0 && (
+              <Box sx={{ pt: 1.5 }}>
+                <JsonDisplay title="Input Variables" data={selectedNode.inputVariables} />
+                <JsonDisplay title="Output Variables" data={selectedNode.outputVariables} />
+              </Box>
+            )}
+
+            {tabIndex === 1 && (
+              <Box sx={{ pt: 1.5 }}>
+                <NodeConfigurationDisplay nodeType={selectedNode.nodeType} config={selectedNode.nodeConfiguration} />
+              </Box>
+            )}
           </>
         )}
       </Box>

@@ -15,6 +15,7 @@ import type {
   InstanceListItem,
   CurrentTask,
 } from "../../api/schemas/instance";
+import { taskService } from "../../api/services/task";
 
 const MONO = "'JetBrains Mono', monospace";
 
@@ -55,6 +56,7 @@ export default function InstanceDetailPage() {
     resume,
     pause,
     terminate,
+    retry,
     isTerminal,
   } = useInstance();
 
@@ -90,6 +92,7 @@ export default function InstanceDetailPage() {
     displayInstance?.status === "in_progress" &&
     !isTerminal(displayInstance.status);
   const canTerminate = !!displayInstance && !isTerminal(displayInstance.status);
+  const canRetry = displayInstance?.status === "failed";
 
   const handleResume = async () => {
     if (!id) return;
@@ -106,6 +109,12 @@ export default function InstanceDetailPage() {
   const handleTerminate = async () => {
     if (!id) return;
     await terminate(id);
+    await refreshInstanceAndLogs();
+  };
+
+  const handleRetry = async () => {
+    if (!id) return;
+    await retry(id);
     await refreshInstanceAndLogs();
   };
 
@@ -131,6 +140,16 @@ export default function InstanceDetailPage() {
     });
   };
 
+  const handleRetryTask = async () => {
+    if (!selectedExecutionNode?.taskId) return;
+    try {
+      await taskService.retryTask(selectedExecutionNode.taskId);
+      await refreshInstanceAndLogs();
+    } catch (e) {
+      console.error("Task retry failed:", e);
+    }
+  };
+
   return (
     <Box>
       <PageHeader
@@ -142,10 +161,12 @@ export default function InstanceDetailPage() {
             canPause={canPause}
             canResume={canResume}
             canTerminate={canTerminate}
+            canRetry={canRetry}
             onReload={handleReload}
             onPause={handlePause}
             onResume={handleResume}
             onTerminate={handleTerminate}
+            onRetry={handleRetry}
           />
         }
       />
@@ -218,6 +239,11 @@ export default function InstanceDetailPage() {
               nodes={orderedExecutions}
               selectedNodeId={selectedNodeId}
               onReviewTask={showReviewAction ? handleReviewTask : undefined}
+              onRetryTask={
+                selectedExecutionNode?.status === "failed"
+                  ? handleRetryTask
+                  : undefined
+              }
               loading={logsLoading}
             />
           </Box>
