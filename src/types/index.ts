@@ -338,3 +338,27 @@ export interface BackendTask {
 }
 
 export type BackendTaskDetail = BackendTask;
+
+export interface InfisicalConfiguration {
+  host: string;
+  projectId: string;
+  environment: string;
+  machineIdentityId: string;
+}
+
+export interface SecretProvider {
+  id?: string;
+  type: "infisical";
+  label: string;
+  configuration: InfisicalConfiguration;
+  created_on?: string;
+}
+
+export interface Secret {
+  id?: string;
+  providerId: string;
+  environmentType: string;
+  label: string;
+  key: string;
+  created_on?: string;
+}

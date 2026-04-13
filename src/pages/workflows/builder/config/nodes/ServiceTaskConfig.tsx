@@ -34,12 +34,14 @@ interface Backoff {
 interface Props {
   node: CanvasNode;
   availableContext: AvailableCtxVar[];
+  availableSecrets?: AvailableCtxVar[];
   onUpdateConfig: (c: Record<string, unknown>) => void;
 }
 
 export default function ServiceTaskConfig({
   node,
   availableContext,
+  availableSecrets = [],
   onUpdateConfig,
 }: Props) {
   const c = node.config;
@@ -131,6 +133,7 @@ export default function ServiceTaskConfig({
               '"https://api.example.com/items" or "https://api.example.com/" + context.id'
             }
             availableContext={availableContext}
+            availableSecrets={availableSecrets}
             hint='FEEL expression: use "url" for static URLs, "url/" + context.var for dynamic paths'
           />
         </Box>
@@ -187,6 +190,7 @@ export default function ServiceTaskConfig({
                 onChange={(v) => updateHeader(idx, { valueExpression: v })}
                 placeholder="Bearer context.token"
                 availableContext={availableContext}
+                availableSecrets={availableSecrets}
               />
             </Box>
           ))}

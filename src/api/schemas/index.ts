@@ -5,3 +5,5 @@ export * from "./instance";
 export * from "./task";
 export * from "./audit";
 export * from "./dashboard";
+export * from "./secrets";
+export * from "./secretProvider";

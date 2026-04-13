@@ -10,11 +10,13 @@ interface ContextVarEntry {
 interface ContextVarsPanelProps {
   nodes: CanvasNode[];
   inputs: WorkflowInput[];
+  availableSecrets?: ContextVarEntry[];
 }
 
 export default function ContextVarsPanel({
   nodes,
   inputs,
+  availableSecrets = [],
 }: ContextVarsPanelProps) {
   const inputVars: ContextVarEntry[] = inputs.map((i) => ({
     name: i.name,
@@ -72,7 +74,7 @@ export default function ContextVarsPanel({
 
   const displayInputVars =
     startInputVars.length > 0 ? startInputVars : inputVars;
-  const hasAnything = displayInputVars.length > 0 || outputVars.length > 0;
+  const hasAnything = displayInputVars.length > 0 || outputVars.length > 0 || availableSecrets.length > 0;
 
   return (
     <Box sx={{ flex: 1, overflowY: "auto", px: 1, pt: 1.5, pb: 2 }}>
@@ -87,7 +89,7 @@ export default function ContextVarsPanel({
           mb: 1,
         }}
       >
-        Context Variables
+        Live Context
       </Typography>
 
       {!hasAnything && (
@@ -127,7 +129,7 @@ export default function ContextVarsPanel({
       )}
 
       {outputVars.length > 0 && (
-        <Box>
+        <Box mb={1}>
           <Typography
             sx={{
               fontSize: 9,
@@ -143,6 +145,29 @@ export default function ContextVarsPanel({
           </Typography>
           <Box display="flex" flexDirection="column" gap={0.5}>
             {outputVars.map((v, i) => (
+              <VarRow key={i} entry={v} />
+            ))}
+          </Box>
+        </Box>
+      )}
+
+      {availableSecrets.length > 0 && (
+        <Box>
+          <Typography
+            sx={{
+              fontSize: 9,
+              fontWeight: 600,
+              textTransform: "uppercase",
+              letterSpacing: "0.06em",
+              color: "primary.main",
+              px: 0.5,
+              mb: 0.5,
+            }}
+          >
+            Secrets (secret.*)
+          </Typography>
+          <Box display="flex" flexDirection="column" gap={0.5}>
+            {availableSecrets.map((v, i) => (
               <VarRow key={i} entry={v} />
             ))}
           </Box>

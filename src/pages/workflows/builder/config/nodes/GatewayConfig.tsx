@@ -21,6 +21,7 @@ interface DefaultRule {
 interface Props {
   node: CanvasNode;
   availableContext: AvailableCtxVar[];
+  availableSecrets?: AvailableCtxVar[];
   edges: CanvasEdge[];
   onUpdateConfig: (c: Record<string, unknown>) => void;
   onUpdateEdge: (edgeId: string, patch: Partial<CanvasEdge>) => void;
@@ -30,6 +31,7 @@ interface Props {
 export default function GatewayConfig({
   node,
   availableContext,
+  availableSecrets = [],
   edges,
   onUpdateConfig,
   onUpdateEdge,
@@ -125,6 +127,7 @@ export default function GatewayConfig({
                 onChange={(v) => updateRule(idx, { conditionExpression: v })}
                 placeholder='context.status = "approved"'
                 availableContext={availableContext}
+                availableSecrets={availableSecrets}
                 hint="Must evaluate to true to take this branch"
               />
             </Box>

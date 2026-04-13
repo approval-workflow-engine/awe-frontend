@@ -26,6 +26,7 @@ interface Props {
   node: CanvasNode;
   onUpdateConfig: (c: Record<string, unknown>) => void;
   availableContext: AvailableCtxVar[];
+  availableSecrets?: AvailableCtxVar[];
 }
 
 const EMPTY_CV: ContextVariable = { name: "", scope: "global" };
@@ -34,6 +35,7 @@ export default function EndConfig({
   node,
   onUpdateConfig,
   availableContext,
+  availableSecrets = [],
 }: Props) {
   const c = node.config;
   const isSuccess = c.success !== false;
@@ -220,6 +222,7 @@ export default function EndConfig({
                   onChange={(v) => updateRow(idx, { valueExpression: v })}
                   placeholder="context.result"
                   availableContext={availableContext}
+                  availableSecrets={availableSecrets}
                 />
               </Box>
               {expanded.has(idx) && (
@@ -239,6 +242,7 @@ export default function EndConfig({
                     }
                     placeholder="value !== null"
                     availableContext={availableContext}
+                    availableSecrets={availableSecrets}
                     hint="Must return true for the output to be accepted"
                   />
                 </Box>

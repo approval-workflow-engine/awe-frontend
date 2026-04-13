@@ -7,6 +7,7 @@ import type {
 } from "../type/types";
 
 export interface AvailableCtxVar {
+  id?: string;
   name: string;
   type: string;
   sourceNode: string;

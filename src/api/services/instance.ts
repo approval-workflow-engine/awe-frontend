@@ -6,6 +6,8 @@ import {
   CreateInstanceRequestSchema,
   InstanceActionResponseSchema,
   ExecutionLogsResponseSchema,
+  RetryConstantsResponseSchema,
+  RetryInstanceRequestSchema,
   PaginationParamsSchema,
   type InstancesResponse,
   type InstanceResponse,
@@ -13,6 +15,8 @@ import {
   type CreateInstanceRequest,
   type InstanceActionResponse,
   type ExecutionLogsResponse,
+  type RetryConstantsResponse,
+  type RetryInstanceRequest,
   type PaginationParams,
 } from '../schemas';
 
@@ -49,8 +53,20 @@ export class InstanceService {
     return apiClient.post(`/instances/${id}/terminate`, {}, InstanceActionResponseSchema);
   }
 
-  async retryInstance(id: string): Promise<InstanceActionResponse> {
-    return apiClient.post(`/instances/${id}/retry`, {}, InstanceActionResponseSchema);
+  async getRetryConstants(id: string): Promise<RetryConstantsResponse> {
+    return apiClient.get(`/instances/${id}/constants`, RetryConstantsResponseSchema);
+  }
+
+  async retryInstance(
+    id: string,
+    data: RetryInstanceRequest = { constants: {} },
+  ): Promise<InstanceActionResponse> {
+    return apiClient.post(
+      `/instances/${id}/retry`,
+      data,
+      InstanceActionResponseSchema,
+      RetryInstanceRequestSchema,
+    );
   }
 
   async getExecutionLogs(id: string): Promise<ExecutionLogsResponse> {

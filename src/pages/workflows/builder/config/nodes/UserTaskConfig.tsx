@@ -32,6 +32,7 @@ interface ResponseMapRowUser {
 interface Props {
   node: CanvasNode;
   availableContext: AvailableCtxVar[];
+  availableSecrets?: AvailableCtxVar[];
   onUpdateConfig: (c: Record<string, unknown>) => void;
 }
 
@@ -40,6 +41,7 @@ const EMPTY_CV: ContextVariable = { name: "", scope: "global" };
 export default function UserTaskConfig({
   node,
   availableContext,
+  availableSecrets = [],
   onUpdateConfig,
 }: Props) {
   const c = node.config;
@@ -116,6 +118,7 @@ export default function UserTaskConfig({
           onChange={(v) => set("assignee", v)}
           placeholder="context.assignee"
           availableContext={availableContext}
+          availableSecrets={availableSecrets}
           hint="If left empty, the task will be unassigned and visible to all users"
         />
       </Box>
@@ -182,6 +185,7 @@ export default function UserTaskConfig({
                 onChange={(v) => updateReq(idx, { valueExpression: v })}
                 placeholder="context.value"
                 availableContext={availableContext}
+                availableSecrets={availableSecrets}
               />
             </Box>
           ))}

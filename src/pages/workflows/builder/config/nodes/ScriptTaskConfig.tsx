@@ -36,6 +36,7 @@ interface Backoff {
 interface Props {
   node: CanvasNode;
   availableContext: AvailableCtxVar[];
+  availableSecrets?: AvailableCtxVar[];
   onUpdateConfig: (c: Record<string, unknown>) => void;
   onOpenCodeEditor: () => void;
 }
@@ -43,6 +44,7 @@ interface Props {
 export default function ScriptTaskConfig({
   node,
   availableContext,
+  availableSecrets = [],
   onUpdateConfig,
   onOpenCodeEditor,
 }: Props) {
@@ -441,6 +443,7 @@ export default function ScriptTaskConfig({
                 onChange={(v) => updateParam(idx, { valueExpression: v })}
                 placeholder="context.someValue"
                 availableContext={availableContext}
+                availableSecrets={availableSecrets}
                 hint="FEEL expression whose result is passed as this argument"
               />
             </Box>

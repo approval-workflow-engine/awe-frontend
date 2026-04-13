@@ -11,6 +11,7 @@ interface ExpressionInputProps {
   placeholder?: string;
   multiline?: boolean;
   availableContext?: AvailableCtxVar[];
+  availableSecrets?: AvailableCtxVar[];
   label?: string;
   hint?: string;
 }
@@ -25,6 +26,7 @@ export default function ExpressionInput({
   placeholder,
   multiline = false,
   availableContext = [],
+  availableSecrets = [],
   label,
   hint,
 }: ExpressionInputProps) {
@@ -33,6 +35,7 @@ export default function ExpressionInput({
   const [focused, setFocused] = useState(false);
   const [acOpen, setAcOpen] = useState(false);
   const [acFilter, setAcFilter] = useState('');
+  const [acPrefix, setAcPrefix] = useState<"context" | "secret">("context");
   const [validationError, setValidationError] = useState<string | undefined>(undefined);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -61,31 +64,42 @@ export default function ExpressionInput({
     if (!el) return;
     const pos = el.selectionStart ?? 0;
     const textBefore = value.slice(0, pos);
-    const ctxIdx = textBefore.lastIndexOf('context.');
+    const prefixString = `${acPrefix}.`;
+    const ctxIdx = textBefore.lastIndexOf(prefixString);
     const before = ctxIdx >= 0 ? value.slice(0, ctxIdx) : value.slice(0, pos);
     const after = value.slice(pos);
-    onChange(before + `context.${name}` + after);
+    onChange(before + `${acPrefix}.${name}` + after);
     setAcOpen(false);
     setTimeout(() => {
       el.focus();
-      const newPos = before.length + `context.${name}`.length;
+      const newPos = before.length + `${acPrefix}.${name}`.length;
       el.setSelectionRange(newPos, newPos);
     }, 0);
-  }, [value, onChange]);
+  }, [value, onChange, acPrefix]);
 
   const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     onChange(e.target.value);
     const pos = e.target.selectionStart ?? 0;
     const before = e.target.value.slice(0, pos);
-    const m = before.match(/context\.(\w*)$/);
-    if (m) { setAcOpen(true); setAcFilter(m[1]); }
-    else setAcOpen(false);
+    const mContext = before.match(/context\.(\w*)$/);
+    const mSecret = before.match(/secret\.(\w*)$/);
+    if (mContext) {
+      setAcOpen(true);
+      setAcPrefix("context");
+      setAcFilter(mContext[1]);
+    } else if (mSecret) {
+      setAcOpen(true);
+      setAcPrefix("secret");
+      setAcFilter(mSecret[1]);
+    } else {
+      setAcOpen(false);
+    }
   };
 
-  const filtered = useMemo(
-    () => availableContext.filter(v => v.name.toLowerCase().startsWith(acFilter.toLowerCase())),
-    [availableContext, acFilter],
-  );
+  const filtered = useMemo(() => {
+    const dataSource = acPrefix === "secret" ? availableSecrets : availableContext;
+    return dataSource.filter(v => v.name.toLowerCase().startsWith(acFilter.toLowerCase()));
+  }, [availableContext, availableSecrets, acFilter, acPrefix]);
 
   const isDark = theme.palette.mode === 'dark';
   const hasError = !!validationError && value.trim().length > 0;
@@ -188,7 +202,7 @@ export default function ExpressionInput({
                 '&:hover': { backgroundColor: 'action.hover' },
               }}>
                 <Typography sx={{ fontSize: 11, fontFamily: EXPR_FONT, color: 'primary.main', flex: 1 }}>
-                  context.<b>{v.name}</b>
+                  {acPrefix}.<b>{v.name}</b>
                 </Typography>
                 <Typography sx={{ fontSize: 9, color: 'text.secondary', fontFamily: EXPR_FONT }}>
                   {v.type}
@@ -208,9 +222,12 @@ export default function ExpressionInput({
         </Typography>
       )}
 
-      {hint && !hasError && (
+      {(hint || availableContext.length > 0 || availableSecrets.length > 0) && !hasError && (
         <Typography sx={{ fontSize: 9, color: 'text.secondary', opacity: 0.75, mt: 0.25, lineHeight: 1.4 }}>
-          {hint}
+          {hint}{hint ? ' ' : ''}
+          {availableContext.length > 0 && `Type 'context.' to see available variables.`}
+          {availableContext.length > 0 && availableSecrets.length > 0 && ' '}
+          {availableSecrets.length > 0 && `Type 'secret.' for stored secrets.`}
         </Typography>
       )}
     </Box>

@@ -1,4 +1,5 @@
 import { useParams, useNavigate, useLocation } from "react-router-dom";
+import { useState } from "react";
 import { Box, Typography, Chip, Skeleton } from "@mui/material";
 import PageHeader from "../../components/common/PageHeader";
 import DetailInfoSection from "./components/DetailInfoSection";
@@ -7,6 +8,7 @@ import {
   NodeExecutionDetailsCard,
 } from "./components/ExecutionDetails.tsx";
 import InstanceHeaderActions from "./components/InstanceHeaderActions";
+import RetryInstanceDialog from "./components/RetryInstanceDialog";
 import { useInstance } from "./hooks/useInstance";
 import { useExecutionLogs } from "./hooks/useExecutionLogs";
 import { useBackNavigation } from "../../hooks/useBackNavigation";
@@ -56,9 +58,9 @@ export default function InstanceDetailPage() {
     resume,
     pause,
     terminate,
-    retry,
     isTerminal,
   } = useInstance();
+  const [retryDialogOpen, setRetryDialogOpen] = useState(false);
 
   const stateInstance =
     (location.state as { instance?: Instance | InstanceListItem } | null)
@@ -113,9 +115,7 @@ export default function InstanceDetailPage() {
   };
 
   const handleRetry = async () => {
-    if (!id) return;
-    await retry(id);
-    await refreshInstanceAndLogs();
+    setRetryDialogOpen(true);
   };
 
   const handleReload = () => {
@@ -247,6 +247,15 @@ export default function InstanceDetailPage() {
               loading={logsLoading}
             />
           </Box>
+
+          {id && (
+            <RetryInstanceDialog
+              open={retryDialogOpen}
+              instanceId={id}
+              onClose={() => setRetryDialogOpen(false)}
+              onRetried={refreshInstanceAndLogs}
+            />
+          )}
         </Box>
       )}
     </Box>

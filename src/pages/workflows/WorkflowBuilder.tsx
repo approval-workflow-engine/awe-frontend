@@ -29,6 +29,7 @@ import LightModeIcon from "@mui/icons-material/LightMode";
 import DarkModeIcon from "@mui/icons-material/DarkMode";
 import VisibilityIcon from "@mui/icons-material/Visibility";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
+import { secretService } from "../../api/services/secrets";
 
 import { workflowService } from "../../api/services/workflow";
 import { useApiCall } from "../../hooks/useApiCall";
@@ -85,6 +86,7 @@ export default function WorkflowBuilder() {
   const [configPanelWidth, setConfigPanelWidth] = useState(320);
   const [isResizingConfig, setIsResizingConfig] = useState(false);
   const configResizeOriginRef = useRef({ x: 0, width: 320 });
+  const [allAvailableSecrets, setAllAvailableSecrets] = useState<any[]>([]);
 
   const {
     nodes,
@@ -275,6 +277,44 @@ export default function WorkflowBuilder() {
     setVersionStatus,
     loadedVersionNumber,
   ]);
+
+  useEffect(() => {
+    const fetchSecrets = async () => {
+      try {
+        const response = await call(() => secretService.list(), { showError: false });
+        if (response?.secrets) {
+          const transformed = response.secrets.map((s: any) => ({
+            id: s.id,
+            name: s.label,
+            type: "string",
+            sourceNode: "Secret Management",
+          }));
+          setAllAvailableSecrets(transformed);
+        }
+      } catch (err) {
+        console.error("Failed to fetch secrets", err);
+      }
+    };
+    fetchSecrets();
+  }, [call]);
+
+  const mappedSecrets = useMemo(() => {
+    const startNode = nodes.find((n: any) => n.type === "start");
+    if (!startNode?.config?.secretDataMap) return [];
+    
+    const sdm = startNode.config.secretDataMap as Array<{ secretKey: string; secretId: string }>;
+    return sdm
+      .map(row => {
+        const secret = allAvailableSecrets.find(s => s.id === row.secretId);
+        if (!secret) return null;
+        return {
+          name: row.secretKey,
+          type: "string",
+          sourceNode: "Start Node (Mapped)",
+        };
+      })
+      .filter(Boolean) as any[];
+  }, [nodes, allAvailableSecrets]);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -942,7 +982,11 @@ export default function WorkflowBuilder() {
               </Box>
             )}
             <Divider />
-            <ContextVarsPanel nodes={nodes} inputs={inputs} />
+            <ContextVarsPanel
+              nodes={nodes}
+              inputs={inputs}
+              availableSecrets={mappedSecrets}
+            />
           </Box>
 
           {canvasLoading ? (
@@ -1000,6 +1044,8 @@ export default function WorkflowBuilder() {
                     nodes={nodes}
                     edges={edges}
                     inputs={inputs}
+                    availableSecrets={mappedSecrets}
+                    allAvailableSecrets={allAvailableSecrets}
                     nodeErrors={
                       selectedItem.type === "node"
                         ? (validationResult?.errors.filter(

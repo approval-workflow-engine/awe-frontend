@@ -101,6 +101,12 @@ function serializeConfiguration(
               fetchableId: r.fetchableId,
             }))
           : [],
+        secretDataMap: Array.isArray(config.secretDataMap)
+          ? config.secretDataMap.map((s: any) => ({
+              secretId: s.secretId ?? "",
+              secretVariableName: s.secretKey ?? s.secretVariableName ?? "",
+            }))
+          : [],
         fetchables: (Array.isArray(config.fetchables)
           ? config.fetchables
           : []
@@ -488,6 +494,19 @@ export function definitionToCanvas(def: unknown): {
         },
       }),
     );
+  });
+
+  // START NODE SECRETS
+  cNodes.forEach((node) => {
+    if (node.type !== "start") return;
+    if (Array.isArray(node.config.secretDataMap)) {
+      node.config.secretDataMap = (node.config.secretDataMap as any[]).map(
+        (s: any) => ({
+          secretId: s.secretId ?? "",
+          secretKey: s.secretKey ?? s.secretVariableName ?? "",
+        }),
+      );
+    }
   });
 
   cNodes.forEach((gatewayNode) => {
