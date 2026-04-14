@@ -31,3 +31,10 @@ export const SecretsResponseSchema = z.object({
 export type Secret = z.infer<typeof SecretSchema>;
 export type SecretItem = z.infer<typeof SecretItemSchema>;
 export type SecretsResponse = z.infer<typeof SecretsResponseSchema>;
+
+export const DeleteSecretResponseSchema = z.object({
+  success: z.boolean(),
+  message: z.string(),
+});
+
+export type DeleteSecretResponse = z.infer<typeof DeleteSecretResponseSchema>;

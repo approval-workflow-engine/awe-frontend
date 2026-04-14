@@ -103,7 +103,7 @@ function serializeConfiguration(
           : [],
         secretDataMap: Array.isArray(config.secretDataMap)
           ? config.secretDataMap.map((s: any) => ({
-              secretId: s.secretId ?? "",
+              secretId: typeof s.secretId === "string" ? s.secretId : "",
               secretVariableName: s.secretKey ?? s.secretVariableName ?? "",
             }))
           : [],
@@ -154,6 +154,8 @@ function serializeConfiguration(
           typeof config.entryFunctionName === "string"
             ? config.entryFunctionName
             : "main",
+        executionService:
+          config.executionService === "gemini" ? "gemini" : "jdoodle",
         parameterMap: Array.isArray(config.parameterMap)
           ? config.parameterMap.map((p: any) => ({
               name: p.name ?? "",
@@ -502,7 +504,7 @@ export function definitionToCanvas(def: unknown): {
     if (Array.isArray(node.config.secretDataMap)) {
       node.config.secretDataMap = (node.config.secretDataMap as any[]).map(
         (s: any) => ({
-          secretId: s.secretId ?? "",
+          secretId: typeof s.secretId === "string" ? s.secretId : "",
           secretKey: s.secretKey ?? s.secretVariableName ?? "",
         }),
       );

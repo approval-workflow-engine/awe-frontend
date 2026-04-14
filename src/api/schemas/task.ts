@@ -73,6 +73,11 @@ export const CompleteTaskResponseSchema = z.object({
   completedAt: dateTransform,
 });
 
+  export const RetryTaskResponseSchema = z.object({
+    status: z.string(),
+    message: z.string().optional(),
+  });
+
 export type TaskStatus = z.infer<typeof TaskStatusSchema>;
 export type UserTaskDisplayField = z.infer<typeof UserTaskDisplayFieldSchema>;
 export type UserTaskResponseFieldOption = z.infer<typeof UserTaskResponseFieldOptionSchema>;
@@ -84,3 +89,4 @@ export type PendingTasksResponse = z.infer<typeof PendingTasksResponseSchema>;
 export type TaskDetailResponse = z.infer<typeof TaskDetailResponseSchema>;
 export type CompleteTaskRequest = z.infer<typeof CompleteTaskRequestSchema>;
 export type CompleteTaskResponse = z.infer<typeof CompleteTaskResponseSchema>;
+export type RetryTaskResponse = z.infer<typeof RetryTaskResponseSchema>;

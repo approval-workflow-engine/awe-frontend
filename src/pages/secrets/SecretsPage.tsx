@@ -12,7 +12,6 @@ import {
   DialogContent,
   DialogActions,
   MenuItem,
-  Alert,
   Stack,
   Chip,
   Divider,
@@ -26,6 +25,7 @@ import KeyIcon from "@mui/icons-material/Key";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import ExpandLessIcon from "@mui/icons-material/ExpandLess";
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
+import DeleteIcon from "@mui/icons-material/Delete";
 import { secretProviderService } from "../../api/services/secretProviders";
 import { secretService } from "../../api/services/secrets";
 import { useApiCall } from "../../hooks/useApiCall";
@@ -47,9 +47,11 @@ const PROVIDER_PRESETS = [
 function ProviderCard({
   provider,
   onAddSecret,
+  onDeleteSecret,
 }: {
   provider: SecretProvider;
   onAddSecret: (p: SecretProvider) => void;
+  onDeleteSecret: (id: string | undefined) => Promise<void>;
 }) {
   const { call } = useApiCall();
   const [open, setOpen] = useState(false);
@@ -64,7 +66,7 @@ function ProviderCard({
     });
     if (data?.secrets) setSecrets(data.secrets);
     setLoadingSecrets(false);
-  }, [provider.id]);
+  }, [call, provider.id]);
 
   const handleToggle = () => {
     if (!open) fetchSecrets();
@@ -196,6 +198,8 @@ function ProviderCard({
                     border: "1px solid",
                     borderColor: "divider",
                     backgroundColor: "action.hover",
+                    transition: "all 0.2s",
+                    "&:hover": { borderColor: "primary.main", boxShadow: "0 2px 8px rgba(0,0,0,0.1)" },
                   }}
                 >
                   <Box display="flex" alignItems="center" gap={1.25}>
@@ -234,6 +238,19 @@ function ProviderCard({
                       variant="outlined"
                       sx={{ fontSize: 9, height: 18, fontWeight: 700 }}
                     />
+                    <Tooltip title="Delete Secret">
+                      <IconButton
+                        size="small"
+                        onClick={() => onDeleteSecret(s.id)}
+                        sx={{
+                          color: "error.main",
+                          "&:hover": { backgroundColor: "error.light", color: "#fff" },
+                          transition: "all 0.2s",
+                        }}
+                      >
+                        <DeleteIcon fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
                   </Box>
                 </Box>
               ))}
@@ -271,7 +288,7 @@ export default function SecretsPage() {
   );
   const [secretForm, setSecretForm] = useState<{
     providerId: string;
-    environmentType: any;
+    environmentType: string;
     label: string;
     key: string;
   }>({
@@ -283,18 +300,22 @@ export default function SecretsPage() {
   // Ref to refresh the specific provider card
   const [secretRefreshKey, setSecretRefreshKey] = useState(0);
 
-  const loadProviders = async () => {
+  const loadProviders = useCallback(async () => {
     setLoading(true);
     const data = await call(() => secretProviderService.list(), {
       showError: true,
     });
     if (data?.secretProviders) setProviders(data.secretProviders);
     setLoading(false);
-  };
+  }, [call]);
 
   useEffect(() => {
-    loadProviders();
-  }, []);
+    const timeoutId = setTimeout(() => {
+      void loadProviders();
+    }, 0);
+
+    return () => clearTimeout(timeoutId);
+  }, [loadProviders]);
 
   // When preset changes, update host
   const handlePresetChange = (presetId: string) => {
@@ -370,6 +391,25 @@ export default function SecretsPage() {
     }
   };
 
+    const handleDeleteSecret = async (secretId: string | undefined) => {
+      if (!secretId) return;
+    
+      const confirmed = window.confirm(
+        "Are you sure you want to delete this secret? This action cannot be undone."
+      );
+      if (!confirmed) return;
+
+      const success = await call(
+        () => secretService.delete(secretId),
+        { successMsg: "Secret deleted successfully." },
+      );
+
+      if (success) {
+        // Trigger refresh of provider cards
+        setSecretRefreshKey((k) => k + 1);
+      }
+    };
+
   return (
     <Box>
       {/* Page header */}
@@ -399,10 +439,10 @@ export default function SecretsPage() {
       </Box>
 
       {/* Info banner */}
-      <Alert severity="info" sx={{ mb: 3, borderRadius: "12px" }}>
+      {/* <Alert severity="info" sx={{ mb: 3, borderRadius: "12px" }}>
         Reference secrets in workflow nodes using{" "}
         <strong>secret.YOUR_LABEL</strong> notation in expression inputs.
-      </Alert>
+      </Alert> */}
 
       {/* Body */}
       {loading ? (
@@ -449,6 +489,7 @@ export default function SecretsPage() {
               key={p.id}
               provider={p}
               onAddSecret={openAddSecret}
+              onDeleteSecret={handleDeleteSecret}
             />
           ))}
         </Stack>
@@ -532,7 +573,6 @@ export default function SecretsPage() {
               onChange={(e) =>
                 setProviderForm({ ...providerForm, host: e.target.value })
               }
-              helperText="Pre-filled based on provider type"
             />
             <TextField
               label="Project ID"

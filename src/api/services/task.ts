@@ -1,4 +1,3 @@
-import { z } from 'zod';
 import { apiClient } from '../client';
 import {
   PendingTasksResponseSchema,
@@ -11,6 +10,8 @@ import {
   type CompleteTaskRequest,
   type CompleteTaskResponse,
   type PaginationParams,
+  RetryTaskResponseSchema,
+  type RetryTaskResponse,
 } from '../schemas';
 
 export class TaskService {
@@ -37,8 +38,8 @@ export class TaskService {
     );
   }
 
-  async retryTask(id: string): Promise<any> {
-    return apiClient.post(`/tasks/${id}/retry`, {}, z.any());
+  async retryTask(id: string): Promise<RetryTaskResponse> {
+    return apiClient.post(`/tasks/${id}/retry`, {}, RetryTaskResponseSchema);
   }
 }
 
