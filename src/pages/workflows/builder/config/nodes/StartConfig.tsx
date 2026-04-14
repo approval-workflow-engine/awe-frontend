@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import {
   Box,
   Typography,
@@ -83,8 +83,10 @@ export default function StartConfig({
     (node.config.inputDataMap as InputDataMapRow[]) ?? [];
   const fetchables: FetchableConfig[] =
     (node.config.fetchables as FetchableConfig[]) ?? [];
-  const secretRows: SecretDataMapRow[] =
-    (node.config.secretDataMap as SecretDataMapRow[]) ?? [];
+  const secretRows: SecretDataMapRow[] = useMemo(
+    () => (node.config.secretDataMap as SecretDataMapRow[]) ?? [],
+    [node.config.secretDataMap],
+  );
 
   const [addInputType, setAddInputType] = useState<"direct" | "fetched">(
     "direct",
@@ -96,6 +98,7 @@ export default function StartConfig({
         ...node.config,
         inputDataMap: newRows,
         fetchables: newFetchables,
+        secretDataMap: secretRows,
       });
       onChangeInputs(
         newRows
@@ -109,7 +112,7 @@ export default function StartConfig({
           })),
       );
     },
-    [node.config, onUpdateConfig, onChangeInputs],
+    [node.config, onUpdateConfig, onChangeInputs, secretRows],
   );
 
   const updateRow = (idx: number, patch: Partial<InputDataMapRow>) =>
@@ -369,7 +372,7 @@ export default function StartConfig({
                   sx={{ fontSize: 11, borderRadius: "6px" }}
                 >
                   <MenuItem value="" disabled sx={{ fontSize: 11 }}>Select Secret</MenuItem>
-                  {allAvailableSecrets?.map((sec: any) => (
+                  {allAvailableSecrets?.map((sec) => (
                     <MenuItem key={sec.id} value={sec.id} sx={{ fontSize: 11 }}>
                       {sec.name}
                     </MenuItem>
