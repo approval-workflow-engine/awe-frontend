@@ -248,13 +248,9 @@ export default function WorkflowVersionsPage() {
 
     setPromoteLoading(true);
     const promoted = await call(
-      () =>
-        workflowService.promoteWorkflowVersion(
-          promoteTarget.id,
-          targetEnvironmentType,
-        ),
+      () => workflowService.promoteWorkflowVersion(promoteTarget.id),
       {
-        successMsg: `v${promoteTarget.versionNumber} promoted to ${targetEnvironmentType}.`,
+        successMsg: `v${promoteTarget.versionNumber} promoted successfully.`,
       },
     );
     setPromoteLoading(false);

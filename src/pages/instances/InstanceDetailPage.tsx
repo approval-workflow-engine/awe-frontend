@@ -75,11 +75,13 @@ export default function InstanceDetailPage() {
   const displayInstance: Instance | null = instance ? instance : navInstance;
 
   const {
-    logsLoading,
+    sequenceLoading,
+    taskDetailLoading,
     orderedExecutions,
     selectedNodeId,
     setSelectedNodeId,
     selectedExecutionNode,
+    selectedTaskDetail,
     refreshInstanceAndLogs,
   } = useExecutionLogs({
     instanceId: id,
@@ -230,7 +232,7 @@ export default function InstanceDetailPage() {
           >
             <ExecutionFlowCard
               nodes={orderedExecutions}
-              loading={logsLoading}
+              loading={sequenceLoading}
               selectedNodeId={selectedNodeId}
               onSelectNode={setSelectedNodeId}
               currentTaskNodeClientId={currentTask?.nodeId ?? null}
@@ -238,13 +240,14 @@ export default function InstanceDetailPage() {
             <NodeExecutionDetailsCard
               nodes={orderedExecutions}
               selectedNodeId={selectedNodeId}
+              selectedTaskDetail={selectedTaskDetail}
               onReviewTask={showReviewAction ? handleReviewTask : undefined}
               onRetryTask={
                 selectedExecutionNode?.status === "failed"
                   ? handleRetryTask
                   : undefined
               }
-              loading={logsLoading}
+              loading={taskDetailLoading}
             />
           </Box>
 

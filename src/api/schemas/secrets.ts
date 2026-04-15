@@ -6,7 +6,7 @@ export const SecretItemSchema = z.object({
   providerId: z.string().uuid(),
   label: z.string(),
   key: z.string(),
-  environmentType: z.string().nullable().optional(),
+  environment: z.string().nullable().optional(),
   createdAt: z.union([z.string(), z.date()]).nullable().optional(),
 });
 
@@ -14,7 +14,7 @@ export const SecretItemSchema = z.object({
 export const SecretSchema = z.object({
   id: z.string().uuid().optional(),
   providerId: z.string().uuid(),
-  environmentType: z.string(),
+  environment: z.string(),
   label: z.string(),
   key: z.string(),
   created_on: z.string().optional(),

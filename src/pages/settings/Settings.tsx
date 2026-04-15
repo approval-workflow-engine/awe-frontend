@@ -155,8 +155,7 @@ export default function Settings() {
             name: string;
             orgName: string;
             contactEmail: string;
-            environmentType?: string;
-            status?: string;
+            environment?: string;
             createdAt?: string;
           };
         };
@@ -326,24 +325,6 @@ export default function Settings() {
                   {systemInfo.contactEmail}
                 </Typography>
               </InfoRow>
-
-              {systemInfo.status && (
-                <InfoRow label="Status">
-                  <Typography
-                    sx={{
-                      fontSize: 13,
-                      fontWeight: 500,
-                      textTransform: "capitalize",
-                      color:
-                        systemInfo.status === "active"
-                          ? "#22c55e"
-                          : "text.secondary",
-                    }}
-                  >
-                    {systemInfo.status}
-                  </Typography>
-                </InfoRow>
-              )}
 
               <InfoRow label="System ID">
                 <Box display="flex" alignItems="center" gap={0.5}>
@@ -604,8 +585,8 @@ export default function Settings() {
                       <Typography sx={{ fontSize: 11, color: "text.disabled" }}>
                         Created {fmtDate(key.createdAt)}
                       </Typography>
-                      {key.environmentType && (
-                        <EnvChip type={key.environmentType} />
+                      {key.environment && (
+                        <EnvChip type={key.environment} />
                       )}
                       {key.isRevoked && key.revokedAt && (
                         <>

@@ -20,6 +20,7 @@ import {
   TextField,
   CircularProgress,
   Skeleton,
+  MenuItem,
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import AccountTreeIcon from "@mui/icons-material/AccountTree";
@@ -43,6 +44,7 @@ export default function WorkflowsPage() {
   const [workflows, setWorkflows] = useState<Workflow[]>([]);
   const [listLoading, setListLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [createdSort, setCreatedSort] = useState<"asc" | "desc">("desc");
   const [page, setPage] = useState(0);
   const [limit, setLimit] = useState(20);
   const [pagination, setPagination] = useState<Pagination | null>(null);
@@ -65,11 +67,21 @@ export default function WorkflowsPage() {
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
 
   const fetchWorkflows = useCallback(
-    async (pageNum = 1, pageSize = 20) => {
+    async (
+      pageNum = 1,
+      pageSize = 20,
+      search = "",
+      sort: "asc" | "desc" = "desc",
+    ) => {
       setListLoading(true);
       try {
         const res = await call(() =>
-          workflowService.getWorkflows({ page: pageNum, limit: pageSize }),
+          workflowService.getWorkflows({
+            page: pageNum,
+            limit: pageSize,
+            createdSort: sort,
+            ...(search.trim() ? { search: search.trim() } : {}),
+          }),
         );
         if (res) {
           const body = res as {
@@ -92,8 +104,8 @@ export default function WorkflowsPage() {
   );
 
   useEffect(() => {
-    fetchWorkflows(page + 1, limit);
-  }, [fetchWorkflows, page, limit]);
+    fetchWorkflows(page + 1, limit, searchQuery, createdSort);
+  }, [fetchWorkflows, page, limit, searchQuery, createdSort]);
 
   const handlePageChange = (_event: unknown, newPage: number) => {
     setPage(newPage);
@@ -128,7 +140,7 @@ export default function WorkflowsPage() {
     if (res) {
       setNewOpen(false);
       setNewForm({ name: "", description: "" });
-      fetchWorkflows(page + 1, limit);
+      fetchWorkflows(page + 1, limit, searchQuery, createdSort);
     }
   };
 
@@ -159,7 +171,7 @@ export default function WorkflowsPage() {
     setEditLoading(false);
     if (res) {
       setEditOpen(false);
-      fetchWorkflows(page + 1, limit);
+      fetchWorkflows(page + 1, limit, searchQuery, createdSort);
     }
   };
 
@@ -189,7 +201,7 @@ export default function WorkflowsPage() {
     if (succeeded) {
       setDeleteOpen(false);
       setDeleteConfirmText("");
-      fetchWorkflows();
+      fetchWorkflows(page + 1, limit, searchQuery, createdSort);
     } else if (errMsg) {
       setDeleteError(errMsg);
     }
@@ -204,32 +216,39 @@ export default function WorkflowsPage() {
     });
   };
 
-  const displayedWorkflows = searchQuery.trim()
-    ? workflows.filter((wf) => {
-        const q = searchQuery.toLowerCase();
-        return (
-          wf.name.toLowerCase().includes(q) ||
-          (wf.description || "").toLowerCase().includes(q) ||
-          formatDate(wf.createdAt).toLowerCase().includes(q) ||
-          formatDate(wf.updatedAt).toLowerCase().includes(q)
-        );
-      })
-    : workflows;
-
   return (
     <Box>
       <PageHeader
         title="Workflows"
         subtitle="Manage your workflows"
         searchQuery={searchQuery}
-        onSearchChange={setSearchQuery}
+        onSearchChange={(value) => {
+          setSearchQuery(value);
+          setPage(0);
+        }}
         searchPlaceholder="Search workflows…"
         action={
           <Box display="flex" alignItems="center" gap={1}>
+            <TextField
+              select
+              size="small"
+              label="Created"
+              value={createdSort}
+              onChange={(event) => {
+                setCreatedSort(event.target.value as "asc" | "desc");
+                setPage(0);
+              }}
+              sx={{ minWidth: 132 }}
+            >
+              <MenuItem value="desc">Newest first</MenuItem>
+              <MenuItem value="asc">Oldest first</MenuItem>
+            </TextField>
             <Tooltip title="Reload">
               <IconButton
                 size="small"
-                onClick={() => fetchWorkflows(page + 1, limit)}
+                onClick={() =>
+                  fetchWorkflows(page + 1, limit, searchQuery, createdSort)
+                }
                 disabled={listLoading}
                 sx={{ color: "text.secondary" }}
               >
@@ -288,7 +307,7 @@ export default function WorkflowsPage() {
                     </TableCell>
                   </TableRow>
                 ))
-              ) : displayedWorkflows.length === 0 ? (
+              ) : workflows.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={5}>
                     <Box sx={{ py: 6, textAlign: "center" }}>
@@ -335,143 +354,152 @@ export default function WorkflowsPage() {
                   </TableCell>
                 </TableRow>
               ) : (
-                displayedWorkflows.map((wf) => (
-                  <TableRow
-                    key={wf.id}
-                    sx={{
-                      "&:hover": { backgroundColor: "action.hover" },
-                      transition: "background-color 0.1s",
-                    }}
-                  >
-                    <TableCell sx={{ py: 1.25 }}>
-                      <Typography
-                        sx={{
-                          fontSize: 13,
-                          fontWeight: 600,
-                          color: "text.primary",
-                        }}
-                      >
-                        {wf.name}
-                      </Typography>
-                    </TableCell>
-                    <TableCell sx={{ maxWidth: 0, py: 1.25 }}>
-                      <Typography
-                        sx={{
-                          fontSize: 12,
-                          color: "text.secondary",
-                          overflow: "hidden",
-                          textOverflow: "ellipsis",
-                          whiteSpace: "nowrap",
-                        }}
-                      >
-                        {wf.description || "-"}
-                      </Typography>
-                    </TableCell>
-                    <TableCell>
-                      <Typography
-                        sx={{
-                          fontFamily: "'JetBrains Mono', monospace",
-                          fontSize: 11,
-                          color: "text.disabled",
-                        }}
-                      >
-                        {formatDate(wf.createdAt)}
-                      </Typography>
-                    </TableCell>
-                    <TableCell>
-                      <Typography
-                        sx={{
-                          fontFamily: "'JetBrains Mono', monospace",
-                          fontSize: 11,
-                          color: "text.disabled",
-                        }}
-                      >
-                        {formatDate(wf.updatedAt)}
-                      </Typography>
-                    </TableCell>
-                    <TableCell align="right">
-                      <Box
-                        display="flex"
-                        alignItems="center"
-                        justifyContent="flex-end"
-                        gap={0.25}
-                      >
-                        <Tooltip title="Create New Draft">
-                          <IconButton
-                            size="small"
-                            onClick={() =>
-                              navigate(`/workflows/${wf.id}/builder`)
-                            }
-                            disabled={
-                              wf.status === "valid" || wf.status === "draft"
-                            }
-                            sx={{
-                              color: "text.disabled",
-                              "&:hover": { color: "primary.main" },
-                            }}
-                          >
-                            <AddIcon fontSize="small" />
-                          </IconButton>
-                        </Tooltip>
+                workflows.map((wf) => {
+                  const latestStatus = wf.latestVersion?.status ?? null;
+                  const latestVersionId = wf.latestVersion?.latestVersionId ?? null;
 
-                        <Tooltip title="Open Latest Version">
-                          <IconButton
-                            size="small"
-                            onClick={() =>
-                              navigate(
-                                `/workflows/${wf.id}/builder/${wf.latestVersionId}`,
-                              )
-                            }
-                            sx={{
-                              color: "text.disabled",
-                              "&:hover": { color: "primary.main" },
-                            }}
-                          >
-                            <AccountTreeIcon fontSize="small" />
-                          </IconButton>
-                        </Tooltip>
-                        <Tooltip title="Version History">
-                          <IconButton
-                            size="small"
-                            onClick={() =>
-                              navigate(`/workflows/${wf.id}/versions`)
-                            }
-                            sx={{
-                              color: "text.disabled",
-                              "&:hover": { color: "primary.main" },
-                            }}
-                          >
-                            <HistoryIcon fontSize="small" />
-                          </IconButton>
-                        </Tooltip>
-                        <Tooltip title="Edit">
-                          <IconButton
-                            size="small"
-                            onClick={() => openEdit(wf)}
-                            sx={{
-                              color: "text.disabled",
-                              "&:hover": { color: "primary.main" },
-                            }}
-                          >
-                            <EditIcon fontSize="small" />
-                          </IconButton>
-                        </Tooltip>
-                        <Tooltip title="Delete">
-                          <IconButton
-                            size="small"
-                            onClick={() => openDelete(wf)}
-                            sx={{
-                              color: "text.disabled",
-                              "&:hover": { color: "#ef4444" },
-                            }}
-                          >
-                            <DeleteIcon fontSize="small" />
-                          </IconButton>
-                        </Tooltip>
-                      </Box>
-                    </TableCell>
-                  </TableRow>
-                ))
+                  return (
+                    <TableRow
+                      key={wf.id}
+                      sx={{
+                        "&:hover": { backgroundColor: "action.hover" },
+                        transition: "background-color 0.1s",
+                      }}
+                    >
+                      <TableCell sx={{ py: 1.25 }}>
+                        <Typography
+                          sx={{
+                            fontSize: 13,
+                            fontWeight: 600,
+                            color: "text.primary",
+                          }}
+                        >
+                          {wf.name}
+                        </Typography>
+                      </TableCell>
+                      <TableCell sx={{ maxWidth: 0, py: 1.25 }}>
+                        <Typography
+                          sx={{
+                            fontSize: 12,
+                            color: "text.secondary",
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                            whiteSpace: "nowrap",
+                          }}
+                        >
+                          {wf.description || "-"}
+                        </Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Typography
+                          sx={{
+                            fontFamily: "'JetBrains Mono', monospace",
+                            fontSize: 11,
+                            color: "text.disabled",
+                          }}
+                        >
+                          {formatDate(wf.createdAt)}
+                        </Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Typography
+                          sx={{
+                            fontFamily: "'JetBrains Mono', monospace",
+                            fontSize: 11,
+                            color: "text.disabled",
+                          }}
+                        >
+                          {formatDate(wf.updatedAt)}
+                        </Typography>
+                      </TableCell>
+                      <TableCell align="right">
+                        <Box
+                          display="flex"
+                          alignItems="center"
+                          justifyContent="flex-end"
+                          gap={0.25}
+                        >
+                          <Tooltip title="Create New Draft">
+                            <IconButton
+                              size="small"
+                              onClick={() =>
+                                navigate(`/workflows/${wf.id}/builder`)
+                              }
+                              disabled={
+                                latestStatus === "valid" ||
+                                latestStatus === "draft"
+                              }
+                              sx={{
+                                color: "text.disabled",
+                                "&:hover": { color: "primary.main" },
+                              }}
+                            >
+                              <AddIcon fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+
+                          <Tooltip title="Open Latest Version">
+                            <IconButton
+                              size="small"
+                              onClick={() => {
+                                if (latestVersionId) {
+                                  navigate(
+                                    `/workflows/${wf.id}/builder/${latestVersionId}`,
+                                  );
+                                }
+                              }}
+                              disabled={!latestVersionId}
+                              sx={{
+                                color: "text.disabled",
+                                "&:hover": { color: "primary.main" },
+                              }}
+                            >
+                              <AccountTreeIcon fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+                          <Tooltip title="Version History">
+                            <IconButton
+                              size="small"
+                              onClick={() =>
+                                navigate(`/workflows/${wf.id}/versions`)
+                              }
+                              sx={{
+                                color: "text.disabled",
+                                "&:hover": { color: "primary.main" },
+                              }}
+                            >
+                              <HistoryIcon fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+                          <Tooltip title="Edit">
+                            <IconButton
+                              size="small"
+                              onClick={() => openEdit(wf)}
+                              sx={{
+                                color: "text.disabled",
+                                "&:hover": { color: "primary.main" },
+                              }}
+                            >
+                              <EditIcon fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+                          <Tooltip title="Delete">
+                            <IconButton
+                              size="small"
+                              onClick={() => openDelete(wf)}
+                              sx={{
+                                color: "text.disabled",
+                                "&:hover": { color: "#ef4444" },
+                              }}
+                            >
+                              <DeleteIcon fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+                        </Box>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })
               )}
             </TableBody>
           </Table>
@@ -485,13 +513,8 @@ export default function WorkflowsPage() {
             sx={{ borderColor: "divider" }}
           >
             <Typography sx={{ fontSize: 12, color: "text.disabled" }}>
-              {displayedWorkflows.length === workflows.length
-                ? `${workflows.length} workflow${
-                    workflows.length !== 1 ? "s" : ""
-                  }`
-                : `${displayedWorkflows.length} of ${
-                    workflows.length
-                  } workflow${workflows.length !== 1 ? "s" : ""}`}
+              {(pagination?.total ?? workflows.length)} workflow
+              {(pagination?.total ?? workflows.length) !== 1 ? "s" : ""}
             </Typography>
           </Box>
         )}

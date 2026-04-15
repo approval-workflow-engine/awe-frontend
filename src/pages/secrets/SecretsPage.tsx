@@ -223,9 +223,9 @@ function ProviderCard({
                     </Box>
                   </Box>
                   <Box display="flex" alignItems="center" gap={0.75}>
-                    {s.environmentType && (
+                    {s.environment && (
                       <Chip
-                        label={s.environmentType || "unknown"}
+                        label={s.environment || "unknown"}
                         size="small"
                         variant="outlined"
                         sx={{ fontSize: 9, height: 18, fontWeight: 700 }}
@@ -288,12 +288,12 @@ export default function SecretsPage() {
   );
   const [secretForm, setSecretForm] = useState<{
     providerId: string;
-    environmentType: string;
+    environment: string;
     label: string;
     key: string;
   }>({
     providerId: "",
-    environmentType: ENVIRONMENT_OPTIONS[0] || "production",
+    environment: ENVIRONMENT_OPTIONS[0] || "production",
     label: "",
     key: "",
   });
@@ -362,7 +362,7 @@ export default function SecretsPage() {
     setActiveProvider(provider);
     setSecretForm({
       providerId: provider.id ?? "",
-      environmentType: ENVIRONMENT_OPTIONS[0] || "production",
+      environment: ENVIRONMENT_OPTIONS[0] || "production",
       label: "",
       key: "",
     });
@@ -375,7 +375,7 @@ export default function SecretsPage() {
       () =>
         secretService.create({
           providerId: secretForm.providerId,
-          environmentType: secretForm.environmentType,
+          environment: secretForm.environment,
           label: secretForm.label,
           key: secretForm.key,
         }),
@@ -671,9 +671,9 @@ export default function SecretsPage() {
               label="AWE Environment"
               fullWidth
               size="small"
-              value={secretForm.environmentType}
+              value={secretForm.environment}
               onChange={(e) =>
-                setSecretForm({ ...secretForm, environmentType: e.target.value })
+                setSecretForm({ ...secretForm, environment: e.target.value })
               }
             >
               {ENVIRONMENT_OPTIONS.map((env) => (

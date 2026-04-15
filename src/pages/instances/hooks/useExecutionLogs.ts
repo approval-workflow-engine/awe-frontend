@@ -1,7 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { usePolling } from "../../../hooks/usePolling";
 import { instanceService } from "../../../api/services/instance";
-import type { ExecutionNode, Instance } from "../../../api/schemas/instance";
+import type {
+  ExecutionNode,
+  Instance,
+  TaskExecutionDetailResponse,
+} from "../../../api/schemas/instance";
 
 const DEFAULT_POLL_INTERVAL_MS = 3000;
 
@@ -23,24 +27,58 @@ export function useExecutionLogs({
   pollIntervalMs = DEFAULT_POLL_INTERVAL_MS,
 }: UseExecutionLogsParams) {
   const [executions, setExecutions] = useState<ExecutionNode[]>([]);
-  const [logsLoading, setLogsLoading] = useState(false);
+  const [sequenceLoading, setSequenceLoading] = useState(false);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+  const [selectedTaskDetail, setSelectedTaskDetail] = useState<
+    TaskExecutionDetailResponse | null
+  >(null);
+  const [taskDetailLoading, setTaskDetailLoading] = useState(false);
 
-  const fetchExecutionLogs = useCallback(
+  const fetchExecutionSequence = useCallback(
     async (targetInstanceId: string, silent = false) => {
       if (!silent) {
-        setLogsLoading(true);
+        setSequenceLoading(true);
       }
 
       try {
-        const response =
-          await instanceService.getExecutionLogs(targetInstanceId);
-        setExecutions(response?.data?.executions ?? []);
+        const response = await instanceService.getExecutionSequence(
+          targetInstanceId,
+        );
+        setExecutions(response?.executionSequence ?? []);
       } catch (error) {
-        console.error("Failed to fetch execution logs:", error);
+        console.error("Failed to fetch execution sequence:", error);
       } finally {
         if (!silent) {
-          setLogsLoading(false);
+          setSequenceLoading(false);
+        }
+      }
+    },
+    [],
+  );
+
+  const fetchTaskDetail = useCallback(
+    async (targetInstanceId: string, taskId: string | null, silent = false) => {
+      if (!taskId) {
+        setSelectedTaskDetail(null);
+        return;
+      }
+
+      if (!silent) {
+        setTaskDetailLoading(true);
+      }
+
+      try {
+        const response = await instanceService.getTaskDetail(
+          targetInstanceId,
+          taskId,
+        );
+        setSelectedTaskDetail(response ?? null);
+      } catch (error) {
+        console.error("Failed to fetch task detail:", error);
+        setSelectedTaskDetail(null);
+      } finally {
+        if (!silent) {
+          setTaskDetailLoading(false);
         }
       }
     },
@@ -53,8 +91,8 @@ export function useExecutionLogs({
     }
 
     fetchInstance(instanceId);
-    fetchExecutionLogs(instanceId);
-  }, [instanceId, fetchInstance, fetchExecutionLogs]);
+    fetchExecutionSequence(instanceId);
+  }, [instanceId, fetchInstance, fetchExecutionSequence]);
 
   const shouldPoll = !!instance && !isTerminal(instance.status);
 
@@ -65,7 +103,7 @@ export function useExecutionLogs({
       }
 
       silentFetchInstance(instanceId);
-      fetchExecutionLogs(instanceId, true);
+      fetchExecutionSequence(instanceId, true);
     },
     pollIntervalMs,
     true,
@@ -78,9 +116,26 @@ export function useExecutionLogs({
 
   const selectedExecutionNode = useMemo(
     () =>
-      orderedExecutions.find((node) => node.nodeId === selectedNodeId) ?? null,
+      orderedExecutions.find((node) => node.nodeClientId === selectedNodeId) ??
+      null,
     [orderedExecutions, selectedNodeId],
   );
+
+  useEffect(() => {
+    if (!instanceId || !selectedExecutionNode) {
+      setSelectedTaskDetail(null);
+      return;
+    }
+
+    setSelectedTaskDetail(null);
+    fetchTaskDetail(instanceId, selectedExecutionNode.taskId ?? null);
+  }, [
+    instanceId,
+    selectedNodeId,
+    selectedExecutionNode?.taskId,
+    selectedExecutionNode?.taskExecutionId,
+    fetchTaskDetail,
+  ]);
 
   useEffect(() => {
     if (orderedExecutions.length === 0) {
@@ -91,7 +146,9 @@ export function useExecutionLogs({
     setSelectedNodeId((previousSelectedNodeId) => {
       if (
         previousSelectedNodeId &&
-        orderedExecutions.some((node) => node.nodeId === previousSelectedNodeId)
+        orderedExecutions.some(
+          (node) => node.nodeClientId === previousSelectedNodeId,
+        )
       ) {
         return previousSelectedNodeId;
       }
@@ -100,7 +157,7 @@ export function useExecutionLogs({
         .reverse()
         .find((node) => node.status !== "pending");
 
-      return latestExecutedNode?.nodeId ?? orderedExecutions[0].nodeId;
+      return latestExecutedNode?.nodeClientId ?? orderedExecutions[0].nodeClientId;
     });
   }, [orderedExecutions]);
 
@@ -109,8 +166,9 @@ export function useExecutionLogs({
       return;
     }
 
-    await fetchExecutionLogs(instanceId);
-  }, [instanceId, fetchExecutionLogs]);
+    await fetchExecutionSequence(instanceId);
+    await fetchTaskDetail(instanceId, selectedExecutionNode?.taskId ?? null);
+  }, [instanceId, fetchExecutionSequence, fetchTaskDetail, selectedExecutionNode?.taskId]);
 
   const refreshInstanceAndLogs = useCallback(async () => {
     if (!instanceId) {
@@ -118,15 +176,18 @@ export function useExecutionLogs({
     }
 
     await fetchInstance(instanceId);
-    await fetchExecutionLogs(instanceId);
-  }, [instanceId, fetchInstance, fetchExecutionLogs]);
+    await fetchExecutionSequence(instanceId);
+    await fetchTaskDetail(instanceId, selectedExecutionNode?.taskId ?? null, true);
+  }, [instanceId, fetchInstance, fetchExecutionSequence, fetchTaskDetail, selectedExecutionNode?.taskId]);
 
   return {
-    logsLoading,
+    sequenceLoading,
+    taskDetailLoading,
     orderedExecutions,
     selectedNodeId,
     setSelectedNodeId,
     selectedExecutionNode,
+    selectedTaskDetail,
     refreshExecutionLogs,
     refreshInstanceAndLogs,
   };

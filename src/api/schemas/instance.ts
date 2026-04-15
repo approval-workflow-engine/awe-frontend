@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { dateTransform, optionalDateTransform } from "./common";
-import { PaginationSchema } from "./common";
+import { PaginationSchema, EnvironmentTypeSchema } from "./common";
 
 export const InstanceStatusSchema = z.enum([
   "in_progress",
@@ -38,6 +38,7 @@ export const InstanceSchema = z.object({
 
 export const InstanceListItemSchema = z.object({
   id: z.string(),
+  environment: EnvironmentTypeSchema,
   auto_advance: z.boolean(),
   created_by: z.string(),
   created_on: dateTransform,
@@ -66,6 +67,7 @@ export const CreateInstanceResponseSchema = z.object({
   status: InstanceStatusSchema,
   startedAt: dateTransform,
   autoAdvance: z.boolean(),
+  environment: EnvironmentTypeSchema,
   workflow: z.object({
     id: z.string(),
     version: z.number(),
@@ -94,18 +96,17 @@ export const RetryInstanceRequestSchema = z.object({
 });
 
 export const ExecutionConnectionSchema = z.object({
-  destinationNodeId: z.string().nullable(),
   destinationNodeClientId: z.string().nullable(),
   conditionExpression: z.string().nullable(),
 });
 
 export const ExecutionNodeSchema = z.object({
-  nodeId: z.string(),
-  nodeClientId: z.string(),
-  nodeType: z.string(),
+  taskId: z.string().nullable(),
+  taskExecutionId: z.string().nullable(),
+  userTaskExecutionId: z.string().nullable().optional(),
   nodeName: z.string().nullable(),
-  nodeConfiguration: z.any().nullable().optional(),
-  order: z.number(),
+  nodeType: z.string(),
+  nodeClientId: z.string(),
   status: z.enum([
     "completed",
     "failed",
@@ -114,22 +115,37 @@ export const ExecutionNodeSchema = z.object({
     "pending",
     "discarded",
   ]),
-  startedOn: optionalDateTransform,
-  endedOn: optionalDateTransform,
-  inputVariables: z.record(z.string(), z.any()).nullable(),
-  outputVariables: z.record(z.string(), z.any()).nullable(),
+  startTime: optionalDateTransform,
+  endTime: optionalDateTransform,
+  order: z.number(),
   outgoingConnections: z.array(ExecutionConnectionSchema),
-  userTaskExecutionId: z.string().nullable().optional(),
-  taskId: z.string().nullable().optional(),
 });
 
 export const ExecutionLogSchema = ExecutionNodeSchema;
 
-export const ExecutionLogsResponseSchema = z.object({
-  data: z.object({
-    executions: z.array(ExecutionNodeSchema),
-  }),
+export const ExecutionSequenceResponseSchema = z.object({
+  executionSequence: z.array(ExecutionNodeSchema),
 });
+
+const TaskExecutionDetailItemSchema = z.object({
+  inputVariables: z.unknown().nullable(),
+  outputVariables: z.unknown().nullable(),
+});
+
+const TaskDetailItemSchema = z.object({
+  id: z.string(),
+  status: z.string(),
+  createdAt: dateTransform,
+  nodeId: z.string(),
+});
+
+export const TaskExecutionDetailResponseSchema = z.object({
+  task: TaskDetailItemSchema,
+  taskExecution: TaskExecutionDetailItemSchema,
+  nodeConfiguration: z.any().nullable(),
+});
+
+export const ExecutionLogsResponseSchema = ExecutionSequenceResponseSchema;
 
 export type InstanceStatus = z.infer<typeof InstanceStatusSchema>;
 export type CurrentTask = z.infer<typeof CurrentTaskSchema>;
@@ -154,4 +170,10 @@ export type RetryInstanceRequest = z.infer<typeof RetryInstanceRequestSchema>;
 export type ExecutionConnection = z.infer<typeof ExecutionConnectionSchema>;
 export type ExecutionNode = z.infer<typeof ExecutionNodeSchema>;
 export type ExecutionLog = z.infer<typeof ExecutionLogSchema>;
+export type ExecutionSequenceResponse = z.infer<
+  typeof ExecutionSequenceResponseSchema
+>;
+export type TaskExecutionDetailResponse = z.infer<
+  typeof TaskExecutionDetailResponseSchema
+>;
 export type ExecutionLogsResponse = z.infer<typeof ExecutionLogsResponseSchema>;

@@ -34,7 +34,6 @@ import {
   type PaginationParams,
 } from "../schemas";
 import { z } from "zod";
-import type { EnvironmentType } from "../../constants/environment";
 
 export class WorkflowService {
   async getWorkflows(params?: PaginationParams): Promise<WorkflowsResponse> {
@@ -158,13 +157,10 @@ export class WorkflowService {
     return apiClient.post(endpoint, {}, WorkflowVersionStatusResponseSchema);
   }
 
-  async promoteWorkflowVersion(
-    versionId: string,
-    targetEnvironmentType: EnvironmentType,
-  ): Promise<unknown> {
+  async promoteWorkflowVersion(versionId: string): Promise<unknown> {
     return apiClient.post(
       `/workflows/versions/${versionId}/promote`,
-      { environmentType: targetEnvironmentType },
+      {},
       z.unknown(),
       undefined,
     );
