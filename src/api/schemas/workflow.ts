@@ -12,7 +12,7 @@ export const NodeConfigSchema = z.record(z.string(), z.any());
 
 export const NodeSchema = z.object({
   id: z.string(),
-  type: z.enum(["start", "user", "service", "script", "decision", "end"]),
+  type: z.enum(["start", "user", "service", "script", "email", "decision", "end"]),
   label: z.string().nullable().optional(),
   description: z.string().nullable().optional(),
   configuration: NodeConfigSchema,
@@ -89,6 +89,13 @@ export const WorkflowVersionStatusResponseSchema = z.object({
   version: z.number(),
   status: WorkflowVersionStatusSchema,
   publishedAt: z.string().datetime().nullable().optional(),
+});
+
+export const WorkflowVersionPromoteResponseSchema = z.object({
+  workflowId: z.string(),
+  versionId: z.string(),
+  sourceEnvironment: z.enum(["development", "staging"]),
+  targetEnvironment: z.enum(["staging", "production"]),
 });
 
 export const WorkflowVersionCloneResponseSchema = z
@@ -253,6 +260,9 @@ export type WorkflowVersionUpdateResponse = z.infer<
 >;
 export type WorkflowVersionStatusResponse = z.infer<
   typeof WorkflowVersionStatusResponseSchema
+>;
+export type WorkflowVersionPromoteResponse = z.infer<
+  typeof WorkflowVersionPromoteResponseSchema
 >;
 export type WorkflowVersionCloneResponse = z.infer<
   typeof WorkflowVersionCloneResponseSchema

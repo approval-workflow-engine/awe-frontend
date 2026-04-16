@@ -23,6 +23,7 @@ import StartConfig from "../config/nodes/StartConfig";
 import EndConfig from "../config/nodes/EndConfig";
 import UserTaskConfig from "../config/nodes/UserTaskConfig";
 import ServiceTaskConfig from "../config/nodes/ServiceTaskConfig";
+import EmailTaskConfig from "../config/nodes/EmailTaskConfig";
 import ScriptTaskConfig from "../config/nodes/ScriptTaskConfig";
 import GatewayConfig from "../config/nodes/GatewayConfig";
 import type { AvailableCtxVar } from "../config/context";
@@ -119,6 +120,15 @@ export default function ConfigPanel({
       case "service_task":
         return (
           <ServiceTaskConfig
+            node={node}
+            onUpdateConfig={updateConfig}
+            availableContext={availableContext}
+            availableSecrets={availableSecrets}
+          />
+        );
+      case "email_task":
+        return (
+          <EmailTaskConfig
             node={node}
             onUpdateConfig={updateConfig}
             availableContext={availableContext}

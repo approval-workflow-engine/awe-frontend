@@ -101,10 +101,10 @@ export default function RetryInstanceDialog({
           constants: parsed,
         }),
       {
-        successMsg: "Instance retried successfully",
+        successMsg: "Task retried successfully",
         showError: false,
         onError: (err) => {
-          setSubmitError(extractApiError(err, "Failed to retry instance"));
+          setSubmitError(extractApiError(err, "Failed to retry task"));
         },
       },
     );
@@ -117,13 +117,12 @@ export default function RetryInstanceDialog({
 
   return (
     <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
-      <DialogTitle sx={{ fontWeight: 700, pb: 1 }}>Retry Instance</DialogTitle>
+      <DialogTitle sx={{ fontWeight: 700, pb: 1 }}>Retry Task</DialogTitle>
       <Divider />
 
       <DialogContent sx={{ display: "flex", flexDirection: "column", gap: 2, pt: 2.5 }}>
         <Typography fontSize={13} color="text.secondary">
-          Update only the constant values you want to change. Fetchables, URLs,
-          and secrets remain unchanged.
+          Update constant values before retrying this task sequence.
         </Typography>
 
         <TextField
@@ -175,7 +174,7 @@ export default function RetryInstanceDialog({
           disabled={loading || initialLoading || !!jsonError}
           startIcon={loading || initialLoading ? <CircularProgress size={13} /> : undefined}
         >
-          Retry Instance
+          Retry Task
         </Button>
       </DialogActions>
     </Dialog>

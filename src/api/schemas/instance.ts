@@ -11,27 +11,31 @@ export const InstanceStatusSchema = z.enum([
 ]);
 
 export const CurrentTaskSchema = z.object({
-  id: z.string(),
-  nodeId: z.string(),
-  type: z.string(),
-  name: z.string().nullable(),
-  status: z.string(),
-  startedAt: dateTransform,
+  id: z.string().nullable().optional(),
+  nodeId: z.string().nullable().optional(),
+  taskExecutionId: z.string().nullable().optional(),
+  userTaskExecutionId: z.string().nullable().optional(),
+  latestTaskExecution: z.string().nullable().optional(),
+  latestUserTaskExecution: z.string().nullable().optional(),
+  type: z.string().nullable().optional(),
+  name: z.string().nullable().optional(),
+  status: z.string().nullable().optional(),
+  startedAt: optionalDateTransform.optional(),
 });
 
 export const InstanceSchema = z.object({
   id: z.string(),
-  inputVariables: z.record(z.string(), z.any()).nullable(),
-  currentVariables: z.record(z.string(), z.any()).nullable(),
-  outputVariables: z.record(z.string(), z.any()).nullable(),
+  inputVariables: z.unknown().nullable(),
+  currentVariables: z.unknown().nullable(),
+  outputVariables: z.unknown().nullable(),
   status: InstanceStatusSchema,
   startedAt: optionalDateTransform,
   endedAt: optionalDateTransform,
   autoAdvance: z.boolean(),
   workflow: z.object({
-    name: z.string(),
-    id: z.string(),
-    version: z.number(),
+    name: z.string().nullable().optional(),
+    id: z.string().nullable().optional(),
+    version: z.coerce.number(),
   }),
   currentTask: CurrentTaskSchema.nullable().optional(),
 });
@@ -43,15 +47,15 @@ export const InstanceListItemSchema = z.object({
   created_by: z.string(),
   created_on: dateTransform,
   current_node_id: z.string().nullable(),
-  current_variables: z.record(z.string(), z.any()).nullable(),
+  current_variables: z.unknown().nullable(),
   ended_on: optionalDateTransform,
-  input_variables: z.record(z.string(), z.any()).nullable(),
+  input_variables: z.unknown().nullable(),
   is_deleted: z.boolean(),
-  output_variables: z.record(z.string(), z.any()).nullable(),
+  output_variables: z.unknown().nullable(),
   started_on: optionalDateTransform,
   status: InstanceStatusSchema,
   workflow_version_id: z.string(),
-  version_number: z.number().nullable(),
+  version_number: z.coerce.number().nullable(),
   workflow_name: z.string(),
 });
 
@@ -63,14 +67,14 @@ export const CreateInstanceRequestSchema = z.object({
 
 export const CreateInstanceResponseSchema = z.object({
   id: z.string(),
-  inputVariables: z.record(z.string(), z.any()).nullable(),
+  inputVariables: z.unknown().nullable(),
   status: InstanceStatusSchema,
   startedAt: dateTransform,
   autoAdvance: z.boolean(),
   environment: EnvironmentTypeSchema,
   workflow: z.object({
     id: z.string(),
-    version: z.number(),
+    version: z.coerce.number(),
   }),
 });
 
@@ -96,15 +100,15 @@ export const RetryInstanceRequestSchema = z.object({
 });
 
 export const ExecutionConnectionSchema = z.object({
-  destinationNodeClientId: z.string().nullable(),
-  conditionExpression: z.string().nullable(),
+  destinationNodeClientId: z.string().nullable().optional().default(null),
+  conditionExpression: z.string().nullable().optional().default(null),
 });
 
 export const ExecutionNodeSchema = z.object({
-  taskId: z.string().nullable(),
-  taskExecutionId: z.string().nullable(),
+  taskId: z.string().nullable().optional().default(null),
+  taskExecutionId: z.string().nullable().optional().default(null),
   userTaskExecutionId: z.string().nullable().optional(),
-  nodeName: z.string().nullable(),
+  nodeName: z.string().nullable().optional().default(null),
   nodeType: z.string(),
   nodeClientId: z.string(),
   status: z.enum([
@@ -115,10 +119,10 @@ export const ExecutionNodeSchema = z.object({
     "pending",
     "discarded",
   ]),
-  startTime: optionalDateTransform,
-  endTime: optionalDateTransform,
-  order: z.number(),
-  outgoingConnections: z.array(ExecutionConnectionSchema),
+  startTime: optionalDateTransform.optional().default(null),
+  endTime: optionalDateTransform.optional().default(null),
+  order: z.number().optional().default(0),
+  outgoingConnections: z.array(ExecutionConnectionSchema).optional().default([]),
 });
 
 export const ExecutionLogSchema = ExecutionNodeSchema;
@@ -128,21 +132,21 @@ export const ExecutionSequenceResponseSchema = z.object({
 });
 
 const TaskExecutionDetailItemSchema = z.object({
-  inputVariables: z.unknown().nullable(),
-  outputVariables: z.unknown().nullable(),
+  inputVariables: z.unknown().nullable().optional(),
+  outputVariables: z.unknown().nullable().optional(),
 });
 
 const TaskDetailItemSchema = z.object({
   id: z.string(),
   status: z.string(),
-  createdAt: dateTransform,
-  nodeId: z.string(),
+  createdAt: optionalDateTransform.optional().default(null),
+  nodeId: z.string().nullable().optional(),
 });
 
 export const TaskExecutionDetailResponseSchema = z.object({
-  task: TaskDetailItemSchema,
-  taskExecution: TaskExecutionDetailItemSchema,
-  nodeConfiguration: z.any().nullable(),
+  task: TaskDetailItemSchema.nullable().optional(),
+  taskExecution: TaskExecutionDetailItemSchema.nullable().optional(),
+  nodeConfiguration: z.unknown().nullable().optional(),
 });
 
 export const ExecutionLogsResponseSchema = ExecutionSequenceResponseSchema;

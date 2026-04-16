@@ -10,6 +10,7 @@ export interface PaletteNodeType {
 export const PALETTE_NODES: PaletteNodeType[] = [
     { type: "user_task", label: "User Task", color: "#4f6ef7" },
     { type: "service_task", label: "Service Task", color: "#06b6d4" },
+    { type: "email_task", label: "Email Task", color: "#f97316" },
     { type: "script_task", label: "Script Task", color: "#a855f7" },
     { type: "exclusive_gateway", label: "Gateway", color: "#f59e0b" },
     { type: "end", label: "End Node", color: "#22c55e" },

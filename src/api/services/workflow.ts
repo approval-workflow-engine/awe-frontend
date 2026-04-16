@@ -11,6 +11,7 @@ import {
   WorkflowVersionCreateResponseSchema,
   WorkflowVersionUpdateResponseSchema,
   WorkflowVersionStatusResponseSchema,
+  WorkflowVersionPromoteResponseSchema,
   WorkflowVersionCloneResponseSchema,
   CreateVersionRequestSchema,
   UpdateVersionRequestSchema,
@@ -27,6 +28,7 @@ import {
   type WorkflowVersionCreateResponse,
   type WorkflowVersionUpdateResponse,
   type WorkflowVersionStatusResponse,
+  type WorkflowVersionPromoteResponse,
   type WorkflowVersionCloneResponse,
   type CreateVersionRequest,
   type UpdateVersionRequest,
@@ -157,11 +159,13 @@ export class WorkflowService {
     return apiClient.post(endpoint, {}, WorkflowVersionStatusResponseSchema);
   }
 
-  async promoteWorkflowVersion(versionId: string): Promise<unknown> {
+  async promoteWorkflowVersion(
+    versionId: string,
+  ): Promise<WorkflowVersionPromoteResponse> {
     return apiClient.post(
       `/workflows/versions/${versionId}/promote`,
       {},
-      z.unknown(),
+      WorkflowVersionPromoteResponseSchema,
       undefined,
     );
   }

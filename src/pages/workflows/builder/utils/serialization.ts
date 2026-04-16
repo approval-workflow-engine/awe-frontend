@@ -11,6 +11,59 @@ const VALID_HTTP_METHODS = ["GET", "POST", "PUT", "PATCH", "DELETE"] as const;
 
 type UnknownRecord = Record<string, unknown>;
 type CanvasEdgeWithRuleIndex = CanvasEdge & { _ruleIndex?: number };
+type BackoffType = "fixed" | "exponential";
+type BackoffUnit = "millisecond" | "second" | "minute";
+type BackoffConfig = {
+  type: BackoffType;
+  delay: number;
+  unit: BackoffUnit;
+};
+
+const DEFAULT_BACKOFF: BackoffConfig = {
+  type: "fixed",
+  delay: 1,
+  unit: "second",
+};
+
+function toApiNodeType(type: string): string {
+  switch (type) {
+    case "user_task":
+      return "user";
+    case "service_task":
+      return "service";
+    case "email_task":
+      return "email";
+    case "exclusive_gateway":
+      return "decision";
+    case "script_task":
+      return "script";
+    default:
+      return type;
+  }
+}
+
+function toCanvasNodeType(type: string): string {
+  switch (type) {
+    case "user":
+      return "user_task";
+    case "service":
+      return "service_task";
+    case "email":
+      return "email_task";
+    case "decision":
+      return "exclusive_gateway";
+    case "script":
+      return "script_task";
+    default:
+      return type;
+  }
+}
+
+const FEEL_START_KEYWORD_REGEX = /^(if|for|some|every|not)\b/i;
+const FEEL_BODY_KEYWORD_REGEX = /\b(then|else|satisfies|instance\s+of)\b/i;
+const FEEL_BINARY_OPERATOR_REGEX = /\s(=|!=|<=|>=|<|>|and|or|in)\s/i;
+const FEEL_FUNCTION_CALL_REGEX =
+  /^[A-Za-z_][A-Za-z0-9_]*(?:\s+[A-Za-z_][A-Za-z0-9_]*)*\s*\(/;
 
 function asArray(value: unknown): UnknownRecord[] {
   return Array.isArray(value) ? (value as UnknownRecord[]) : [];
@@ -28,26 +81,120 @@ function asNumber(value: unknown, fallback: number): number {
   return typeof value === "number" ? value : fallback;
 }
 
+function normalizeBackoff(value: unknown): BackoffConfig {
+  const raw = asRecord(value);
+
+  const type: BackoffType =
+    raw.type === "exponential" ? "exponential" : DEFAULT_BACKOFF.type;
+
+  const unit: BackoffUnit =
+    raw.unit === "millisecond" || raw.unit === "second" || raw.unit === "minute"
+      ? raw.unit
+      : DEFAULT_BACKOFF.unit;
+
+  const delay =
+    typeof raw.delay === "number" && Number.isFinite(raw.delay) && raw.delay > 0
+      ? raw.delay
+      : DEFAULT_BACKOFF.delay;
+
+  return { type, delay, unit };
+}
+
 function toFeelStringLiteral(value: string): string {
   const escaped = value.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
   return `"${escaped}"`;
 }
 
+function isQuotedFeelStringLiteral(value: string): boolean {
+  const t = value.trim();
+  return (
+    (t.startsWith('"') && t.endsWith('"') && t.length >= 2) ||
+    (t.startsWith("'") && t.endsWith("'") && t.length >= 2)
+  );
+}
+
+function normalizeFeelStringInput(value: string): string {
+  const trimmed = value.trim();
+  if (!trimmed) return "";
+  return isAlreadyFeelExpression(trimmed)
+    ? trimmed
+    : toFeelStringLiteral(trimmed);
+}
+
+function feelStringLiteralToInput(value: string): string {
+  const trimmed = value.trim();
+  if (!trimmed) return "";
+
+  if (trimmed.startsWith('"') && trimmed.endsWith('"') && trimmed.length >= 2) {
+    return trimmed;
+  }
+
+  if (trimmed.startsWith("'") && trimmed.endsWith("'") && trimmed.length >= 2) {
+    const inner = trimmed.slice(1, -1).replace(/\\'/g, "'").replace(/\\\\/g, "\\");
+    return toFeelStringLiteral(inner);
+  }
+
+  return isAlreadyFeelExpression(trimmed)
+    ? trimmed
+    : toFeelStringLiteral(trimmed);
+}
+
 function isAlreadyFeelExpression(value: string): boolean {
   const t = value.trim();
-  if (t.includes(" + ")) return true;
+  if (!t) return false;
+  if (isQuotedFeelStringLiteral(t)) return true;
+  if (FEEL_START_KEYWORD_REGEX.test(t)) return true;
+  if (FEEL_BODY_KEYWORD_REGEX.test(t)) return true;
+  if (FEEL_BINARY_OPERATOR_REGEX.test(t)) return true;
+  if (/^\-?\d+(\.\d+)?$/.test(t)) return true;
+  if (/^(true|false|null)$/i.test(t)) return true;
+  if (FEEL_FUNCTION_CALL_REGEX.test(t)) return true;
+  if (t.startsWith("[") || t.startsWith("{")) return true;
+  if (/\s[+\-*/]\s/.test(t)) return true;
   if (t.startsWith("string(")) return true;
   if (/\bcontext\.[A-Za-z_]/.test(t)) return true;
-  if (/^[A-Za-z_][A-Za-z0-9_.]*\s*\(/.test(t)) return true;
-  if (t.startsWith('"') && t.endsWith('"') && !t.slice(1, -1).includes('"'))
-    return true;
+  if (/\bsecret\.[A-Za-z_]/.test(t)) return true;
   return false;
+}
+
+function isLegacyTemplateStyleUrl(value: string): boolean {
+  const trimmed = value.trim();
+  if (!trimmed) return false;
+  if (!/{[^{}]+}/.test(trimmed)) return false;
+  if (!trimmed.includes("/")) return false;
+  if (isQuotedFeelStringLiteral(trimmed)) return false;
+  if (FEEL_START_KEYWORD_REGEX.test(trimmed)) return false;
+  if (FEEL_BODY_KEYWORD_REGEX.test(trimmed)) return false;
+  if (FEEL_FUNCTION_CALL_REGEX.test(trimmed)) return false;
+  if (/\s[+\-*/=<>]\s/.test(trimmed)) return false;
+  return true;
 }
 
 function templateUrlToFeel(url: string): string {
   if (!url) return '""';
   const trimmed = url.trim();
   if (!trimmed) return '""';
+
+  if (isLegacyTemplateStyleUrl(trimmed)) {
+    const parts: string[] = [];
+    let lastIndex = 0;
+    const regex = /\{([^}]+)\}/g;
+    let match: RegExpExecArray | null;
+    while ((match = regex.exec(trimmed)) !== null) {
+      const staticPart = trimmed.slice(lastIndex, match.index);
+      if (staticPart) parts.push(toFeelStringLiteral(staticPart));
+      const inner = match[1].trim();
+      parts.push(
+        inner.startsWith("context.") || inner.startsWith("secret.")
+          ? inner
+          : `string(${inner})`,
+      );
+      lastIndex = regex.lastIndex;
+    }
+    const trailing = trimmed.slice(lastIndex);
+    if (trailing) parts.push(toFeelStringLiteral(trailing));
+    return parts.join(" + ");
+  }
 
   if (isAlreadyFeelExpression(trimmed)) {
     return trimmed;
@@ -59,26 +206,13 @@ function templateUrlToFeel(url: string): string {
 
   if (!trimmed.includes("{")) return toFeelStringLiteral(trimmed);
 
-  const parts: string[] = [];
-  let lastIndex = 0;
-  const regex = /\{([^}]+)\}/g;
-  let match: RegExpExecArray | null;
-  while ((match = regex.exec(trimmed)) !== null) {
-    const staticPart = trimmed.slice(lastIndex, match.index);
-    if (staticPart) parts.push(toFeelStringLiteral(staticPart));
-    const inner = match[1].trim();
-    parts.push(inner.startsWith("context.") ? inner : `string(${inner})`);
-    lastIndex = regex.lastIndex;
-  }
-  const trailing = trimmed.slice(lastIndex);
-  if (trailing) parts.push(toFeelStringLiteral(trailing));
-  return parts.join(" + ");
+  return toFeelStringLiteral(trimmed);
 }
 
 function feelUrlToTemplate(feel: string): string {
   if (!feel) return "";
   const trimmed = feel.trim();
-  if (trimmed.includes("{")) {
+  if (isLegacyTemplateStyleUrl(trimmed)) {
     return templateUrlToFeel(trimmed);
   }
   return trimmed;
@@ -141,7 +275,7 @@ function serializeConfiguration(
       };
 
     case "script": {
-      const rawBackoff = asRecord(config.backoff);
+      const rawBackoff = normalizeBackoff(config.backoff);
 
       return {
         runtime: "python3" as const,
@@ -174,7 +308,7 @@ function serializeConfiguration(
     }
 
     case "service": {
-      const rawBackoff = asRecord(config.backoff);
+      const rawBackoff = normalizeBackoff(config.backoff);
       const svc: UnknownRecord = {
         method: VALID_HTTP_METHODS.includes(
           asString(config.method) as (typeof VALID_HTTP_METHODS)[number],
@@ -213,6 +347,58 @@ function serializeConfiguration(
             }))
           : [];
       return svc;
+    }
+
+    case "email": {
+      const rawBackoff = normalizeBackoff(config.backoff);
+      const to = Array.isArray(config.to) ? config.to : [];
+      const cc = Array.isArray(config.cc) ? config.cc : [];
+      const bcc = Array.isArray(config.bcc) ? config.bcc : [];
+
+      return {
+        provider: asString(config.provider, "google_smtp"),
+        senderExpression: normalizeFeelStringInput(
+          asString(config.senderExpression),
+        ),
+        authUserExpression: normalizeFeelStringInput(
+          asString(config.authUserExpression),
+        ),
+        authPassExpression: normalizeFeelStringInput(
+          asString(config.authPassExpression),
+        ),
+        to: to.map((recipient: any) => ({
+          valueExpression: normalizeFeelStringInput(
+            asString(recipient.valueExpression),
+          ),
+        })),
+        cc: cc.map((recipient: any) => ({
+          valueExpression: normalizeFeelStringInput(
+            asString(recipient.valueExpression),
+          ),
+        })),
+        bcc: bcc.map((recipient: any) => ({
+          valueExpression: normalizeFeelStringInput(
+            asString(recipient.valueExpression),
+          ),
+        })),
+        subjectExpression: normalizeFeelStringInput(
+          asString(config.subjectExpression),
+        ),
+        bodyExpression: normalizeFeelStringInput(asString(config.bodyExpression)),
+        maxAttempts:
+          typeof config.maxAttempts === "number" ? config.maxAttempts : 1,
+        backoff: rawBackoff,
+        failurePolicy:
+          config.failurePolicy === "continue" ? "continue" : "fail",
+        responseMap: Array.isArray(config.responseMap)
+          ? config.responseMap.map((r: any) => ({
+              jsonPath: r.jsonPath ?? "",
+              type: r.type ?? r.dataType ?? "string",
+              contextVariableName:
+                r.contextVariableName ?? r.contextVariable?.name ?? "",
+            }))
+          : [],
+      };
     }
 
     case "user":
@@ -269,11 +455,15 @@ export function canvasToDefinition(
   edges: CanvasEdge[],
 ): WorkflowDefinition {
   const resultNodes: WorkflowNode[] = nodes.map((n) => {
+    const apiType = toApiNodeType(n.type);
     const res: WorkflowNode = {
       id: generateId("node"),
       nodeId: n.id,
-      type: n.type,
-      config: JSON.parse(JSON.stringify(n.config)),
+      type: apiType,
+      config: serializeConfiguration(
+        apiType,
+        asRecord(JSON.parse(JSON.stringify(n.config ?? {}))),
+      ),
     };
     if (n.label) res.label = n.label;
     if (n.description) res.description = n.description;
@@ -282,12 +472,19 @@ export function canvasToDefinition(
   });
 
   const resultEdges: WorkflowEdge[] = edges.map((e) => {
+    const ruleId =
+      e.isDefault || e.sourcePort === "default"
+        ? "default"
+        : e.sourcePort && e.sourcePort !== "out"
+          ? e.sourcePort
+          : null;
+
     return {
       id: generateId("edge"),
       edgeId: e.id,
       sourceNodeId: e.source,
       targetNodeId: e.target,
-      ruleId: e.isDefault ? "default" : e.sourcePort,
+      ruleId,
       conditionExpression: e.condition || undefined,
       isDefault: e.isDefault || false,
     };
@@ -318,23 +515,14 @@ export function canvasToVersionPayload(
   return {
     description,
     nodes: definition.nodes.map((n: any) => {
-      const apiType =
-        n.type === "user_task"
-          ? "user"
-          : n.type === "service_task"
-            ? "service"
-            : n.type === "exclusive_gateway"
-              ? "decision"
-              : n.type === "script_task"
-                ? "script"
-                : n.type;
+      const apiType = toApiNodeType(asString(n.type));
       const rawConfig = n.config || n.configuration || {};
       return {
         id: n.nodeId || n.id,
         type: apiType,
         label: n.name || n.label || "",
         description: n.description || null,
-        configuration: serializeConfiguration(apiType, rawConfig),
+        configuration: serializeConfiguration(apiType, asRecord(rawConfig)),
         position: n.position || {
           x: n.x_coordinate || 0,
           y: n.y_coordinate || 0,
@@ -356,7 +544,6 @@ export function definitionToCanvas(def: unknown): {
   edges: CanvasEdge[];
   inputs: WorkflowInput[];
 } {
-  console.log("Deserializing definition:", def);
   const root = asRecord(def);
   const nestedDefinition = asRecord(root.definition);
   const rawNodes =
@@ -410,10 +597,7 @@ export function definitionToCanvas(def: unknown): {
   }));
 
   cNodes.forEach((node) => {
-    if (node.type === "user") node.type = "user_task";
-    if (node.type === "service") node.type = "service_task";
-    if (node.type === "decision") node.type = "exclusive_gateway";
-    if (node.type === "script") node.type = "script_task";
+    node.type = toCanvasNodeType(node.type);
   });
 
   cNodes.forEach((node) => {
@@ -421,12 +605,71 @@ export function definitionToCanvas(def: unknown): {
     if (typeof node.config.urlExpression === "string") {
       node.config.urlExpression = feelUrlToTemplate(node.config.urlExpression);
     }
-    node.config.backoff = asRecord(node.config.backoff);
+    node.config.backoff = normalizeBackoff(node.config.backoff);
   });
 
   cNodes.forEach((node) => {
     if (node.type !== "script_task") return;
-    node.config.backoff = asRecord(node.config.backoff);
+    node.config.backoff = normalizeBackoff(node.config.backoff);
+  });
+
+  cNodes.forEach((node) => {
+    if (node.type !== "email_task") return;
+
+    node.config.provider = asString(node.config.provider, "google_smtp");
+    node.config.senderExpression = feelStringLiteralToInput(
+      asString(node.config.senderExpression),
+    );
+    node.config.authUserExpression = feelStringLiteralToInput(
+      asString(node.config.authUserExpression),
+    );
+    node.config.authPassExpression = feelStringLiteralToInput(
+      asString(node.config.authPassExpression),
+    );
+
+    node.config.to = (Array.isArray(node.config.to) ? node.config.to : []).map(
+      (recipient: any) => ({
+        valueExpression: feelStringLiteralToInput(
+          asString(recipient.valueExpression),
+        ),
+      }),
+    );
+    node.config.cc = (Array.isArray(node.config.cc) ? node.config.cc : []).map(
+      (recipient: any) => ({
+        valueExpression: feelStringLiteralToInput(
+          asString(recipient.valueExpression),
+        ),
+      }),
+    );
+    node.config.bcc =
+      (Array.isArray(node.config.bcc) ? node.config.bcc : []).map(
+        (recipient: any) => ({
+          valueExpression: feelStringLiteralToInput(
+            asString(recipient.valueExpression),
+          ),
+        }),
+      );
+
+    node.config.subjectExpression = feelStringLiteralToInput(
+      asString(node.config.subjectExpression),
+    );
+    node.config.bodyExpression = feelStringLiteralToInput(
+      asString(node.config.bodyExpression),
+    );
+    node.config.maxAttempts = asNumber(node.config.maxAttempts, 1);
+    node.config.failurePolicy = asString(node.config.failurePolicy, "fail");
+    node.config.backoff = normalizeBackoff(node.config.backoff);
+    node.config.responseMap = (Array.isArray(node.config.responseMap)
+      ? node.config.responseMap
+      : []
+    ).map((r: any) => ({
+      jsonPath: r.jsonPath ?? "",
+      type: r.type ?? "string",
+      contextVariable: r.contextVariable ?? {
+        name: r.contextVariableName ?? "",
+        scope: "global",
+      },
+    }));
   });
 
   cNodes.forEach((node) => {

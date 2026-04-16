@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Box,
@@ -11,6 +11,7 @@ import {
   TableContainer,
   TableHead,
   TableRow,
+  TableSortLabel,
   IconButton,
   Tooltip,
   Dialog,
@@ -20,7 +21,6 @@ import {
   TextField,
   CircularProgress,
   Skeleton,
-  MenuItem,
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import AccountTreeIcon from "@mui/icons-material/AccountTree";
@@ -65,6 +65,17 @@ export default function WorkflowsPage() {
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [deleteError, setDeleteError] = useState("");
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
+
+  const filteredWorkflows = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+    if (!query) {
+      return workflows;
+    }
+
+    return workflows.filter((workflow) =>
+      workflow.name.toLowerCase().includes(query),
+    );
+  }, [workflows, searchQuery]);
 
   const fetchWorkflows = useCallback(
     async (
@@ -216,6 +227,11 @@ export default function WorkflowsPage() {
     });
   };
 
+  const toggleCreatedSort = () => {
+    setCreatedSort((current) => (current === "asc" ? "desc" : "asc"));
+    setPage(0);
+  };
+
   return (
     <Box>
       <PageHeader
@@ -229,20 +245,6 @@ export default function WorkflowsPage() {
         searchPlaceholder="Search workflows…"
         action={
           <Box display="flex" alignItems="center" gap={1}>
-            <TextField
-              select
-              size="small"
-              label="Created"
-              value={createdSort}
-              onChange={(event) => {
-                setCreatedSort(event.target.value as "asc" | "desc");
-                setPage(0);
-              }}
-              sx={{ minWidth: 132 }}
-            >
-              <MenuItem value="desc">Newest first</MenuItem>
-              <MenuItem value="asc">Oldest first</MenuItem>
-            </TextField>
             <Tooltip title="Reload">
               <IconButton
                 size="small"
@@ -287,8 +289,18 @@ export default function WorkflowsPage() {
                 <TableCell sx={{ width: "30%", fontWeight: 600, fontSize: 12 }}>
                   Description
                 </TableCell>
-                <TableCell sx={{ fontWeight: 600, fontSize: 12 }}>
-                  Date Created
+                <TableCell
+                  sortDirection={createdSort}
+                  sx={{ fontWeight: 600, fontSize: 12 }}
+                >
+                  <TableSortLabel
+                    active
+                    direction={createdSort}
+                    onClick={toggleCreatedSort}
+                    sx={{ "& .MuiTableSortLabel-icon": { opacity: 1 } }}
+                  >
+                    Date Created
+                  </TableSortLabel>
                 </TableCell>
                 <TableCell sx={{ fontWeight: 600, fontSize: 12 }}>
                   Last Modified
@@ -307,7 +319,7 @@ export default function WorkflowsPage() {
                     </TableCell>
                   </TableRow>
                 ))
-              ) : workflows.length === 0 ? (
+              ) : filteredWorkflows.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={5}>
                     <Box sx={{ py: 6, textAlign: "center" }}>
@@ -354,7 +366,7 @@ export default function WorkflowsPage() {
                   </TableCell>
                 </TableRow>
               ) : (
-                workflows.map((wf) => {
+                filteredWorkflows.map((wf) => {
                   const latestStatus = wf.latestVersion?.status ?? null;
                   const latestVersionId = wf.latestVersion?.latestVersionId ?? null;
 
@@ -505,7 +517,7 @@ export default function WorkflowsPage() {
           </Table>
         </TableContainer>
 
-        {!listLoading && workflows.length > 0 && (
+        {!listLoading && filteredWorkflows.length > 0 && (
           <Box
             px={2}
             py={1.25}
@@ -513,8 +525,8 @@ export default function WorkflowsPage() {
             sx={{ borderColor: "divider" }}
           >
             <Typography sx={{ fontSize: 12, color: "text.disabled" }}>
-              {(pagination?.total ?? workflows.length)} workflow
-              {(pagination?.total ?? workflows.length) !== 1 ? "s" : ""}
+              {filteredWorkflows.length} workflow
+              {filteredWorkflows.length !== 1 ? "s" : ""}
             </Typography>
           </Box>
         )}

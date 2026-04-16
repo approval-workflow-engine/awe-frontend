@@ -6,7 +6,7 @@ export const SystemSchema = z.object({
   name: z.string(),
   orgName: z.string(),
   contactEmail: z.string().email(),
-  environment: EnvironmentTypeSchema,
+  environment: EnvironmentTypeSchema.optional(),
   createdAt: z.string().datetime().optional(),
   updatedAt: z.string().datetime().optional(),
 });
@@ -21,7 +21,7 @@ export const RegisterSystemSchema = z.object({
 });
 
 export const LoginRequestSchema = z.object({
-  email: z.string().email(),
+  email: z.email(),
   password: z.string().min(1),
 });
 
@@ -43,7 +43,7 @@ export const RefreshTokenResponseSchema = z.object({
 export const RegisterRequestSchema = z.object({
   name: z.string().max(255),
   orgName: z.string().max(255),
-  contactEmail: z.string().email(),
+  contactEmail: z.email(),
   password: z.string().min(8),
   description: z.string().optional(),
 });

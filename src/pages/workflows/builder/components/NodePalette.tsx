@@ -1,6 +1,7 @@
 import { Box, Typography, Tooltip } from "@mui/material";
 import PersonIcon from "@mui/icons-material/Person";
 import HttpIcon from "@mui/icons-material/Http";
+import MailOutlineIcon from "@mui/icons-material/MailOutline";
 import CodeIcon from "@mui/icons-material/Code";
 import AltRouteIcon from "@mui/icons-material/AltRoute";
 import StopCircleIcon from "@mui/icons-material/StopCircle";
@@ -13,6 +14,7 @@ function getIcon(type: string) {
   > = {
     user_task: PersonIcon,
     service_task: HttpIcon,
+    email_task: MailOutlineIcon,
     script_task: CodeIcon,
     exclusive_gateway: AltRouteIcon,
     end: StopCircleIcon,

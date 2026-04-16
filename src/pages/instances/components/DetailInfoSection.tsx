@@ -11,8 +11,15 @@ function MonoText({ children }: { children: ReactNode }) {
   return <Typography sx={{ fontFamily: MONO, fontSize: 12 }}>{children}</Typography>;
 }
 
-function JsonAccordion({ title, data }: { title: string; data: Record<string, unknown> | null }) {
-  if (!data || Object.keys(data).length === 0) return null;
+function hasRenderableJsonData(data: unknown): boolean {
+  if (data === null || data === undefined) return false;
+  if (Array.isArray(data)) return data.length > 0;
+  if (typeof data === 'object') return Object.keys(data as Record<string, unknown>).length > 0;
+  return true;
+}
+
+function JsonAccordion({ title, data }: { title: string; data: unknown | null }) {
+  if (!hasRenderableJsonData(data)) return null;
 
   return (
     <Accordion
@@ -65,7 +72,7 @@ export default function DetailInfoSection({ instance }: Props) {
       value: (
         <Box display="flex" alignItems="center" gap={1}>
           <Typography fontSize={13}>
-            {instance.workflow.name}
+            {instance.workflow.name || 'Workflow'}
           </Typography>
           <Typography sx={{ fontFamily: MONO, fontSize: 11, color: 'text.secondary' }}>
             v{instance.workflow.version}
@@ -102,12 +109,12 @@ export default function DetailInfoSection({ instance }: Props) {
         <Box>
           <Box display="flex" alignItems="center" gap={1}>
             <Typography fontSize={13} fontWeight={500}>
-              {instance.currentTask.name || `${instance.currentTask.type} Node`}
+                {instance.currentTask.name || `${instance.currentTask.type || 'Task'} Node`}
             </Typography>
-            <StatusChip status={instance.currentTask.status} />
+            <StatusChip status={instance.currentTask.status || 'pending'} />
           </Box>
           <Typography sx={{ fontFamily: MONO, fontSize: 11, color: 'text.secondary', mt: 0.5 }}>
-            {instance.currentTask.type} • {instance.currentTask.nodeId}
+            {instance.currentTask.type || 'unknown'} • {instance.currentTask.nodeId || '-'}
           </Typography>
         </Box>
       ),
