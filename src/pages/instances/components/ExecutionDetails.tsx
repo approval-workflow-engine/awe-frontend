@@ -6,8 +6,14 @@ import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import ErrorIcon from '@mui/icons-material/Error';
 import PendingIcon from '@mui/icons-material/Pending';
 import HourglassEmptyIcon from '@mui/icons-material/HourglassEmpty';
-import type { ExecutionNode } from '../../../api/schemas/instance';
+import ReplayIcon from '@mui/icons-material/Replay';
+import type {
+  ExecutionNode,
+  TaskExecutionDetailResponse,
+} from '../../../api/schemas/instance';
 import { NodeConfigurationDisplay } from './NodeConfigurationDisplay';
+import { ExecutionSequenceGraph } from './ExecutionSequenceGraph.tsx';
+import { getNodeTypeLabel } from '../../workflows/builder/utils/nodeHelpers';
 
 const MONO = "'JetBrains Mono', monospace";
 
@@ -17,6 +23,26 @@ const isUserTaskType = (nodeType: string) => {
   const normalized = nodeType.toLowerCase();
   return normalized === 'user' || normalized === 'user_task';
 };
+
+const toBuilderNodeType = (nodeType: string) => {
+  switch (nodeType) {
+    case 'user':
+      return 'user_task';
+    case 'service':
+      return 'service_task';
+    case 'email':
+      return 'email_task';
+    case 'decision':
+      return 'exclusive_gateway';
+    case 'script':
+      return 'script_task';
+    default:
+      return nodeType;
+  }
+};
+
+const formatNodeTypeLabel = (nodeType: string) =>
+  getNodeTypeLabel(toBuilderNodeType(nodeType));
 
 function getStatusIcon(status: NodeStatus) {
   switch (status.toLowerCase()) {
@@ -52,7 +78,7 @@ function getStatusColor(status: NodeStatus) {
   }
 }
 
-function formatDuration(start: string | null, end: string | null): string {
+function formatDuration(start: string | null | undefined, end: string | null | undefined): string {
   if (!start || !end) return '-';
   const startTime = new Date(start).getTime();
   const endTime = new Date(end).getTime();
@@ -65,7 +91,7 @@ function formatDuration(start: string | null, end: string | null): string {
   return `${minutes}m ${seconds}s`;
 }
 
-function formatTimestamp(timestamp: string | null): string {
+function formatTimestamp(timestamp: string | null | undefined): string {
   if (!timestamp) return '-';
   return new Date(timestamp).toLocaleString(undefined, {
     dateStyle: 'short',
@@ -73,8 +99,16 @@ function formatTimestamp(timestamp: string | null): string {
   });
 }
 
-function JsonDisplay({ title, data }: { title: string; data: Record<string, unknown> | null }) {
-  if (!data || Object.keys(data).length === 0) return null;
+function JsonDisplay({ title, data }: { title: string; data: unknown | null }) {
+  if (data === null || data === undefined) return null;
+
+  if (
+    typeof data === 'object' &&
+    !Array.isArray(data) &&
+    Object.keys(data as Record<string, unknown>).length === 0
+  ) {
+    return null;
+  }
 
   return (
     <Box sx={{ mt: 1.5 }}>
@@ -109,6 +143,8 @@ interface ExecutionFlowCardProps {
   selectedNodeId: string | null;
   onSelectNode: (nodeId: string) => void;
   currentTaskNodeClientId?: string | null;
+  onRetryTask?: (taskId: string | null) => void | Promise<void>;
+  onReviewUserTask?: (userTaskExecutionId: string) => void;
 }
 
 export function ExecutionFlowCard({
@@ -117,11 +153,14 @@ export function ExecutionFlowCard({
   selectedNodeId,
   onSelectNode,
   currentTaskNodeClientId,
+  onRetryTask,
+  onReviewUserTask,
 }: ExecutionFlowCardProps) {
   const totalNodes = nodes.length;
   const completedNodes = nodes.filter((node) => node.status === 'completed').length;
 
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
+  const [viewTab, setViewTab] = useState(0);
 
   const groupedNodes = useMemo(() => {
     const groups: Array<ExecutionNode | { isGroup: true; id: string; nodes: ExecutionNode[] }> = [];
@@ -134,7 +173,7 @@ export function ExecutionFlowCard({
         if (currentDiscardedGroup.length > 0) {
           groups.push({
             isGroup: true,
-            id: `discarded-group-${currentDiscardedGroup[0].nodeId}`,
+            id: `discarded-group-${currentDiscardedGroup[0].nodeClientId}`,
             nodes: currentDiscardedGroup,
           });
           currentDiscardedGroup = [];
@@ -145,7 +184,7 @@ export function ExecutionFlowCard({
     if (currentDiscardedGroup.length > 0) {
       groups.push({
         isGroup: true,
-        id: `discarded-group-${currentDiscardedGroup[0].nodeId}`,
+        id: `discarded-group-${currentDiscardedGroup[0].nodeClientId}`,
         nodes: currentDiscardedGroup,
       });
     }
@@ -166,19 +205,26 @@ export function ExecutionFlowCard({
   };
 
   const renderNode = (node: ExecutionNode) => {
-    const isSelected = node.nodeId === selectedNodeId;
+    const isSelected = node.nodeClientId === selectedNodeId;
     const isReviewable =
       !!currentTaskNodeClientId &&
       node.nodeClientId === currentTaskNodeClientId &&
       isUserTaskType(node.nodeType) &&
       node.status === 'in_progress';
 
+    const canRetryTask = node.status === 'failed' && !!onRetryTask;
+    const canReviewUserTask =
+      isUserTaskType(node.nodeType) &&
+      node.status === 'in_progress' &&
+      !!node.userTaskExecutionId &&
+      !!onReviewUserTask;
+
     return (
       <Box
-        key={node.nodeId}
+        key={node.nodeClientId}
         role="button"
         tabIndex={0}
-        onClick={() => onSelectNode(node.nodeId)}
+        onClick={() => onSelectNode(node.nodeClientId)}
         sx={{
           border: '2px solid',
           borderColor: isSelected ? 'primary.main' : isReviewable ? '#f97316' : 'transparent',
@@ -205,20 +251,67 @@ export function ExecutionFlowCard({
 
           <Box flex={1} minWidth={0}>
             <Typography fontSize={13} fontWeight={isSelected ? 700 : 500} noWrap>
-              {node.nodeName || `${node.nodeType} Node`}
+              {node.nodeName || `${formatNodeTypeLabel(node.nodeType)} Node`}
             </Typography>
             <Typography fontSize={11} color="text.secondary" sx={{ fontFamily: MONO }}>
-              {node.nodeType} • {node.nodeClientId}
+              {formatNodeTypeLabel(node.nodeType)} • {node.nodeClientId}
             </Typography>
           </Box>
 
-          <Box textAlign="right">
-            <Typography sx={{ fontFamily: MONO, fontSize: 10, fontWeight: 600, color: getStatusColor(node.status), textTransform: 'uppercase' }}>
+          <Box
+            display="flex"
+            alignItems="center"
+            justifyContent="flex-end"
+            gap={0.75}
+            sx={{ flexShrink: 0 }}
+          >
+            <Typography
+              sx={{
+                fontFamily: MONO,
+                fontSize: 10,
+                fontWeight: 600,
+                color: getStatusColor(node.status),
+                textTransform: 'uppercase',
+                whiteSpace: 'nowrap',
+              }}
+            >
               {node.status}
             </Typography>
-            <Typography fontSize={11} color="text.secondary" sx={{ fontFamily: MONO }}>
-              {formatDuration(node.startedOn, node.endedOn)}
-            </Typography>
+            <Box display="flex" alignItems="center" justifyContent="flex-end" gap={0.75} sx={{ flexWrap: 'nowrap' }}>
+              <Typography fontSize={11} color="text.secondary" sx={{ fontFamily: MONO }}>
+                {formatDuration(node.startTime, node.endTime)}
+              </Typography>
+              {canRetryTask && (
+                <Button
+                  size="small"
+                  variant="contained"
+                  color="warning"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    if (!onRetryTask) return;
+                    onRetryTask(node.taskId);
+                  }}
+                  startIcon={<ReplayIcon sx={{ fontSize: 14 }} />}
+                  sx={{ borderRadius: '8px', textTransform: 'none', fontSize: 11, fontWeight: 600, px: 1.1, minHeight: 24 }}
+                >
+                  Retry Task
+                </Button>
+              )}
+              {canReviewUserTask && (
+                <Button
+                  size="small"
+                  variant="contained"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    if (!onReviewUserTask || !node.userTaskExecutionId) return;
+                    onReviewUserTask(node.userTaskExecutionId);
+                  }}
+                  sx={{ borderRadius: '8px', textTransform: 'none', fontSize: 11, fontWeight: 600, px: 1.1, minHeight: 24 }}
+                >
+                  Review User Task
+                </Button>
+              )}
+            </Box>
           </Box>
         </Box>
       </Box>
@@ -237,85 +330,110 @@ export function ExecutionFlowCard({
         )}
       </Box>
 
-      <Box sx={{ flex: 1, minHeight: 0, overflowY: 'auto', pr: 1 }}>
-        {loading && (
-          <Box sx={{ py: 4, textAlign: 'center', border: '1px dashed', borderColor: 'divider', borderRadius: 2 }}>
-            <Typography color="text.secondary" fontSize={13}>Loading execution workflow...</Typography>
-          </Box>
-        )}
+      <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 1.5 }}>
+        <Tabs value={viewTab} onChange={(_, nextValue) => setViewTab(nextValue)} sx={{ minHeight: 36 }}>
+          <Tab label="Sequence" sx={{ minHeight: 36, py: 0.5, fontSize: 12, textTransform: 'none', fontWeight: 600 }} />
+          <Tab label="Graph" sx={{ minHeight: 36, py: 0.5, fontSize: 12, textTransform: 'none', fontWeight: 600 }} />
+        </Tabs>
+      </Box>
 
-        {!loading && nodes.length === 0 && (
-          <Box sx={{ py: 4, textAlign: 'center', border: '1px dashed', borderColor: 'divider', borderRadius: 2 }}>
-            <Typography color="text.secondary" fontSize={13}>No workflow tasks found for this instance.</Typography>
-          </Box>
-        )}
+      {viewTab === 0 && (
+        <Box sx={{ flex: 1, minHeight: 0, overflowY: 'auto', pr: 1 }}>
+          {loading && (
+            <Box sx={{ py: 4, textAlign: 'center', border: '1px dashed', borderColor: 'divider', borderRadius: 2 }}>
+              <Typography color="text.secondary" fontSize={13}>Loading execution workflow...</Typography>
+            </Box>
+          )}
 
-        {!loading && nodes.length > 0 && (
-          <Box display="flex" flexDirection="column" gap={1}>
-            {groupedNodes.map((item) => {
-              if ('isGroup' in item) {
-                const isExpanded = expandedGroups.has(item.id);
+          {!loading && nodes.length === 0 && (
+            <Box sx={{ py: 4, textAlign: 'center', border: '1px dashed', borderColor: 'divider', borderRadius: 2 }}>
+              <Typography color="text.secondary" fontSize={13}>No workflow tasks found for this instance.</Typography>
+            </Box>
+          )}
 
-                if (!isExpanded) {
+          {!loading && nodes.length > 0 && (
+            <Box display="flex" flexDirection="column" gap={1}>
+              {groupedNodes.map((item) => {
+                if ('isGroup' in item) {
+                  const isExpanded = expandedGroups.has(item.id);
+
+                  if (!isExpanded) {
+                    return (
+                      <Box
+                        key={item.id}
+                        onClick={() => toggleGroup(item.id)}
+                        sx={{
+                          p: 1,
+                          cursor: 'pointer',
+                          textAlign: 'center',
+                          backgroundColor: 'action.hover',
+                          borderRadius: 2,
+                          border: '1px dashed',
+                          borderColor: 'divider',
+                          transition: 'all .2s ease',
+                          '&:hover': { backgroundColor: 'action.focus' }
+                        }}
+                      >
+                        <Typography fontSize={11} color="text.secondary" fontWeight={600}>
+                          {item.nodes.length} discarded task{item.nodes.length > 1 ? 's' : ''} ... Click to expand
+                        </Typography>
+                      </Box>
+                    );
+                  }
+
                   return (
-                    <Box
-                      key={item.id}
-                      onClick={() => toggleGroup(item.id)}
-                      sx={{
-                        p: 1,
-                        cursor: 'pointer',
-                        textAlign: 'center',
-                        backgroundColor: 'action.hover',
-                        borderRadius: 2,
-                        border: '1px dashed',
-                        borderColor: 'divider',
-                        transition: 'all .2s ease',
-                        '&:hover': { backgroundColor: 'action.focus' }
-                      }}
-                    >
-                      <Typography fontSize={11} color="text.secondary" fontWeight={600}>
-                        {item.nodes.length} discarded task{item.nodes.length > 1 ? 's' : ''} ... Click to expand
-                      </Typography>
+                    <Box key={item.id} sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                      <Box
+                        onClick={() => toggleGroup(item.id)}
+                        sx={{
+                          p: 1,
+                          cursor: 'pointer',
+                          textAlign: 'center',
+                          backgroundColor: 'action.hover',
+                          borderRadius: 2,
+                          border: '1px dashed',
+                          borderColor: 'divider',
+                          transition: 'all .2s ease',
+                          '&:hover': { backgroundColor: 'action.focus' }
+                        }}
+                      >
+                        <Typography fontSize={11} color="text.secondary" fontWeight={600}>
+                          Collapse discarded tasks
+                        </Typography>
+                      </Box>
+                      {item.nodes.map((node) => renderNode(node))}
                     </Box>
                   );
                 }
 
-                return (
-                  <Box key={item.id} sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                    <Box
-                      onClick={() => toggleGroup(item.id)}
-                      sx={{
-                        p: 1,
-                        cursor: 'pointer',
-                        textAlign: 'center',
-                        backgroundColor: 'action.hover',
-                        borderRadius: 2,
-                        border: '1px dashed',
-                        borderColor: 'divider',
-                        transition: 'all .2s ease',
-                        '&:hover': { backgroundColor: 'action.focus' }
-                      }}
-                    >
-                      <Typography fontSize={11} color="text.secondary" fontWeight={600}>
-                        Collapse discarded tasks
-                      </Typography>
-                    </Box>
-                    {item.nodes.map((node) => renderNode(node))}
-                  </Box>
-                );
-              }
+                return renderNode(item);
+              })}
 
-              return renderNode(item);
-            })}
-
-            <Box sx={{ border: '1px dashed', borderColor: 'divider', borderRadius: 2, p: 1, mt: 1, textAlign: 'center' }}>
-              <Typography fontSize={11} color="text.secondary">
-                Executions recorded: {nodes.filter((item) => item.status !== 'pending').length}
-              </Typography>
+              <Box sx={{ border: '1px dashed', borderColor: 'divider', borderRadius: 2, p: 1, mt: 1, textAlign: 'center' }}>
+                <Typography fontSize={11} color="text.secondary">
+                  Executions recorded: {nodes.filter((item) => item.status !== 'pending').length}
+                </Typography>
+              </Box>
             </Box>
-          </Box>
-        )}
-      </Box>
+          )}
+        </Box>
+      )}
+
+      {viewTab === 1 && (
+        <Box sx={{ flex: 1, minHeight: 0, overflowY: 'auto' }}>
+          {loading ? (
+            <Box sx={{ py: 4, textAlign: 'center', border: '1px dashed', borderColor: 'divider', borderRadius: 2 }}>
+              <Typography color="text.secondary" fontSize={13}>Loading execution workflow...</Typography>
+            </Box>
+          ) : (
+            <ExecutionSequenceGraph
+              nodes={nodes}
+              selectedNodeId={selectedNodeId}
+              onSelectNode={onSelectNode}
+            />
+          )}
+        </Box>
+      )}
     </Paper>
   );
 }
@@ -323,6 +441,7 @@ export function ExecutionFlowCard({
 interface NodeExecutionDetailsCardProps {
   nodes: ExecutionNode[];
   selectedNodeId: string | null;
+  selectedTaskDetail: TaskExecutionDetailResponse | null;
   onReviewTask?: () => void;
   onRetryTask?: () => void | Promise<void>;
   loading?: boolean;
@@ -331,6 +450,7 @@ interface NodeExecutionDetailsCardProps {
 export function NodeExecutionDetailsCard({
   nodes,
   selectedNodeId,
+  selectedTaskDetail,
   onReviewTask,
   onRetryTask,
   loading,
@@ -353,11 +473,13 @@ export function NodeExecutionDetailsCard({
     }
   };
 
-  const selectedNode = nodes.find((node) => node.nodeId === selectedNodeId) ?? null;
+  const selectedNode = nodes.find((node) => node.nodeClientId === selectedNodeId) ?? null;
+  const selectedTask = selectedTaskDetail?.task ?? null;
+  const selectedTaskExecution = selectedTaskDetail?.taskExecution ?? null;
+  const selectedNodeConfiguration = selectedTaskDetail?.nodeConfiguration ?? null;
 
-  const nodeStatusById = useMemo(() => new Map(nodes.map((node) => [node.nodeId, node.status])), [nodes]);
+  const nodeStatusById = useMemo(() => new Map(nodes.map((node) => [node.nodeClientId, node.status])), [nodes]);
   const selectedNodeConnections = useMemo(() => selectedNode?.outgoingConnections ?? [], [selectedNode]);
-
   const isReviewableNode =
     !!selectedNode &&
     isUserTaskType(selectedNode.nodeType) &&
@@ -380,10 +502,10 @@ export function NodeExecutionDetailsCard({
             <Box display="flex" alignItems="center" justifyContent="space-between" mb={1.5} gap={1}>
               <Box>
                 <Typography fontSize={14} fontWeight={700}>
-                  {selectedNode.nodeName || `${selectedNode.nodeType} Node`}
+                  {selectedNode.nodeName || `${formatNodeTypeLabel(selectedNode.nodeType)} Node`}
                 </Typography>
                 <Typography fontSize={11} color="text.secondary" sx={{ fontFamily: MONO }}>
-                  {selectedNode.nodeType} • {selectedNode.nodeClientId}
+                  {formatNodeTypeLabel(selectedNode.nodeType)} • {selectedNode.nodeClientId}
                 </Typography>
               </Box>
               <Box display="flex" gap={1}>
@@ -394,8 +516,13 @@ export function NodeExecutionDetailsCard({
                   </Button>
                 )}
                 {isReviewableNode && onReviewTask && (
-                  <Button size="small" variant="contained" onClick={onReviewTask} sx={{ borderRadius: '8px', fontWeight: 600 }}>
-                    Review Task
+                  <Button
+                    size="small"
+                    variant="contained"
+                    onClick={onReviewTask}
+                    sx={{ borderRadius: '8px', fontWeight: 600 }}
+                  >
+                    Review User Task
                   </Button>
                 )}
               </Box>
@@ -407,16 +534,28 @@ export function NodeExecutionDetailsCard({
                 <Typography fontSize={12} sx={{ fontFamily: MONO, color: getStatusColor(selectedNode.status) }}>{selectedNode.status}</Typography>
               </Box>
               <Box>
+                <Typography fontSize={11} color="text.secondary" fontWeight={600} mb={0.25}>TASK STATUS</Typography>
+                <Typography fontSize={12} sx={{ fontFamily: MONO }}>{selectedTask?.status ?? '-'}</Typography>
+              </Box>
+              <Box>
+                <Typography fontSize={11} color="text.secondary" fontWeight={600} mb={0.25}>TASK ID</Typography>
+                <Typography fontSize={12} sx={{ fontFamily: MONO }}>{selectedTask?.id ?? '-'}</Typography>
+              </Box>
+              <Box>
                 <Typography fontSize={11} color="text.secondary" fontWeight={600} mb={0.25}>STARTED</Typography>
-                <Typography fontSize={12}>{formatTimestamp(selectedNode.startedOn)}</Typography>
+                <Typography fontSize={12}>{formatTimestamp(selectedNode.startTime)}</Typography>
               </Box>
               <Box>
                 <Typography fontSize={11} color="text.secondary" fontWeight={600} mb={0.25}>ENDED</Typography>
-                <Typography fontSize={12}>{formatTimestamp(selectedNode.endedOn)}</Typography>
+                <Typography fontSize={12}>{formatTimestamp(selectedNode.endTime)}</Typography>
               </Box>
               <Box>
                 <Typography fontSize={11} color="text.secondary" fontWeight={600} mb={0.25}>DURATION</Typography>
-                <Typography fontSize={12} sx={{ fontFamily: MONO }}>{formatDuration(selectedNode.startedOn, selectedNode.endedOn)}</Typography>
+                <Typography fontSize={12} sx={{ fontFamily: MONO }}>{formatDuration(selectedNode.startTime, selectedNode.endTime)}</Typography>
+              </Box>
+              <Box>
+                <Typography fontSize={11} color="text.secondary" fontWeight={600} mb={0.25}>TASK CREATED</Typography>
+                <Typography fontSize={12}>{formatTimestamp(selectedTask?.createdAt ?? null)}</Typography>
               </Box>
             </Box>
 
@@ -430,8 +569,8 @@ export function NodeExecutionDetailsCard({
               {selectedNodeConnections.length > 0 && (
                 <Box display="flex" flexWrap="wrap" gap={1}>
                   {selectedNodeConnections.map((connection) => {
-                    const destinationStatus = connection.destinationNodeId
-                      ? nodeStatusById.get(connection.destinationNodeId)
+                    const destinationStatus = connection.destinationNodeClientId
+                      ? nodeStatusById.get(connection.destinationNodeClientId)
                       : undefined;
                     const isExecutedConnection =
                       selectedNode.status !== 'pending' &&
@@ -440,7 +579,7 @@ export function NodeExecutionDetailsCard({
 
                     return (
                       <Chip
-                        key={`${selectedNode.nodeId}-${connection.destinationNodeId ?? 'end'}-${connection.conditionExpression ?? 'default'}`}
+                        key={`${selectedNode.nodeClientId}-${connection.destinationNodeClientId ?? 'end'}-${connection.conditionExpression ?? 'default'}`}
                         size="small"
                         label={`${selectedNode.nodeClientId} -> ${connection.destinationNodeClientId ?? 'end'}${connection.conditionExpression ? ` [${connection.conditionExpression}]` : ''}`}
                         sx={{
@@ -468,14 +607,36 @@ export function NodeExecutionDetailsCard({
 
             {tabIndex === 0 && (
               <Box sx={{ pt: 1.5 }}>
-                <JsonDisplay title="Input Variables" data={selectedNode.inputVariables} />
-                <JsonDisplay title="Output Variables" data={selectedNode.outputVariables} />
+                {loading && (
+                  <Box display="flex" alignItems="center" gap={1} sx={{ mb: 1.5 }}>
+                    <CircularProgress size={14} />
+                    <Typography fontSize={12} color="text.secondary">
+                      Loading task details...
+                    </Typography>
+                  </Box>
+                )}
+                {!loading && !selectedTaskExecution && (
+                  <Typography fontSize={12} color="text.secondary" mb={1}>
+                    No execution variables available for this node yet.
+                  </Typography>
+                )}
+                <JsonDisplay
+                  title="Input Variables"
+                  data={selectedTaskExecution?.inputVariables ?? null}
+                />
+                <JsonDisplay
+                  title="Output Variables"
+                  data={selectedTaskExecution?.outputVariables ?? null}
+                />
               </Box>
             )}
 
             {tabIndex === 1 && (
               <Box sx={{ pt: 1.5 }}>
-                <NodeConfigurationDisplay nodeType={selectedNode.nodeType} config={selectedNode.nodeConfiguration} />
+                <NodeConfigurationDisplay
+                  nodeType={selectedNode.nodeType}
+                  config={selectedNodeConfiguration}
+                />
               </Box>
             )}
           </>

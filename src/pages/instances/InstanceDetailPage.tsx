@@ -8,7 +8,7 @@ import {
   NodeExecutionDetailsCard,
 } from "./components/ExecutionDetails.tsx";
 import InstanceHeaderActions from "./components/InstanceHeaderActions";
-import RetryInstanceDialog from "./components/RetryInstanceDialog";
+import RetryInstanceDialog from "./components/RetryInstanceDialog.tsx";
 import { useInstance } from "./hooks/useInstance";
 import { useExecutionLogs } from "./hooks/useExecutionLogs";
 import { useBackNavigation } from "../../hooks/useBackNavigation";
@@ -17,7 +17,6 @@ import type {
   InstanceListItem,
   CurrentTask,
 } from "../../api/schemas/instance";
-import { taskService } from "../../api/services/task";
 
 const MONO = "'JetBrains Mono', monospace";
 
@@ -75,11 +74,13 @@ export default function InstanceDetailPage() {
   const displayInstance: Instance | null = instance ? instance : navInstance;
 
   const {
-    logsLoading,
+    sequenceLoading,
+    taskDetailLoading,
     orderedExecutions,
     selectedNodeId,
     setSelectedNodeId,
     selectedExecutionNode,
+    selectedTaskDetail,
     refreshInstanceAndLogs,
   } = useExecutionLogs({
     instanceId: id,
@@ -94,7 +95,6 @@ export default function InstanceDetailPage() {
     displayInstance?.status === "in_progress" &&
     !isTerminal(displayInstance.status);
   const canTerminate = !!displayInstance && !isTerminal(displayInstance.status);
-  const canRetry = displayInstance?.status === "failed";
 
   const handleResume = async () => {
     if (!id) return;
@@ -114,10 +114,6 @@ export default function InstanceDetailPage() {
     await refreshInstanceAndLogs();
   };
 
-  const handleRetry = async () => {
-    setRetryDialogOpen(true);
-  };
-
   const handleReload = () => {
     refreshInstanceAndLogs();
   };
@@ -127,27 +123,28 @@ export default function InstanceDetailPage() {
     : "Instance Details";
 
   const currentTask: CurrentTask | null = displayInstance?.currentTask ?? null;
-  const showReviewAction =
+
+  const handleReviewTaskById = (userTaskExecutionId: string) => {
+    navigate(`/tasks/${userTaskExecutionId}`, {
+      state: { fromInstance: id },
+    });
+  };
+
+  const showReviewActionInTaskDetail =
     !!selectedExecutionNode &&
     isUserTaskType(selectedExecutionNode.nodeType) &&
     selectedExecutionNode.status === "in_progress" &&
     Boolean(selectedExecutionNode.userTaskExecutionId);
 
-  const handleReviewTask = () => {
-    if (!selectedExecutionNode?.userTaskExecutionId) return;
-    navigate(`/tasks/${selectedExecutionNode.userTaskExecutionId}`, {
-      state: { fromInstance: id },
-    });
+  const handleReviewSelectedTask = () => {
+    const userTaskExecutionId = selectedExecutionNode?.userTaskExecutionId;
+    if (!userTaskExecutionId) return;
+    handleReviewTaskById(userTaskExecutionId);
   };
 
-  const handleRetryTask = async () => {
-    if (!selectedExecutionNode?.taskId) return;
-    try {
-      await taskService.retryTask(selectedExecutionNode.taskId);
-      await refreshInstanceAndLogs();
-    } catch (e) {
-      console.error("Task retry failed:", e);
-    }
+  const handleRetryTask = (taskId: string | null) => {
+    if (!taskId) return;
+    setRetryDialogOpen(true);
   };
 
   return (
@@ -161,12 +158,10 @@ export default function InstanceDetailPage() {
             canPause={canPause}
             canResume={canResume}
             canTerminate={canTerminate}
-            canRetry={canRetry}
             onReload={handleReload}
             onPause={handlePause}
             onResume={handleResume}
             onTerminate={handleTerminate}
-            onRetry={handleRetry}
           />
         }
       />
@@ -230,21 +225,28 @@ export default function InstanceDetailPage() {
           >
             <ExecutionFlowCard
               nodes={orderedExecutions}
-              loading={logsLoading}
+              loading={sequenceLoading}
               selectedNodeId={selectedNodeId}
               onSelectNode={setSelectedNodeId}
               currentTaskNodeClientId={currentTask?.nodeId ?? null}
+              onRetryTask={handleRetryTask}
+              onReviewUserTask={handleReviewTaskById}
             />
             <NodeExecutionDetailsCard
               nodes={orderedExecutions}
               selectedNodeId={selectedNodeId}
-              onReviewTask={showReviewAction ? handleReviewTask : undefined}
-              onRetryTask={
-                selectedExecutionNode?.status === "failed"
-                  ? handleRetryTask
+              selectedTaskDetail={selectedTaskDetail}
+              onReviewTask={
+                showReviewActionInTaskDetail
+                  ? handleReviewSelectedTask
                   : undefined
               }
-              loading={logsLoading}
+              onRetryTask={
+                selectedExecutionNode?.status === "failed"
+                  ? () => handleRetryTask(selectedExecutionNode.taskId)
+                  : undefined
+              }
+              loading={taskDetailLoading}
             />
           </Box>
 

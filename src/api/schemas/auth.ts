@@ -6,14 +6,22 @@ export const SystemSchema = z.object({
   name: z.string(),
   orgName: z.string(),
   contactEmail: z.string().email(),
-  environmentType: EnvironmentTypeSchema,
-  status: z.literal('active').optional(),
+  environment: EnvironmentTypeSchema.optional(),
   createdAt: z.string().datetime().optional(),
   updatedAt: z.string().datetime().optional(),
 });
 
+export const RegisterSystemSchema = z.object({
+  id: z.string().uuidv4(),
+  name: z.string(),
+  orgName: z.string(),
+  contactEmail: z.string().email(),
+  environments: z.array(EnvironmentTypeSchema),
+  createdAt: z.string().datetime(),
+});
+
 export const LoginRequestSchema = z.object({
-  email: z.string().email(),
+  email: z.email(),
   password: z.string().min(1),
 });
 
@@ -35,13 +43,13 @@ export const RefreshTokenResponseSchema = z.object({
 export const RegisterRequestSchema = z.object({
   name: z.string().max(255),
   orgName: z.string().max(255),
-  contactEmail: z.string().email(),
+  contactEmail: z.email(),
   password: z.string().min(8),
   description: z.string().optional(),
 });
 
 export const RegisterResponseSchema = z.object({
-  system: SystemSchema,
+  system: RegisterSystemSchema,
 });
 
 export const ApiKeySchema = z.object({
@@ -50,20 +58,19 @@ export const ApiKeySchema = z.object({
   isRevoked: z.boolean(),
   createdAt: z.string().datetime(),
   revokedAt: z.string().datetime().nullable(),
-  environmentType: EnvironmentTypeSchema.optional(),
+  environment: EnvironmentTypeSchema,
 });
 
 export const CreateApiKeyResponseSchema = z.object({
   id: z.string().uuidv4(),
-  label: z.string().nullable().optional(),
+  label: z.string(),
   apiKey: z.string(),
-  environment: EnvironmentTypeSchema.optional(),
-  environmentType: EnvironmentTypeSchema.optional(),
+  environment: EnvironmentTypeSchema,
   createdAt: z.string().datetime(),
 });
 
 export const CreateApiKeyRequestSchema = z.object({
-  label: z.string().min(1),
+  label: z.string().min(1).optional(),
   environment: EnvironmentTypeSchema,
 });
 

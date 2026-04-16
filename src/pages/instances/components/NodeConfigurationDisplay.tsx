@@ -7,6 +7,29 @@ interface NodeConfigurationDisplayProps {
   config: any;
 }
 
+function isConfigEmpty(config: any): boolean {
+  if (!config || typeof config !== 'object') {
+    return true;
+  }
+
+  const values = Object.values(config as Record<string, unknown>);
+  if (values.length === 0) {
+    return true;
+  }
+
+  return values.every((value) => {
+    if (Array.isArray(value)) {
+      return value.length === 0;
+    }
+
+    if (value && typeof value === 'object') {
+      return Object.keys(value as Record<string, unknown>).length === 0;
+    }
+
+    return value === null || value === undefined || value === '';
+  });
+}
+
 function ConfigSection({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <Box sx={{ mt: 2 }}>
@@ -147,6 +170,58 @@ function ServiceNodeConfig({ config }: { config: any }) {
   );
 }
 
+function EmailNodeConfig({ config }: { config: any }) {
+  return (
+    <>
+      <ConfigSection title="Provider & Sender">
+        <ConfigRow label="Provider" value={config.provider} mono />
+        <ConfigRow label="Sender" value={config.senderExpression} mono />
+        <ConfigRow label="Auth User" value={config.authUserExpression} mono />
+      </ConfigSection>
+
+      <ConfigSection title="Recipients">
+        <ConfigRow
+          label="To"
+          value={(config.to ?? [])
+            .map((entry: any) => entry.valueExpression)
+            .join(", ")}
+          mono
+        />
+        <ConfigRow
+          label="Cc"
+          value={(config.cc ?? [])
+            .map((entry: any) => entry.valueExpression)
+            .join(", ")}
+          mono
+        />
+        <ConfigRow
+          label="Bcc"
+          value={(config.bcc ?? [])
+            .map((entry: any) => entry.valueExpression)
+            .join(", ")}
+          mono
+        />
+      </ConfigSection>
+
+      <ConfigSection title="Message">
+        <ConfigRow label="Subject" value={config.subjectExpression} mono />
+        <ConfigRow label="Body" value={config.bodyExpression} mono />
+      </ConfigSection>
+
+      <ConfigSection title="Delivery Policy">
+        <ConfigRow label="Max Attempts" value={config.maxAttempts} />
+        {config.backoff && (
+          <ConfigRow
+            label="Backoff"
+            value={`${config.backoff.type} / ${config.backoff.delay}${config.backoff.unit}`}
+          />
+        )}
+        <ConfigRow label="Failure Policy" value={config.failurePolicy} mono />
+      </ConfigSection>
+    </>
+  );
+}
+
 function ScriptNodeConfig({ config }: { config: any }) {
   return (
     <>
@@ -247,7 +322,24 @@ function EndNodeConfig({ config }: { config: any }) {
 }
 
 export function NodeConfigurationDisplay({ nodeType, config }: NodeConfigurationDisplayProps) {
-  if (!config) return null;
+  if (isConfigEmpty(config)) {
+    return (
+      <Box
+        sx={{
+          py: 2,
+          px: 1,
+          border: '1px dashed',
+          borderColor: 'divider',
+          borderRadius: 2,
+          textAlign: 'center',
+        }}
+      >
+        <Typography fontSize={12} color="text.secondary">
+          No configuration available for this node.
+        </Typography>
+      </Box>
+    );
+  }
 
   switch (nodeType.toLowerCase()) {
     case 'start':
@@ -258,6 +350,9 @@ export function NodeConfigurationDisplay({ nodeType, config }: NodeConfiguration
     case 'service':
     case 'service_task':
       return <ServiceNodeConfig config={config} />;
+    case 'email':
+    case 'email_task':
+      return <EmailNodeConfig config={config} />;
     case 'script':
     case 'script_task':
       return <ScriptNodeConfig config={config} />;

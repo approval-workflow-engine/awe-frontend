@@ -20,8 +20,6 @@ import {
   DialogActions,
   Skeleton,
   Chip,
-  Menu,
-  MenuItem,
 } from "@mui/material";
 import EditIcon from "@mui/icons-material/Edit";
 import VisibilityIcon from "@mui/icons-material/Visibility";
@@ -30,7 +28,7 @@ import BoltIcon from "@mui/icons-material/Bolt";
 import PowerSettingsNewIcon from "@mui/icons-material/PowerSettingsNew";
 import ControlPointDuplicateIcon from "@mui/icons-material/ControlPointDuplicate";
 import AddIcon from "@mui/icons-material/Add";
-import ArrowDropDownIcon from "@mui/icons-material/ArrowDropDown";
+import ArrowUpwardIcon from "@mui/icons-material/ArrowUpward";
 import { workflowService } from "../../api/services/workflow";
 import { useApiCall } from "../../hooks/useApiCall";
 import PageHeader from "../../components/common/PageHeader";
@@ -39,7 +37,6 @@ import { useBackNavigation } from "../../hooks/useBackNavigation";
 import type { Workflow, WorkflowVersion } from "../../types";
 import type { Pagination } from "../../api/schemas/common";
 import {
-  ENVIRONMENT_OPTIONS,
   getActiveEnvironmentType,
   type EnvironmentType,
 } from "../../constants/environment";
@@ -95,16 +92,37 @@ const ACTION_CONFIG: Record<
   },
 };
 
-const ALLOWED_PROMOTION_TARGETS: Record<EnvironmentType, EnvironmentType[]> = {
-  development: ["staging", "production"],
-  staging: ["production"],
-  production: [],
+const NEXT_PROMOTION_TARGET: Record<EnvironmentType, EnvironmentType | null> = {
+  development: "staging",
+  staging: "production",
+  production: null,
 };
 
 const ENV_DISPLAY: Record<EnvironmentType, string> = {
   development: "Development",
   staging: "Staging",
   production: "Production",
+};
+
+const isEnvironmentType = (value: unknown): value is EnvironmentType => {
+  return value === "development" || value === "staging" || value === "production";
+};
+
+const getPromotionSourceEnvironment = (
+  versionEnvironment: string | undefined,
+  fallbackEnvironment: EnvironmentType,
+): EnvironmentType => {
+  if (isEnvironmentType(versionEnvironment)) {
+    return versionEnvironment;
+  }
+
+  return fallbackEnvironment;
+};
+
+const getNextPromotionTargetEnvironment = (
+  sourceEnvironment: EnvironmentType,
+): EnvironmentType | null => {
+  return NEXT_PROMOTION_TARGET[sourceEnvironment] ?? null;
 };
 
 export default function WorkflowVersionsPage() {
@@ -127,17 +145,22 @@ export default function WorkflowVersionsPage() {
     action: LifecycleAction;
   } | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
-  const [promoteAnchorEl, setPromoteAnchorEl] = useState<null | HTMLElement>(
-    null,
-  );
   const [promoteTarget, setPromoteTarget] = useState<WorkflowVersion | null>(
     null,
   );
   const [promoteLoading, setPromoteLoading] = useState(false);
 
   const activeEnvironmentType = getActiveEnvironmentType();
-  const allowedPromotionTargets =
-    ALLOWED_PROMOTION_TARGETS[activeEnvironmentType] ?? [];
+
+  const promoteSourceEnvironment = promoteTarget
+    ? getPromotionSourceEnvironment(
+        promoteTarget.environment,
+        activeEnvironmentType,
+      )
+    : null;
+  const promoteDestinationEnvironment = promoteSourceEnvironment
+    ? getNextPromotionTargetEnvironment(promoteSourceEnvironment)
+    : null;
 
   const fetchData = useCallback(
     async (pageNum = 1, pageSize = 20) => {
@@ -229,38 +252,22 @@ export default function WorkflowVersionsPage() {
     setActionTarget({ version, action });
   };
 
-  const openPromoteMenu = (
-    event: React.MouseEvent<HTMLElement>,
-    version: WorkflowVersion,
-  ) => {
-    setPromoteAnchorEl(event.currentTarget);
-    setPromoteTarget(version);
-  };
-
-  const closePromoteMenu = () => {
-    if (promoteLoading) return;
-    setPromoteAnchorEl(null);
-    setPromoteTarget(null);
-  };
-
-  const handlePromote = async (targetEnvironmentType: EnvironmentType) => {
-    if (!promoteTarget) return;
+  const handlePromote = async () => {
+    if (!promoteTarget || !promoteSourceEnvironment || !promoteDestinationEnvironment) {
+      return;
+    }
 
     setPromoteLoading(true);
     const promoted = await call(
-      () =>
-        workflowService.promoteWorkflowVersion(
-          promoteTarget.id,
-          targetEnvironmentType,
-        ),
+      () => workflowService.promoteWorkflowVersion(promoteTarget.id),
       {
-        successMsg: `v${promoteTarget.versionNumber} promoted to ${targetEnvironmentType}.`,
+        successMsg: `v${promoteTarget.versionNumber} promoted from ${ENV_DISPLAY[promoteSourceEnvironment]} to ${ENV_DISPLAY[promoteDestinationEnvironment]}.`,
       },
     );
     setPromoteLoading(false);
 
     if (promoted) {
-      closePromoteMenu();
+      setPromoteTarget(null);
       fetchData(page + 1, limit);
     }
   };
@@ -481,6 +488,19 @@ export default function WorkflowVersionsPage() {
                   const isCommitted = st === "published";
                   const isActive = st === "active";
                   const canClone = isCommitted || isActive;
+                  const promotionSourceEnvironment = getPromotionSourceEnvironment(
+                    v.environment,
+                    activeEnvironmentType,
+                  );
+                  const promotionTargetEnvironment = getNextPromotionTargetEnvironment(
+                    promotionSourceEnvironment,
+                  );
+                  const canPromote =
+                    (isCommitted || isActive) &&
+                    Boolean(promotionTargetEnvironment);
+                  const promoteTooltip = promotionTargetEnvironment
+                    ? `Promote from ${ENV_DISPLAY[promotionSourceEnvironment]} to ${ENV_DISPLAY[promotionTargetEnvironment]}`
+                    : `No valid promotion path from ${ENV_DISPLAY[promotionSourceEnvironment]}`;
                   const statusStyle = STATUS_COLORS[st] ?? {
                     bg: "action.selected",
                     color: "text.secondary",
@@ -536,38 +556,28 @@ export default function WorkflowVersionsPage() {
                           justifyContent="flex-end"
                           gap={0.75}
                         >
-                          {(isCommitted || isActive) &&
-                            allowedPromotionTargets.length > 0 && (
-                            <Button
-                              size="small"
-                              variant="outlined"
-                              disabled={
-                                promoteLoading || allowedPromotionTargets.length === 0
-                              }
-                              endIcon={
-                                promoteLoading && promoteTarget?.id === v.id ? (
-                                  <CircularProgress size={12} />
-                                ) : (
-                                  <ArrowDropDownIcon />
-                                )
-                              }
-                              onClick={(event) => openPromoteMenu(event, v)}
-                              sx={{
-                                minWidth: 92,
-                                height: 28,
-                                borderRadius: "8px",
-                                fontSize: 11,
-                                textTransform: "none",
-                                borderColor: "divider",
-                                color: "text.secondary",
-                                "&.Mui-disabled": {
-                                  color: "text.disabled",
-                                  borderColor: "divider",
-                                },
-                              }}
-                            >
-                              Promote
-                            </Button>
+                          {(isCommitted || isActive) && (
+                            <Tooltip title={promoteTooltip}>
+                              <span>
+                                <IconButton
+                                  size="small"
+                                  disabled={!canPromote || promoteLoading}
+                                  onClick={() => setPromoteTarget(v)}
+                                  sx={{
+                                    color: "text.disabled",
+                                    "&:hover": {
+                                      color: canPromote ? "#f59e0b" : "text.disabled",
+                                    },
+                                  }}
+                                >
+                                  {promoteLoading && promoteTarget?.id === v.id ? (
+                                    <CircularProgress size={14} />
+                                  ) : (
+                                    <ArrowUpwardIcon fontSize="small" />
+                                  )}
+                                </IconButton>
+                              </span>
+                            </Tooltip>
                           )}
 
                           <Tooltip
@@ -754,69 +764,69 @@ export default function WorkflowVersionsPage() {
         )}
       </Dialog>
 
-      <Menu
-        anchorEl={promoteAnchorEl}
-        open={!!promoteAnchorEl}
-        onClose={closePromoteMenu}
-        anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
-        transformOrigin={{ vertical: "top", horizontal: "right" }}
-        PaperProps={{
-          sx: {
-            minWidth: 240,
-            borderRadius: "10px",
-            border: "1px solid",
-            borderColor: "divider",
-            mt: 0.5,
-          },
+      <Dialog
+        open={!!promoteTarget}
+        onClose={() => {
+          if (!promoteLoading) setPromoteTarget(null);
         }}
+        maxWidth="xs"
+        fullWidth
       >
-        <MenuItem disabled sx={{ opacity: 1, py: 1.1 }}>
-          <Box>
-            <Typography sx={{ fontSize: 11, color: "text.disabled" }}>
-              Promote from
-            </Typography>
-            <Typography sx={{ fontSize: 12.5, fontWeight: 600 }}>
-              {ENV_DISPLAY[activeEnvironmentType]}
-            </Typography>
-          </Box>
-        </MenuItem>
+        {promoteTarget && promoteSourceEnvironment && (
+          <>
+            <DialogTitle
+              sx={{
+                fontFamily: "'Syne', sans-serif",
+                fontWeight: 700,
+                fontSize: 16,
+              }}
+            >
+              Promote v{promoteTarget.versionNumber}?
+            </DialogTitle>
+            <DialogContent sx={{ pt: "8px !important" }}>
+              <Typography sx={{ fontSize: 13, color: "text.secondary" }}>
+                {promoteDestinationEnvironment
+                  ? `This will promote this version from ${ENV_DISPLAY[promoteSourceEnvironment]} to ${ENV_DISPLAY[promoteDestinationEnvironment]}.`
+                  : `No valid promotion path exists from ${ENV_DISPLAY[promoteSourceEnvironment]}.`}
+              </Typography>
+            </DialogContent>
+            <DialogActions sx={{ px: 3, pb: 2 }}>
+              <Button
+                size="small"
+                onClick={() => setPromoteTarget(null)}
+                disabled={promoteLoading}
+                sx={{ color: "text.secondary" }}
+              >
+                Cancel
+              </Button>
 
-        {allowedPromotionTargets.length === 0 && (
-          <MenuItem disabled sx={{ opacity: 1 }}>
-            <Typography sx={{ fontSize: 12, color: "text.secondary" }}>
-              No valid promotion targets available.
-            </Typography>
-          </MenuItem>
+              <Button
+                variant="contained"
+                onClick={handlePromote}
+                disabled={!promoteDestinationEnvironment || promoteLoading}
+                sx={{
+                  borderRadius: "8px",
+                  fontWeight: 600,
+                  backgroundColor: "#f59e0b",
+                  color: "#fff",
+                  "&:hover": {
+                    backgroundColor: "#f59e0b",
+                    filter: "brightness(0.9)",
+                  },
+                }}
+              >
+                {promoteLoading ? (
+                  <CircularProgress size={14} sx={{ color: "#fff" }} />
+                ) : promoteDestinationEnvironment ? (
+                  `Promote to ${ENV_DISPLAY[promoteDestinationEnvironment]}`
+                ) : (
+                  "Promotion unavailable"
+                )}
+              </Button>
+            </DialogActions>
+          </>
         )}
-
-        {ENVIRONMENT_OPTIONS.filter((environmentType) =>
-          allowedPromotionTargets.includes(environmentType),
-        ).map((environmentType) => (
-          <MenuItem
-            key={environmentType}
-            disabled={promoteLoading}
-            onClick={() => handlePromote(environmentType)}
-            sx={{
-              py: 1,
-              textTransform: "capitalize",
-              fontSize: 13,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              gap: 1,
-            }}
-          >
-            <Box>
-              <Typography sx={{ fontSize: 13, fontWeight: 500 }}>
-                {ENV_DISPLAY[environmentType]}
-              </Typography>
-              <Typography sx={{ fontSize: 11, color: "text.disabled" }}>
-                {ENV_DISPLAY[activeEnvironmentType]} -&gt; {ENV_DISPLAY[environmentType]}
-              </Typography>
-            </Box>
-          </MenuItem>
-        ))}
-      </Menu>
+      </Dialog>
     </Box>
   );
 }

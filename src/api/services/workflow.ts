@@ -11,6 +11,7 @@ import {
   WorkflowVersionCreateResponseSchema,
   WorkflowVersionUpdateResponseSchema,
   WorkflowVersionStatusResponseSchema,
+  WorkflowVersionPromoteResponseSchema,
   WorkflowVersionCloneResponseSchema,
   CreateVersionRequestSchema,
   UpdateVersionRequestSchema,
@@ -27,6 +28,7 @@ import {
   type WorkflowVersionCreateResponse,
   type WorkflowVersionUpdateResponse,
   type WorkflowVersionStatusResponse,
+  type WorkflowVersionPromoteResponse,
   type WorkflowVersionCloneResponse,
   type CreateVersionRequest,
   type UpdateVersionRequest,
@@ -34,7 +36,6 @@ import {
   type PaginationParams,
 } from "../schemas";
 import { z } from "zod";
-import type { EnvironmentType } from "../../constants/environment";
 
 export class WorkflowService {
   async getWorkflows(params?: PaginationParams): Promise<WorkflowsResponse> {
@@ -160,12 +161,11 @@ export class WorkflowService {
 
   async promoteWorkflowVersion(
     versionId: string,
-    targetEnvironmentType: EnvironmentType,
-  ): Promise<unknown> {
+  ): Promise<WorkflowVersionPromoteResponse> {
     return apiClient.post(
       `/workflows/versions/${versionId}/promote`,
-      { environmentType: targetEnvironmentType },
-      z.unknown(),
+      {},
+      WorkflowVersionPromoteResponseSchema,
       undefined,
     );
   }

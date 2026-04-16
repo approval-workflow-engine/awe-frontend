@@ -23,6 +23,32 @@ import NodeCard from "./canvas/NodeCard";
 const CANVAS_W = 3200;
 const CANVAS_H = 2000;
 
+function getDefaultNodeConfig(nodeType: string): Record<string, unknown> {
+  if (nodeType === "email_task") {
+    return {
+      provider: "google_smtp",
+      senderExpression: "",
+      authUserExpression: "",
+      authPassExpression: "",
+      to: [{ valueExpression: "" }],
+      cc: [],
+      bcc: [],
+      subjectExpression: "",
+      bodyExpression: "",
+      maxAttempts: 1,
+      backoff: {
+        type: "fixed",
+        delay: 1,
+        unit: "second",
+      },
+      failurePolicy: "fail",
+      responseMap: [],
+    };
+  }
+
+  return {};
+}
+
 interface CanvasPanelProps {
   nodes: CanvasNode[];
   edges: CanvasEdge[];
@@ -204,7 +230,7 @@ export default function CanvasPanel({
         id: generateId(nodeType),
         type: nodeType,
         label: getNodeTypeLabel(nodeType),
-        config: {},
+        config: getDefaultNodeConfig(nodeType),
         x,
         y,
       });

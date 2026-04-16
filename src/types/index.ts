@@ -21,8 +21,7 @@ export interface User {
   name: string;
   orgName: string;
   contactEmail: string;
-  environmentType?: string;
-  status?: string;
+  environment?: string;
   createdAt?: string;
   apiKeys?: ApiKey[];
 }
@@ -33,7 +32,7 @@ export interface ApiKey {
   isRevoked: boolean;
   createdAt: string;
   revokedAt: string | null;
-  environmentType?: string;
+  environment?: string;
 }
 
 export interface LoginPayload {
@@ -59,14 +58,29 @@ export interface RegisterResponse {
   apiKey?: string;
 }
 
+export interface WorkflowLatestVersion {
+  latestVersionId: string | null;
+  status: VersionStatus | null;
+  latestVersionNumber?: number | null;
+}
+
+export interface WorkflowVersionSummary {
+  id: string;
+  description?: string | null;
+  version: number;
+  status: VersionStatus;
+  createdAt: string;
+  updatedAt: string;
+  publishedAt?: string | null;
+}
+
 export interface Workflow {
   id: string;
   name: string;
-  description?: string;
-  environmentType?: string;
-  latestVersionId?: string | null;
-  status?: string | null;
-  versions?: WorkflowVersion[];
+  description?: string | null;
+  environment?: string;
+  latestVersion?: WorkflowLatestVersion;
+  versions?: WorkflowVersionSummary[];
   createdAt: string;
   updatedAt?: string;
 }
@@ -77,7 +91,7 @@ export interface WorkflowVersion {
   id: string;
   workflowId: string;
   versionNumber: number;
-  environmentType?: string;
+  environment?: string;
   status: VersionStatus;
   definition?: WorkflowDefinition;
   nodes?: WorkflowNode[];
@@ -357,7 +371,7 @@ export interface SecretProvider {
 export interface Secret {
   id?: string;
   providerId: string;
-  environmentType: string;
+  environment: string;
   label: string;
   key: string;
   created_on?: string;

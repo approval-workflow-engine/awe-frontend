@@ -5,7 +5,8 @@ import {
   CreateInstanceResponseSchema,
   CreateInstanceRequestSchema,
   InstanceActionResponseSchema,
-  ExecutionLogsResponseSchema,
+  ExecutionSequenceResponseSchema,
+  TaskExecutionDetailResponseSchema,
   RetryConstantsResponseSchema,
   RetryInstanceRequestSchema,
   PaginationParamsSchema,
@@ -14,7 +15,8 @@ import {
   type CreateInstanceResponse,
   type CreateInstanceRequest,
   type InstanceActionResponse,
-  type ExecutionLogsResponse,
+  type ExecutionSequenceResponse,
+  type TaskExecutionDetailResponse,
   type RetryConstantsResponse,
   type RetryInstanceRequest,
   type PaginationParams,
@@ -69,8 +71,18 @@ export class InstanceService {
     );
   }
 
-  async getExecutionLogs(id: string): Promise<ExecutionLogsResponse> {
-    return apiClient.get(`/instances/${id}/executions`, ExecutionLogsResponseSchema);
+  async getExecutionSequence(id: string): Promise<ExecutionSequenceResponse> {
+    return apiClient.get(
+      `/instances/${id}/execution-sequence`,
+      ExecutionSequenceResponseSchema,
+    );
+  }
+
+  async getTaskDetail(id: string, taskId: string): Promise<TaskExecutionDetailResponse> {
+    return apiClient.get(
+      `/instances/${id}/tasks/${taskId}`,
+      TaskExecutionDetailResponseSchema,
+    );
   }
 }
 

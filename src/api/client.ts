@@ -65,40 +65,75 @@ class ApiClient {
         const activeEnvironmentType =
           getActiveEnvironmentType() || DEFAULT_ENVIRONMENT;
         const url = config.url ?? "";
+        const path = url.split("?")[0] ?? "";
+        const method = (config.method ?? "GET").toUpperCase();
+        const isTargetedNoEnvironmentEndpoint = (() => {
+          if (method === "POST" || method === "PATCH" || method === "DELETE") {
+            if (
+              (method === "POST" && /^\/workflows\/[^/]+\/versions$/.test(path)) ||
+              (method === "PATCH" && /^\/workflows\/[^/]+$/.test(path)) ||
+              (method === "POST" && /^\/workflows\/versions\/[^/]+\/(validate|publish|activate|deactivate|clone|promote)$/.test(path)) ||
+              (method === "PATCH" && /^\/workflows\/versions\/[^/]+$/.test(path)) ||
+              (method === "DELETE" && /^\/workflows\/[^/]+$/.test(path)) ||
+              (method === "POST" && /^\/instances$/.test(path)) ||
+              (method === "POST" && /^\/instances\/[^/]+\/(resume|pause|terminate|retry)$/.test(path)) ||
+              (method === "POST" && /^\/tasks\/[^/]+\/(complete|retry)$/.test(path))
+            ) {
+              return true;
+            }
+          }
+
+          if (method === "GET") {
+            return (
+              /^\/workflows\/versions\/[^/]+$/.test(path) ||
+              /^\/workflows\/[^/]+\/versions$/.test(path) ||
+              /^\/workflows\/[^/]+$/.test(path) ||
+              /^\/instances\/[^/]+$/.test(path) ||
+              /^\/instances\/[^/]+\/execution-sequence$/.test(path) ||
+              /^\/instances\/[^/]+\/tasks\/[^/]+$/.test(path) ||
+              /^\/instances\/[^/]+\/constants$/.test(path) ||
+              /^\/tasks\/[^/]+$/.test(path) ||
+              /^\/audit\/[^/]+$/.test(path)
+            );
+          }
+
+          return false;
+        })();
         const shouldSkipEnvironmentFilter =
-          url.startsWith("/systems/api-keys") ||
+          (method === "GET" && url.startsWith("/systems/api-keys")) ||
           url.startsWith("/systems/me") ||
           url.startsWith("/auth/") ||
-          url.startsWith("/systems/register");
+          url.startsWith("/systems/register") ||
+          isTargetedNoEnvironmentEndpoint;
 
         if (!shouldSkipEnvironmentFilter) {
-          if ((config.method ?? "GET").toUpperCase() === "GET") {
-            // GET: send environmentType as query parameter
+          if (method === "GET") {
+            // GET: send environment as query parameter
             if (!config.params) {
-              config.params = { environmentType: activeEnvironmentType };
+              config.params = { environment: activeEnvironmentType };
             } else if (
               !(config.params instanceof URLSearchParams) &&
               typeof config.params === "object" &&
-              !("environmentType" in config.params)
+              !("environment" in config.params)
             ) {
               config.params = {
                 ...(config.params as Record<string, unknown>),
-                environmentType: activeEnvironmentType,
+                environment: activeEnvironmentType,
               };
             } else if (config.params instanceof URLSearchParams) {
-              if (!config.params.has("environmentType")) {
-                config.params.set("environmentType", activeEnvironmentType);
+              if (!config.params.has("environment")) {
+                config.params.set("environment", activeEnvironmentType);
               }
             }
           } else {
-            // Non-GET: inject environmentType into request body
+            // Non-GET: inject environment into request body
             if (config.data == null) {
-              config.data = { environmentType: activeEnvironmentType };
+              config.data = { environment: activeEnvironmentType };
             } else if (typeof config.data === "string") {
               try {
                 const parsed = JSON.parse(config.data);
-                if (!("environmentType" in parsed)) {
-                  parsed.environmentType = activeEnvironmentType;
+                if (!("environment" in parsed)) {
+                  parsed.environment = activeEnvironmentType;
                 }
                 config.data = JSON.stringify(parsed);
               } catch {
@@ -107,9 +142,9 @@ class ApiClient {
             } else if (
               typeof config.data === "object" &&
               config.data !== null &&
-              !("environmentType" in (config.data as Record<string, unknown>))
+              !("environment" in (config.data as Record<string, unknown>))
             ) {
-              (config.data as Record<string, unknown>).environmentType =
+              (config.data as Record<string, unknown>).environment =
                 activeEnvironmentType;
             }
           }
