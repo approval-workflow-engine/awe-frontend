@@ -23,9 +23,11 @@ interface UseBuilderActionsProps {
 
 interface UseBuilderActionsReturn {
   saving: boolean;
+  validating: boolean;
   committing: boolean;
   activating: boolean;
   deactivating: boolean;
+  releasing: boolean;
   validationResult: ValidationResult | null;
   setValidationResult: React.Dispatch<
     React.SetStateAction<ValidationResult | null>
@@ -41,8 +43,10 @@ interface UseBuilderActionsReturn {
   deactivateConfirmOpen: boolean;
   setDeactivateConfirmOpen: React.Dispatch<React.SetStateAction<boolean>>;
   handleSaveDraft: () => Promise<boolean>;
+  handleValidateDefinition: () => Promise<void>;
   handleCommit: () => Promise<void>;
   handleActivate: () => Promise<void>;
+  handleCommitAndActivate: () => Promise<void>;
   handleDeactivate: () => Promise<void>;
   handleCopyPayload: () => void;
 }
@@ -65,9 +69,11 @@ export function useBuilderActions({
   const { enqueueSnackbar } = useSnackbar();
 
   const [saving, setSaving] = useState(false);
+  const [validating, setValidating] = useState(false);
   const [committing, setCommitting] = useState(false);
   const [activating, setActivating] = useState(false);
   const [deactivating, setDeactivating] = useState(false);
+  const [releasing, setReleasing] = useState(false);
   const [validationResult, setValidationResult] =
     useState<ValidationResult | null>(null);
   const [errorsPopoverOpen, setErrorsPopoverOpen] = useState(false);
@@ -82,50 +88,6 @@ export function useBuilderActions({
   const [activateConfirmOpen, setActivateConfirmOpen] = useState(false);
   const [deactivateConfirmOpen, setDeactivateConfirmOpen] = useState(false);
 
-  const saveDraft = async (): Promise<{
-    versionId: string | null;
-    versionNumber: number | null;
-  }> => {
-    if (!workflowId) return { versionId: null, versionNumber: null };
-    const payload = canvasToVersionPayload(nodes, edges);
-
-    const res = savedVersionId
-      ? await call(
-          () => workflowService.updateVersion(savedVersionId, payload as never),
-          { showError: true },
-        )
-      : await call(
-          () => workflowService.createVersion(workflowId, payload as never),
-          { showError: true },
-        );
-
-    if (!res) return { versionId: null, versionNumber: null };
-
-    const body = res as {
-      id?: string;
-      versionId?: string;
-      version?: number;
-      versionNumber?: number;
-    };
-
-    const versionId = body.id ?? body.versionId ?? null;
-    const versionNumber =
-      (typeof body.version === "number" ? body.version : undefined) ??
-      body.versionNumber ??
-      null;
-
-    setSavedVersionId(versionId);
-    setSavedVersionNumber(versionNumber);
-
-    if (versionNumber !== null) {
-      setLoadedVersionNumber(versionNumber);
-      setVersionStatus("draft");
-    }
-
-    setIsDirty(false);
-    return { versionId, versionNumber };
-  };
-
   const handleSaveDraft = async (): Promise<boolean> => {
     if (!workflowId) return false;
 
@@ -133,40 +95,92 @@ export function useBuilderActions({
     setValidationResult(null);
     setErrorsPopoverOpen(false);
 
-    const { versionId, versionNumber } = await saveDraft();
-    if (!versionId) {
+    const payload = canvasToVersionPayload(nodes, edges);
+    const saveResponse = await call(
+      () =>
+        workflowService.saveVersion({
+          workflowId,
+          versionId: savedVersionId,
+          description: payload.description ?? null,
+          nodes: payload.nodes,
+          edges: payload.edges,
+        } as never),
+      { showError: true },
+    );
+
+    if (!saveResponse) {
       setSaving(false);
       return false;
     }
 
-    const res = await call(() => workflowService.validateVersion(versionId), {
-      showError: false,
-    });
-    const result = res
-      ? (res as ValidationResult)
-      : {
-          valid: false,
-          errors: [{ code: -1, message: "Validation request failed" }],
-        };
+    const result: ValidationResult = {
+      valid: saveResponse.validation.valid,
+      errors: saveResponse.validation.errors,
+      warnings: saveResponse.validation.warnings,
+      versionId: saveResponse.save.versionId,
+      version: saveResponse.save.version,
+      status: saveResponse.validation.status,
+    };
 
+    setSavedVersionId(saveResponse.save.versionId);
+    setSavedVersionNumber(saveResponse.save.version);
+    setLoadedVersionNumber(saveResponse.save.version);
+    setVersionStatus(saveResponse.validation.status);
     setValidationResult(result);
-    setVersionStatus(result.valid ? "valid" : "draft");
+    setErrorsPopoverOpen(!result.valid);
+    setIsDirty(false);
+
+    enqueueSnackbar(
+      `Draft ${saveResponse.save.operation} (v${saveResponse.save.version})`,
+      { variant: "success" },
+    );
     enqueueSnackbar(
       result.valid
-        ? "Saved - No validation errors"
-        : "Saved - Validation errors present",
-      { variant: result.valid ? "success" : "warning" },
+        ? "Validation passed with no errors"
+        : `Validation found ${result.errors.length} error${result.errors.length !== 1 ? "s" : ""}`,
+      { variant: result.valid ? "info" : "warning" },
     );
-
-    if (!result.valid) setErrorsPopoverOpen(true);
-
-    if (versionNumber !== null && !savedVersionNumber) {
-      setSavedVersionNumber(versionNumber);
-    }
 
     setSaving(false);
     clearHistory();
     return true;
+  };
+
+  const handleValidateDefinition = async () => {
+    setValidating(true);
+
+    const payload = canvasToVersionPayload(nodes, edges);
+    const response = await call(
+      () =>
+        workflowService.validateWorkflow({
+          nodes: payload.nodes,
+          edges: payload.edges,
+        }),
+      { showError: true },
+    );
+
+    const result: ValidationResult = response
+      ? {
+          ...response,
+          warnings: response.warnings ?? [],
+        }
+      : {
+          valid: false,
+          errors: [{ code: -1, message: "Validation request failed" }],
+          warnings: [],
+        };
+
+    setValidationResult(result);
+    setErrorsPopoverOpen(!result.valid);
+
+    enqueueSnackbar(
+      result.valid
+        ? "Validation passed"
+        : `Validation found ${result.errors.length} error${result.errors.length !== 1 ? "s" : ""}`,
+      { variant: result.valid ? "info" : "warning" },
+    );
+
+    setValidating(false);
   };
 
   const handleCommit = async () => {
@@ -199,6 +213,40 @@ export function useBuilderActions({
     setActivating(false);
     setActivateConfirmOpen(false);
     if (res) navigate(`/workflows/${workflowId}/versions`);
+  };
+
+  const handleCommitAndActivate = async () => {
+    if (!savedVersionId || !workflowId) return;
+
+    setReleasing(true);
+
+    const committed = await call(
+      () => workflowService.updateVersionStatus(savedVersionId, "published"),
+      {
+        showError: true,
+      },
+    );
+
+    if (!committed) {
+      setReleasing(false);
+      return;
+    }
+
+    setVersionStatus("published");
+
+    const activated = await call(
+      () => workflowService.updateVersionStatus(savedVersionId, "active"),
+      {
+        successMsg: `v${savedVersionNumber ?? "-"} committed and activated.`,
+        showError: true,
+      },
+    );
+
+    setReleasing(false);
+
+    if (activated) {
+      navigate(`/workflows/${workflowId}/versions`);
+    }
   };
 
   const handleDeactivate = async () => {
@@ -234,9 +282,11 @@ export function useBuilderActions({
 
   return {
     saving,
+    validating,
     committing,
     activating,
     deactivating,
+    releasing,
     validationResult,
     setValidationResult,
     errorsPopoverOpen,
@@ -250,8 +300,10 @@ export function useBuilderActions({
     deactivateConfirmOpen,
     setDeactivateConfirmOpen,
     handleSaveDraft,
+    handleValidateDefinition,
     handleCommit,
     handleActivate,
+    handleCommitAndActivate,
     handleDeactivate,
     handleCopyPayload,
   };

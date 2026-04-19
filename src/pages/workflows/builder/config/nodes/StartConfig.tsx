@@ -4,6 +4,7 @@ import {
   Typography,
   IconButton,
   TextField,
+  Button,
   Divider,
   ToggleButton,
   ToggleButtonGroup,
@@ -19,6 +20,7 @@ import AddRowButton from "../shared/AddRowButton";
 import { CollapsibleSection } from "../shared/CollapsibleSection";
 import { EXPR_FONT } from "../constants";
 import { generateId } from "../../utils/nodeHelpers";
+import DefaultValueInput from "../shared/DefaultValueInput";
 import type {
   CanvasNode,
   WorkflowInput,
@@ -38,6 +40,8 @@ interface InputDataMapRow {
   jsonPath: string;
   dataType: string;
   contextVariableName: string;
+  required?: boolean;
+  defaultValue?: unknown;
   fetchableId?: string;
 }
 
@@ -61,6 +65,30 @@ const VALID_TYPES: WorkflowInput["type"][] = [
   "boolean",
   "object",
 ];
+
+function getDefaultValueForType(dataType: string): unknown {
+  if (dataType === DataType.BOOLEAN) {
+    return false;
+  }
+
+  if (dataType === DataType.NUMBER) {
+    return 0;
+  }
+
+  if (dataType === DataType.NULL) {
+    return null;
+  }
+
+  if (dataType === DataType.OBJECT) {
+    return "{}";
+  }
+
+  if (dataType === DataType.LIST) {
+    return "[]";
+  }
+
+  return "";
+}
 
 export const ROW_FIELD_SX = {
   "& .MuiOutlinedInput-root": {
@@ -102,13 +130,14 @@ export default function StartConfig({
       });
       onChangeInputs(
         newRows
-          .filter((r) => r.contextVariableName.trim() !== "")
+          .filter((r) => !r.fetchableId && r.contextVariableName.trim() !== "")
           .map((r) => ({
             name: r.contextVariableName,
             type: VALID_TYPES.includes(r.dataType as WorkflowInput["type"])
               ? (r.dataType as WorkflowInput["type"])
               : "string",
-            required: true,
+            required: r.required !== false,
+            ...(r.required === false ? { defaultValue: r.defaultValue } : {}),
           })),
       );
     },
@@ -149,6 +178,7 @@ export default function StartConfig({
           jsonPath: "",
           dataType: DataType.STRING,
           contextVariableName: "",
+          required: true,
         },
       ],
       fetchables,
@@ -543,6 +573,8 @@ function DirectInputCard({ row, onUpdate, onRemove }: DirectInputCardProps) {
     row.contextVariableName.length > 0 &&
     !VALID_IDENT.test(row.contextVariableName);
 
+  const isRequired = row.required !== false;
+
   return (
     <Box
       sx={{
@@ -619,8 +651,65 @@ function DirectInputCard({ row, onUpdate, onRemove }: DirectInputCardProps) {
 
         <DataTypeSelect
           value={row.dataType || DataType.STRING}
-          onChange={(v) => onUpdate({ dataType: v })}
+          onChange={(v) =>
+            onUpdate({
+              dataType: v,
+              ...(isRequired ? {} : { defaultValue: getDefaultValueForType(v) }),
+            })
+          }
         />
+
+        <Box display="flex" gap={0.5}>
+          <Button
+            size="small"
+            variant={isRequired ? "contained" : "outlined"}
+            onClick={() => onUpdate({ required: true, defaultValue: undefined })}
+            sx={{
+              fontSize: 9,
+              height: 22,
+              borderRadius: "5px",
+              flex: 1,
+              textTransform: "none",
+            }}
+          >
+            Required
+          </Button>
+          <Button
+            size="small"
+            variant={!isRequired ? "contained" : "outlined"}
+            onClick={() =>
+              onUpdate({
+                required: false,
+                defaultValue:
+                  row.defaultValue === undefined
+                    ? getDefaultValueForType(row.dataType || DataType.STRING)
+                    : row.defaultValue,
+              })
+            }
+            sx={{
+              fontSize: 9,
+              height: 22,
+              borderRadius: "5px",
+              flex: 1,
+              textTransform: "none",
+            }}
+          >
+            Optional
+          </Button>
+        </Box>
+
+        {!isRequired && (
+          <Box>
+            <Typography sx={{ fontSize: 9, color: "text.secondary", mb: 0.25 }}>
+              Default Value
+            </Typography>
+            <DefaultValueInput
+              dataType={row.dataType || DataType.STRING}
+              value={row.defaultValue}
+              onChange={(v) => onUpdate({ defaultValue: v })}
+            />
+          </Box>
+        )}
       </Box>
     </Box>
   );

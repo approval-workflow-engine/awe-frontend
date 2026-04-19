@@ -61,6 +61,8 @@ export const WorkflowVersionDetailResponseSchema = z.object({
       z.object({
         jsonPath: z.string(),
         dataType: WorkflowInputSchema.shape.type,
+        required: z.boolean().optional(),
+        defaultValue: z.unknown().optional(),
       }),
     )
     .optional(),
@@ -221,9 +223,41 @@ export const ValidationErrorSchema = z.object({
   edgeId: z.string().optional(),
 });
 
+export const WorkflowVersionSaveRequestSchema = z.object({
+  workflowId: z.string(),
+  versionId: z.string().nullable().optional(),
+  description: z.string().nullable().optional(),
+  nodes: z.array(NodeSchema),
+  edges: z.array(EdgeSchema),
+});
+
+export const WorkflowVersionSaveStatusSchema = z.object({
+  operation: z.enum(["created", "updated"]),
+  successful: z.boolean(),
+  workflowId: z.string(),
+  versionId: z.string(),
+  version: z.number(),
+  status: WorkflowVersionStatusSchema,
+  savedAt: z.string().datetime(),
+});
+
+export const WorkflowVersionSaveValidationSchema = z.object({
+  successful: z.boolean(),
+  valid: z.boolean(),
+  status: WorkflowVersionStatusSchema,
+  errors: z.array(ValidationErrorSchema),
+  warnings: z.array(ValidationErrorSchema).default([]),
+});
+
+export const WorkflowVersionSaveResponseSchema = z.object({
+  save: WorkflowVersionSaveStatusSchema,
+  validation: WorkflowVersionSaveValidationSchema,
+});
+
 export const ValidationResultSchema = z.object({
   valid: z.boolean(),
   errors: z.array(ValidationErrorSchema),
+  warnings: z.array(ValidationErrorSchema).optional().default([]),
 });
 
 export type WorkflowVersionStatus = z.infer<typeof WorkflowVersionStatusSchema>;
@@ -266,6 +300,12 @@ export type WorkflowVersionPromoteResponse = z.infer<
 >;
 export type WorkflowVersionCloneResponse = z.infer<
   typeof WorkflowVersionCloneResponseSchema
+>;
+export type WorkflowVersionSaveRequest = z.infer<
+  typeof WorkflowVersionSaveRequestSchema
+>;
+export type WorkflowVersionSaveResponse = z.infer<
+  typeof WorkflowVersionSaveResponseSchema
 >;
 export type UpdateVersionStatusRequest = z.infer<
   typeof UpdateVersionStatusRequestSchema

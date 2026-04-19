@@ -166,6 +166,7 @@ export interface ValidationError {
 export interface ValidationResult {
   valid: boolean;
   errors: ValidationError[];
+  warnings?: ValidationError[];
   versionId?: string;
   version?: number;
   status?: string;
@@ -320,6 +321,8 @@ export interface UserTaskResponseField {
   label: string;
   type?: string;
   dataType?: string;
+  required?: boolean;
+  defaultValue?: unknown;
   uiType?:
     | "text"
     | "textarea"

@@ -12,6 +12,10 @@ import {
   ListItem,
   Tooltip,
   Divider,
+  Menu,
+  MenuItem,
+  ListItemIcon,
+  ListItemText,
 } from "@mui/material";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import UndoIcon from "@mui/icons-material/Undo";
@@ -29,6 +33,7 @@ import LightModeIcon from "@mui/icons-material/LightMode";
 import DarkModeIcon from "@mui/icons-material/DarkMode";
 import VisibilityIcon from "@mui/icons-material/Visibility";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
+import ArrowDropDownIcon from "@mui/icons-material/ArrowDropDown";
 import { secretService } from "../../api/services/secrets";
 
 import { workflowService } from "../../api/services/workflow";
@@ -82,6 +87,8 @@ export default function WorkflowBuilder() {
   const [clearConfirmOpen, setClearConfirmOpen] = useState(false);
   const [cloneConfirmOpen, setCloneConfirmOpen] = useState(false);
   const [cloning, setCloning] = useState(false);
+  const [releaseMenuAnchorEl, setReleaseMenuAnchorEl] =
+    useState<null | HTMLElement>(null);
   const [canvasLoading, setCanvasLoading] = useState(() => !!versionId);
   const [configPanelWidth, setConfigPanelWidth] = useState(320);
   const [isResizingConfig, setIsResizingConfig] = useState(false);
@@ -125,9 +132,11 @@ export default function WorkflowBuilder() {
 
   const {
     saving,
+    validating,
     committing,
     activating,
     deactivating,
+    releasing,
     validationResult,
     setValidationResult,
     errorsPopoverOpen,
@@ -141,8 +150,10 @@ export default function WorkflowBuilder() {
     deactivateConfirmOpen,
     setDeactivateConfirmOpen,
     handleSaveDraft,
+    handleValidateDefinition,
     handleCommit,
     handleActivate,
+    handleCommitAndActivate,
     handleDeactivate,
     handleCopyPayload,
   } = useBuilderActions({
@@ -361,6 +372,20 @@ export default function WorkflowBuilder() {
   const canCloneVersion =
     !!savedVersionId &&
     (versionStatus === "published" || versionStatus === "active");
+
+  const releaseMenuOpen = Boolean(releaseMenuAnchorEl);
+  const canCommit =
+    !isReadOnly &&
+    !!savedVersionId &&
+    versionStatus !== "draft" &&
+    !isDirty;
+  const canCommitAndActivate = canCommit && !!workflowId;
+  const canActivatePublished =
+    isReadOnly && versionStatus === "published" && !!savedVersionId;
+  const canDeactivateActive =
+    isReadOnly && versionStatus === "active" && !!savedVersionId;
+  const hasReleaseOptions =
+    !isReadOnly || canActivatePublished || canDeactivateActive;
 
   const handleCloneVersion = useCallback(async () => {
     if (!workflowId || !savedVersionId) return;
@@ -630,9 +655,9 @@ export default function WorkflowBuilder() {
               startIcon={
                 saving ? (
                   <CircularProgress size={12} />
-                ) : validationResult?.valid ? (
+                ) : validationResult?.versionId && validationResult.valid ? (
                   <CheckCircleIcon sx={{ fontSize: 14, color: "#22c55e" }} />
-                ) : validationResult ? (
+                ) : validationResult?.versionId ? (
                   <ErrorIcon sx={{ fontSize: 14, color: "#ef4444" }} />
                 ) : (
                   <SaveIcon sx={{ fontSize: 14 }} />
@@ -642,25 +667,48 @@ export default function WorkflowBuilder() {
                 fontSize: 12,
                 height: 30,
                 borderRadius: "8px",
-                color: validationResult?.valid
+                color: validationResult?.versionId && validationResult.valid
                   ? "#22c55e"
-                  : validationResult
+                  : validationResult?.versionId
                     ? "#ef4444"
                     : "text.secondary",
-                borderColor: validationResult?.valid
+                borderColor: validationResult?.versionId && validationResult.valid
                   ? "#22c55e"
-                  : validationResult
+                  : validationResult?.versionId
                     ? "#ef4444"
                     : "divider",
               }}
             >
               {saving
                 ? "Saving…"
-                : validationResult?.valid
+                : validationResult?.versionId && validationResult.valid
                   ? "Saved - No errors"
-                  : validationResult
+                  : validationResult?.versionId
                     ? `Saved - ${validationResult.errors.length} error${validationResult.errors.length !== 1 ? "s" : ""}`
                     : "Save"}
+            </Button>
+
+            <Button
+              size="small"
+              variant="outlined"
+              disabled={validating}
+              onClick={handleValidateDefinition}
+              startIcon={
+                validating ? (
+                  <CircularProgress size={12} />
+                ) : (
+                  <CheckCircleIcon sx={{ fontSize: 14 }} />
+                )
+              }
+              sx={{
+                fontSize: 12,
+                height: 30,
+                borderRadius: "8px",
+                borderColor: "divider",
+                color: "text.secondary",
+              }}
+            >
+              {validating ? "Validating…" : "Validate"}
             </Button>
 
             <Popover
@@ -725,47 +773,38 @@ export default function WorkflowBuilder() {
               </Box>
             </Popover>
 
-            <Button
-              size="small"
-              variant="contained"
-              disabled={
-                committing ||
-                !savedVersionId ||
-                versionStatus === "draft" ||
-                isDirty
-              }
-              onClick={() => setCommitConfirmOpen(true)}
-              startIcon={
-                committing ? (
-                  <CircularProgress
-                    size={12}
-                    sx={{ color: "rgba(245,158,11,0.7)" }}
-                  />
-                ) : (
-                  <LockOutlinedIcon sx={{ fontSize: 14 }} />
-                )
-              }
-              sx={{
-                fontSize: 12,
-                height: 30,
-                borderRadius: "8px",
-                fontWeight: 600,
-                backgroundColor: "rgba(245,158,11,0.9)",
-                color: "#fff",
-                boxShadow: "none",
-                "&:hover": { backgroundColor: "#f59e0b", boxShadow: "none" },
-                "&.Mui-disabled": {
-                  backgroundColor: "rgba(245,158,11,0.25)",
-                  color: "rgba(245,158,11,0.5)",
-                },
-              }}
-            >
-              Commit
-            </Button>
+            {hasReleaseOptions && (
+              <Button
+                size="small"
+                variant="contained"
+                disabled={
+                  committing || activating || deactivating || releasing
+                }
+                onClick={(event) => setReleaseMenuAnchorEl(event.currentTarget)}
+                startIcon={<LockOutlinedIcon sx={{ fontSize: 14 }} />}
+                endIcon={<ArrowDropDownIcon sx={{ fontSize: 14 }} />}
+                sx={{
+                  fontSize: 12,
+                  height: 30,
+                  borderRadius: "8px",
+                  fontWeight: 600,
+                  backgroundColor: "rgba(245,158,11,0.9)",
+                  color: "#fff",
+                  boxShadow: "none",
+                  "&:hover": { backgroundColor: "#f59e0b", boxShadow: "none" },
+                  "&.Mui-disabled": {
+                    backgroundColor: "rgba(245,158,11,0.25)",
+                    color: "rgba(245,158,11,0.5)",
+                  },
+                }}
+              >
+                Release
+              </Button>
+            )}
           </>
         )}
 
-        {isReadOnly && versionStatus === "published" && (
+        {isReadOnly && (versionStatus === "published" || versionStatus === "active") && (
           <>
             <Divider
               orientation="vertical"
@@ -799,100 +838,104 @@ export default function WorkflowBuilder() {
             >
               Clone
             </Button>
-            <Button
-              size="small"
-              variant="contained"
+            {hasReleaseOptions && (
+              <Button
+                size="small"
+                variant="contained"
+                disabled={committing || activating || deactivating || releasing}
+                onClick={(event) => setReleaseMenuAnchorEl(event.currentTarget)}
+                startIcon={<LockOutlinedIcon sx={{ fontSize: 14 }} />}
+                endIcon={<ArrowDropDownIcon sx={{ fontSize: 14 }} />}
+                sx={{
+                  fontSize: 12,
+                  height: 30,
+                  borderRadius: "8px",
+                  fontWeight: 600,
+                  backgroundColor: "rgba(245,158,11,0.9)",
+                  color: "#fff",
+                  boxShadow: "none",
+                  "&:hover": {
+                    backgroundColor: "#f59e0b",
+                    boxShadow: "none",
+                  },
+                  "&.Mui-disabled": {
+                    backgroundColor: "rgba(245,158,11,0.25)",
+                    color: "rgba(245,158,11,0.5)",
+                  },
+                }}
+              >
+                Release
+              </Button>
+            )}
+          </>
+        )}
+
+        <Menu
+          anchorEl={releaseMenuAnchorEl}
+          open={releaseMenuOpen}
+          onClose={() => setReleaseMenuAnchorEl(null)}
+          anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+          transformOrigin={{ vertical: "top", horizontal: "right" }}
+        >
+          {!isReadOnly && (
+            <>
+              <MenuItem
+                disabled={!canCommit || committing}
+                onClick={() => {
+                  setReleaseMenuAnchorEl(null);
+                  setCommitConfirmOpen(true);
+                }}
+              >
+                <ListItemIcon>
+                  <LockOutlinedIcon fontSize="small" />
+                </ListItemIcon>
+                <ListItemText>Commit</ListItemText>
+              </MenuItem>
+              <MenuItem
+                disabled={!canCommitAndActivate || releasing}
+                onClick={() => {
+                  setReleaseMenuAnchorEl(null);
+                  void handleCommitAndActivate();
+                }}
+              >
+                <ListItemIcon>
+                  <BoltIcon fontSize="small" />
+                </ListItemIcon>
+                <ListItemText>Commit &amp; Activate</ListItemText>
+              </MenuItem>
+            </>
+          )}
+
+          {canActivatePublished && (
+            <MenuItem
               disabled={activating}
-              onClick={() => setActivateConfirmOpen(true)}
-              startIcon={
-                activating ? (
-                  <CircularProgress
-                    size={12}
-                    sx={{ color: "rgba(34,197,94,0.7)" }}
-                  />
-                ) : (
-                  <BoltIcon sx={{ fontSize: 14 }} />
-                )
-              }
-              sx={{
-                fontSize: 12,
-                height: 30,
-                borderRadius: "8px",
-                fontWeight: 600,
-                backgroundColor: "#22c55e",
-                color: "#fff",
-                boxShadow: "none",
-                "&:hover": { backgroundColor: "#16a34a", boxShadow: "none" },
+              onClick={() => {
+                setReleaseMenuAnchorEl(null);
+                setActivateConfirmOpen(true);
               }}
             >
-              Activate
-            </Button>
-          </>
-        )}
+              <ListItemIcon>
+                <BoltIcon fontSize="small" />
+              </ListItemIcon>
+              <ListItemText>Activate</ListItemText>
+            </MenuItem>
+          )}
 
-        {isReadOnly && versionStatus === "active" && (
-          <>
-            <Divider
-              orientation="vertical"
-              flexItem
-              sx={{ my: "auto", height: 24, borderColor: "divider" }}
-            />
-            <Button
-              size="small"
-              variant="outlined"
-              disabled={cloning}
-              onClick={() => setCloneConfirmOpen(true)}
-              startIcon={
-                cloning ? (
-                  <CircularProgress size={12} />
-                ) : (
-                  <ControlPointDuplicateIcon sx={{ fontSize: 14 }} />
-                )
-              }
-              sx={{
-                fontSize: 12,
-                height: 30,
-                borderRadius: "8px",
-                fontWeight: 600,
-                borderColor: "#3b82f6",
-                color: "#3b82f6",
-                "&:hover": {
-                  backgroundColor: "rgba(59,130,246,0.08)",
-                  borderColor: "#3b82f6",
-                },
-              }}
-            >
-              Clone
-            </Button>
-            <Button
-              size="small"
-              variant="outlined"
+          {canDeactivateActive && (
+            <MenuItem
               disabled={deactivating}
-              onClick={() => setDeactivateConfirmOpen(true)}
-              startIcon={
-                deactivating ? (
-                  <CircularProgress size={12} />
-                ) : (
-                  <PowerSettingsNewIcon sx={{ fontSize: 14 }} />
-                )
-              }
-              sx={{
-                fontSize: 12,
-                height: 30,
-                borderRadius: "8px",
-                fontWeight: 600,
-                borderColor: "#ef4444",
-                color: "#ef4444",
-                "&:hover": {
-                  backgroundColor: "rgba(239,68,68,0.08)",
-                  borderColor: "#ef4444",
-                },
+              onClick={() => {
+                setReleaseMenuAnchorEl(null);
+                setDeactivateConfirmOpen(true);
               }}
             >
-              Deactivate
-            </Button>
-          </>
-        )}
+              <ListItemIcon>
+                <PowerSettingsNewIcon fontSize="small" />
+              </ListItemIcon>
+              <ListItemText>Deactivate</ListItemText>
+            </MenuItem>
+          )}
+        </Menu>
 
         <Divider
           orientation="vertical"

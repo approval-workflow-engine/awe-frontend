@@ -13,10 +13,26 @@ function getFieldType(field: UserTaskResponseField): string {
   return String(field.dataType ?? field.type ?? 'string').toLowerCase();
 }
 
+function isFieldRequired(field: UserTaskResponseField): boolean {
+  if (typeof field.required === 'boolean') {
+    return field.required;
+  }
+
+  return getFieldType(field) !== 'boolean';
+}
+
+function getInitialFieldValue(field: UserTaskResponseField): unknown {
+  if (field.defaultValue !== undefined) {
+    return field.defaultValue;
+  }
+
+  return getFieldType(field) === 'boolean' ? false : '';
+}
+
 function initValues(fields: UserTaskResponseField[]): Record<string, unknown> {
   const init: Record<string, unknown> = {};
   for (const f of fields) {
-    init[f.fieldId] = getFieldType(f) === 'boolean' ? false : '';
+    init[f.fieldId] = getInitialFieldValue(f);
   }
   return init;
 }
@@ -28,17 +44,45 @@ function validateValues(
   const errors: Record<string, string> = {};
   for (const f of fields) {
     const val = values[f.fieldId];
-    const fieldType = getFieldType(f);
+    const required = isFieldRequired(f);
     const isEmpty =
       val === '' ||
       val === null ||
       val === undefined ||
       (typeof val === 'number' && isNaN(val));
-    if (isEmpty && fieldType !== 'boolean') {
+    if (required && isEmpty) {
       errors[f.fieldId] = `${f.label} is required`;
     }
   }
   return errors;
+}
+
+function normalizeSubmitValues(
+  fields: UserTaskResponseField[],
+  values: Record<string, unknown>,
+): Record<string, unknown> {
+  const normalized: Record<string, unknown> = {};
+
+  for (const field of fields) {
+    const value = values[field.fieldId];
+    const required = isFieldRequired(field);
+    const isEmpty =
+      value === '' ||
+      value === null ||
+      value === undefined ||
+      (typeof value === 'number' && isNaN(value));
+
+    if (!required && isEmpty) {
+      if (field.defaultValue !== undefined) {
+        normalized[field.fieldId] = field.defaultValue;
+      }
+      continue;
+    }
+
+    normalized[field.fieldId] = value;
+  }
+
+  return normalized;
 }
 
 export default function TaskInputForm({ fields, loading, onSubmit }: Props) {
@@ -62,7 +106,7 @@ export default function TaskInputForm({ fields, loading, onSubmit }: Props) {
       setFieldErrors(errors);
       return;
     }
-    onSubmit(values);
+    onSubmit(normalizeSubmitValues(fields, values));
   };
 
   if (fields.length === 0) return null;
@@ -84,7 +128,7 @@ export default function TaskInputForm({ fields, loading, onSubmit }: Props) {
           <Box key={field.fieldId}>
             <Typography fontSize={13} fontWeight={500} mb={0.75}>
               {field.label}
-              {getFieldType(field) !== 'boolean' && (
+              {isFieldRequired(field) && (
                 <Typography component="span" fontSize={13} color="error.main" ml={0.25}>
                   *
                 </Typography>
