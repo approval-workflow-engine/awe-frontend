@@ -63,13 +63,13 @@ export interface RegisterResponse {
 export interface WorkflowLatestVersion {
   latestVersionId: string | null;
   status: VersionStatus | null;
-  latestVersionNumber?: number | null;
+  latestVersionNumber?: number | string | null;
 }
 
 export interface WorkflowVersionSummary {
   id: string;
   description?: string | null;
-  version: number;
+  version: number | string | null;
   status: VersionStatus;
   createdAt: string;
   updatedAt: string;
@@ -92,7 +92,7 @@ export type VersionStatus = "draft" | "published" | "active" | "valid";
 export interface WorkflowVersion {
   id: string;
   workflowId: string;
-  versionNumber: number;
+  versionNumber: number | string | null;
   environment?: string;
   status: VersionStatus;
   definition?: WorkflowDefinition;
@@ -170,7 +170,7 @@ export interface ValidationResult {
   errors: ValidationError[];
   warnings?: ValidationError[];
   versionId?: string;
-  version?: number;
+  version?: number | string;
   status?: string;
 }
 
@@ -377,7 +377,6 @@ export interface Secret {
   id?: string;
   providerId: string;
   environment: string;
-  label: string;
   key: string;
   created_on?: string;
 }

@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useMemo, useRef } from "react";
 import {
   Box,
   Typography,
@@ -8,6 +8,7 @@ import {
   Chip,
   Tooltip,
   Divider,
+  MenuItem,
 } from "@mui/material";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import AttachFileIcon from "@mui/icons-material/AttachFile";
@@ -19,9 +20,8 @@ import { CollapsibleSection } from "../shared/CollapsibleSection";
 import ResponseMapSection, {
   type ResponseMapRow,
 } from "../shared/ResponseMapSection";
-import OnErrorSection from "../shared/OnErrorSection";
 import type { AvailableCtxVar } from "../context";
-import type { CanvasNode, OnErrorConfig } from "../../type/types";
+import type { CanvasNode } from "../../type/types";
 
 interface ParamRow {
   name: string;
@@ -32,6 +32,87 @@ interface Backoff {
   type: "fixed" | "exponential";
   delay: number;
   unit: "millisecond" | "second" | "minute";
+}
+
+interface TimeoutConfig {
+  delay: number;
+  unit: "millisecond" | "second" | "minute";
+}
+
+type ScriptServiceType = "jdoodle" | "gemini";
+
+interface ScriptCredentials {
+  clientId?: string;
+  clientSecret?: string;
+  apiKey?: string;
+}
+
+const SECRET_REFERENCE_REGEX = /^secret\.([A-Za-z_][A-Za-z0-9_]*)$/;
+
+function getScriptServiceType(config: Record<string, unknown>): ScriptServiceType {
+  if (config.serviceType === "gemini" || config.executionService === "gemini") {
+    return "gemini";
+  }
+
+  return "jdoodle";
+}
+
+function getTimeoutConfig(config: Record<string, unknown>): TimeoutConfig | undefined {
+  const timeout = config.timeout;
+  if (timeout && typeof timeout === "object" && !Array.isArray(timeout)) {
+    const parsed = timeout as Partial<TimeoutConfig>;
+    if (typeof parsed.delay === "number" && parsed.delay > 0) {
+      const unit =
+        parsed.unit === "millisecond" ||
+        parsed.unit === "second" ||
+        parsed.unit === "minute"
+          ? parsed.unit
+          : "millisecond";
+
+      return {
+        delay: parsed.delay,
+        unit,
+      };
+    }
+  }
+
+  if (typeof config.timeoutMs === "number" && config.timeoutMs > 0) {
+    return {
+      delay: config.timeoutMs,
+      unit: "millisecond",
+    };
+  }
+
+  return undefined;
+}
+
+function getSecretName(expression: string): string | null {
+  const match = SECRET_REFERENCE_REGEX.exec(expression.trim());
+  return match?.[1] ?? null;
+}
+
+function normalizeCredentialValue(value: unknown): string {
+  return typeof value === "string" ? value : "";
+}
+
+function buildCredentials(
+  serviceType: ScriptServiceType,
+  values: ScriptCredentials,
+): ScriptCredentials | null {
+  if (serviceType === "gemini") {
+    const apiKey = values.apiKey?.trim() ?? "";
+    return apiKey ? { apiKey: values.apiKey ?? "" } : null;
+  }
+
+  const clientId = values.clientId?.trim() ?? "";
+  const clientSecret = values.clientSecret?.trim() ?? "";
+
+  return clientId || clientSecret
+    ? {
+        clientId: values.clientId ?? "",
+        clientSecret: values.clientSecret ?? "",
+      }
+    : null;
 }
 
 interface Props {
@@ -50,6 +131,7 @@ export default function ScriptTaskConfig({
   onOpenCodeEditor,
 }: Props) {
   const c = node.config;
+  const serviceType = getScriptServiceType(c);
   const set = (key: string, val: unknown) =>
     onUpdateConfig({ ...c, [key]: val });
 
@@ -71,13 +153,206 @@ export default function ScriptTaskConfig({
       paramMap.filter((_, i) => i !== idx),
     );
 
-  const backoff = (c.backoff as Backoff) ?? { type: "fixed", delay: 1, unit: "second" };
-  const onError = (c.onError as OnErrorConfig) ?? {
-    mode: "terminate",
-    outputMap: [],
+  const backoff = (c.backoff as Backoff) ?? {
+    type: "fixed",
+    delay: 1,
+    unit: "second",
   };
+  const timeout = getTimeoutConfig(c);
+
+  const rawCredentials = (c.credentials as ScriptCredentials | null | undefined) ??
+    {};
+  const credentials: ScriptCredentials = {
+    clientId: normalizeCredentialValue(rawCredentials.clientId),
+    clientSecret: normalizeCredentialValue(rawCredentials.clientSecret),
+    apiKey: normalizeCredentialValue(rawCredentials.apiKey),
+  };
+
+  const availableSecretNames = useMemo(
+    () => [...new Set(availableSecrets.map((secret) => secret.name))],
+    [availableSecrets],
+  );
+
+  // const onError = (c.onError as OnErrorConfig) ?? {
+  //   mode: "terminate",
+  //   outputMap: [],
+  // };
+
+  const updateWithCleanup = (patch: Record<string, unknown>) => {
+    const nextConfig = {
+      ...c,
+      ...patch,
+    } as Record<string, unknown>;
+
+    delete nextConfig.executionService;
+    delete nextConfig.timeoutMs;
+
+    onUpdateConfig(nextConfig);
+  };
+
+  const setServiceType = (nextServiceType: ScriptServiceType) => {
+    const nextCredentials = buildCredentials(nextServiceType, credentials);
+    updateWithCleanup({
+      serviceType: nextServiceType,
+      credentials: nextCredentials,
+    });
+  };
+
+  const setCredentialValue = (key: keyof ScriptCredentials, value: string) => {
+    const nextValues = {
+      ...credentials,
+      [key]: value,
+    };
+
+    updateWithCleanup({
+      serviceType,
+      credentials: buildCredentials(serviceType, nextValues),
+    });
+  };
+
+  const setTimeoutConfig = (value: TimeoutConfig | undefined) => {
+    if (!value) {
+      const nextConfig = { ...c } as Record<string, unknown>;
+      delete nextConfig.timeout;
+      delete nextConfig.timeoutMs;
+      onUpdateConfig(nextConfig);
+      return;
+    }
+
+    updateWithCleanup({ timeout: value });
+  };
+
+  const setTimeoutDelay = (delay: number | undefined) => {
+    if (delay === undefined) {
+      setTimeoutConfig(undefined);
+      return;
+    }
+
+    setTimeoutConfig({
+      delay,
+      unit: timeout?.unit ?? "second",
+    });
+  };
+
+  const setTimeoutUnit = (unit: TimeoutConfig["unit"]) => {
+    setTimeoutConfig({
+      delay: timeout?.delay ?? 1,
+      unit,
+    });
+  };
+
   const setBackoff = (patch: Partial<Backoff>) =>
     set("backoff", { ...backoff, ...patch });
+
+  const renderCredentialField = (
+    key: keyof ScriptCredentials,
+    label: string,
+    placeholder: string,
+  ) => {
+    const value = credentials[key] ?? "";
+    const selectedSecret = getSecretName(value);
+    const mode = selectedSecret ? "secret" : "manual";
+
+    return (
+      <Box display="flex" flexDirection="column" gap={0.5}>
+        <Box display="flex" alignItems="center" justifyContent="space-between">
+          <Typography sx={{ fontSize: 10, color: "text.secondary", fontWeight: 500 }}>
+            {label}
+          </Typography>
+          <Box display="flex" gap={0.25}>
+            <Button
+              size="small"
+              onClick={() => {
+                if (mode === "manual") return;
+                setCredentialValue(key, "");
+              }}
+              sx={{
+                fontSize: 8,
+                height: 20,
+                minWidth: 0,
+                px: 0.6,
+                borderRadius: "4px",
+                textTransform: "none",
+                border: "1px solid",
+                borderColor: mode === "manual" ? "action.focus" : "divider",
+                backgroundColor:
+                  mode === "manual" ? "action.selected" : "transparent",
+                color: mode === "manual" ? "text.primary" : "text.disabled",
+              }}
+            >
+              Manual
+            </Button>
+            <Button
+              size="small"
+              onClick={() => {
+                if (mode === "secret") return;
+                const firstSecret = availableSecretNames[0];
+                setCredentialValue(key, firstSecret ? `secret.${firstSecret}` : "secret.");
+              }}
+              sx={{
+                fontSize: 8,
+                height: 20,
+                minWidth: 0,
+                px: 0.6,
+                borderRadius: "4px",
+                textTransform: "none",
+                border: "1px solid",
+                borderColor: mode === "secret" ? "action.focus" : "divider",
+                backgroundColor:
+                  mode === "secret" ? "action.selected" : "transparent",
+                color: mode === "secret" ? "text.primary" : "text.disabled",
+              }}
+            >
+              Secret
+            </Button>
+          </Box>
+        </Box>
+
+        {mode === "secret" ? (
+          <TextField
+            select
+            size="small"
+            value={selectedSecret ?? ""}
+            onChange={(event) =>
+              setCredentialValue(key, `secret.${event.target.value}`)
+            }
+            disabled={availableSecretNames.length === 0}
+            helperText={
+              availableSecretNames.length === 0
+                ? "No mapped secrets found on Start node"
+                : "Maps to secret.NAME at runtime"
+            }
+            sx={{
+              "& .MuiOutlinedInput-root": {
+                borderRadius: "6px",
+                fontSize: 11,
+                "& fieldset": { borderColor: "divider" },
+              },
+              "& .MuiFormHelperText-root": { marginLeft: 0, fontSize: 9 },
+            }}
+          >
+            <MenuItem value="" disabled>
+              Select secret
+            </MenuItem>
+            {availableSecretNames.map((secretName) => (
+              <MenuItem key={secretName} value={secretName} sx={{ fontSize: 11 }}>
+                {secretName}
+              </MenuItem>
+            ))}
+          </TextField>
+        ) : (
+          <ExpressionInput
+            value={value}
+            onChange={(nextValue) => setCredentialValue(key, nextValue)}
+            placeholder={placeholder}
+            availableContext={availableContext}
+            availableSecrets={availableSecrets}
+            hint='Use a FEEL expression. Static values should be quoted like "value".'
+          />
+        )}
+      </Box>
+    );
+  };
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -121,13 +396,13 @@ export default function ScriptTaskConfig({
             variant="caption"
             sx={{ fontSize: 10, fontWeight: 500, color: "text.secondary" }}
           >
-            Execution Service
+            Service Type
           </Typography>
           {(["jdoodle", "gemini"] as const).map((s) => (
             <Button
               key={s}
               size="small"
-              onClick={() => set("executionService", s)}
+              onClick={() => setServiceType(s)}
               sx={{
                 fontSize: 9,
                 height: 22,
@@ -137,18 +412,12 @@ export default function ScriptTaskConfig({
                 fontWeight: 700,
                 textTransform: "none",
                 backgroundColor:
-                  (c.executionService ?? "jdoodle") === s
-                    ? "action.selected"
-                    : "transparent",
+                  serviceType === s ? "action.selected" : "transparent",
                 color:
-                  (c.executionService ?? "jdoodle") === s
-                    ? "text.primary"
-                    : "text.disabled",
+                  serviceType === s ? "text.primary" : "text.disabled",
                 border: "1px solid",
                 borderColor:
-                  (c.executionService ?? "jdoodle") === s
-                    ? "action.focus"
-                    : "divider",
+                  serviceType === s ? "action.focus" : "divider",
                 "&:hover": {
                   backgroundColor: "action.hover",
                 },
@@ -159,6 +428,39 @@ export default function ScriptTaskConfig({
           ))}
         </Box>
       </Box>
+
+      <CollapsibleSection title="Service Credentials (Optional)" defaultOpen>
+        <Box display="flex" flexDirection="column" gap={0.75}>
+          {serviceType === "jdoodle" ? (
+            <>
+              {renderCredentialField(
+                "clientId",
+                "JDoodle Client ID",
+                '"your-jdoodle-client-id"',
+              )}
+              {renderCredentialField(
+                "clientSecret",
+                "JDoodle Client Secret",
+                '"your-jdoodle-client-secret"',
+              )}
+              <Typography sx={{ fontSize: 9, color: "text.secondary", opacity: 0.8 }}>
+                Leave empty to use backend default JDoodle credentials.
+              </Typography>
+            </>
+          ) : (
+            <>
+              {renderCredentialField(
+                "apiKey",
+                "Gemini API Key",
+                '"your-gemini-api-key"',
+              )}
+              <Typography sx={{ fontSize: 9, color: "text.secondary", opacity: 0.8 }}>
+                Leave empty to use backend default Gemini API key.
+              </Typography>
+            </>
+          )}
+        </Box>
+      </CollapsibleSection>
 
       <Box display="flex" gap={0.5}>
         <Button
@@ -501,14 +803,45 @@ export default function ScriptTaskConfig({
             justifyContent="space-between"
           >
             <Typography sx={{ fontSize: 11, color: "text.secondary" }}>
-              Timeout (ms)
+              Timeout
             </Typography>
-            <Box sx={{ width: 100 }}>
+            <Box display="flex" gap={0.5} sx={{ width: 140 }}>
               <NumberInput
-                value={c.timeoutMs as number | undefined}
-                onChange={(v) => set("timeoutMs", v)}
+                value={timeout?.delay}
+                onChange={setTimeoutDelay}
                 min={1}
               />
+              <Box display="flex" gap={0.25}>
+                {(["millisecond", "second", "minute"] as const).map((u) => (
+                  <Button
+                    key={u}
+                    size="small"
+                    onClick={() => setTimeoutUnit(u)}
+                    title={u}
+                    sx={{
+                      fontSize: 8,
+                      height: 22,
+                      borderRadius: "4px",
+                      minWidth: 30,
+                      px: 0.5,
+                      fontWeight: 600,
+                      textTransform: "none",
+                      backgroundColor:
+                        timeout?.unit === u ? "action.selected" : "transparent",
+                      color:
+                        timeout?.unit === u ? "text.primary" : "text.disabled",
+                      border: "1px solid",
+                      borderColor:
+                        timeout?.unit === u ? "action.focus" : "divider",
+                      "&:hover": {
+                        backgroundColor: "action.hover",
+                      },
+                    }}
+                  >
+                    {u === "millisecond" ? "ms" : u === "second" ? "s" : "m"}
+                  </Button>
+                ))}
+              </Box>
             </Box>
           </Box>
           <Box
@@ -603,13 +936,6 @@ export default function ScriptTaskConfig({
         </Box>
       </CollapsibleSection>
 
-      <CollapsibleSection title="On Error">
-        <OnErrorSection
-          value={onError}
-          onChange={(v) => set("onError", v)}
-          availableContext={availableContext}
-        />
-      </CollapsibleSection>
     </Box>
   );
 }

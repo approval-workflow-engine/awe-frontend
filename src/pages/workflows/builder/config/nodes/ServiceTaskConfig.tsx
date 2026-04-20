@@ -15,11 +15,10 @@ import { CollapsibleSection } from "../shared/CollapsibleSection";
 import ResponseMapSection, {
   type ResponseMapRow,
 } from "../shared/ResponseMapSection";
-import OnErrorSection from "../shared/OnErrorSection";
 import { flattenJsonToBody, bodyToJson } from "../bodyHelpers";
 import { HTTP_METHODS, METHOD_COLORS } from "../constants";
 import type { AvailableCtxVar } from "../context";
-import type { CanvasNode, OnErrorConfig } from "../../type/types";
+import type { CanvasNode } from "../../type/types";
 
 interface HeaderRow {
   key: string;
@@ -30,6 +29,40 @@ interface Backoff {
   type: "fixed" | "exponential";
   delay: number;
   unit: "millisecond" | "second" | "minute";
+}
+
+interface TimeoutConfig {
+  delay: number;
+  unit: "millisecond" | "second" | "minute";
+}
+
+function getTimeoutConfig(config: Record<string, unknown>): TimeoutConfig | undefined {
+  const timeout = config.timeout;
+  if (timeout && typeof timeout === "object" && !Array.isArray(timeout)) {
+    const parsed = timeout as Partial<TimeoutConfig>;
+    if (typeof parsed.delay === "number" && parsed.delay > 0) {
+      const unit =
+        parsed.unit === "millisecond" ||
+        parsed.unit === "second" ||
+        parsed.unit === "minute"
+          ? parsed.unit
+          : "millisecond";
+
+      return {
+        delay: parsed.delay,
+        unit,
+      };
+    }
+  }
+
+  if (typeof config.timeoutMs === "number" && config.timeoutMs > 0) {
+    return {
+      delay: config.timeoutMs,
+      unit: "millisecond",
+    };
+  }
+
+  return undefined;
 }
 
 interface Props {
@@ -92,13 +125,48 @@ export default function ServiceTaskConfig({
     );
 
   const method = (c.method as string) || "GET";
-  const backoff = (c.backoff as Backoff) ?? { type: "fixed", delay: 1, unit: "second" };
-  const onError = (c.onError as OnErrorConfig) ?? {
-    mode: "terminate",
-    outputMap: [],
+  const backoff = (c.backoff as Backoff) ?? {
+    type: "fixed",
+    delay: 1,
+    unit: "second",
   };
+  const timeout = getTimeoutConfig(c);
+
   const setBackoff = (patch: Partial<Backoff>) =>
     set("backoff", { ...backoff, ...patch });
+
+  const setTimeoutConfig = (value: TimeoutConfig | undefined) => {
+    const nextConfig = { ...c } as Record<string, unknown>;
+
+    if (value) {
+      nextConfig.timeout = value;
+    } else {
+      delete nextConfig.timeout;
+    }
+
+    delete nextConfig.timeoutMs;
+
+    onUpdateConfig(nextConfig);
+  };
+
+  const setTimeoutDelay = (delay: number | undefined) => {
+    if (delay === undefined) {
+      setTimeoutConfig(undefined);
+      return;
+    }
+
+    setTimeoutConfig({
+      delay,
+      unit: timeout?.unit ?? "second",
+    });
+  };
+
+  const setTimeoutUnit = (unit: TimeoutConfig["unit"]) => {
+    setTimeoutConfig({
+      delay: timeout?.delay ?? 1,
+      unit,
+    });
+  };
 
   return (
     <Box display="flex" flexDirection="column" gap={1.5}>
@@ -293,14 +361,45 @@ export default function ServiceTaskConfig({
             justifyContent="space-between"
           >
             <Typography sx={{ fontSize: 11, color: "text.secondary" }}>
-              Timeout (ms)
+              Timeout
             </Typography>
-            <Box sx={{ width: 100 }}>
+            <Box display="flex" gap={0.5} sx={{ width: 140 }}>
               <NumberInput
-                value={c.timeoutMs as number | undefined}
-                onChange={(v) => set("timeoutMs", v)}
+                value={timeout?.delay}
+                onChange={setTimeoutDelay}
                 min={1}
               />
+              <Box display="flex" gap={0.25}>
+                {(["millisecond", "second", "minute"] as const).map((u) => (
+                  <Button
+                    key={u}
+                    size="small"
+                    onClick={() => setTimeoutUnit(u)}
+                    title={u}
+                    sx={{
+                      fontSize: 8,
+                      height: 22,
+                      borderRadius: "4px",
+                      minWidth: 30,
+                      px: 0.5,
+                      fontWeight: 600,
+                      textTransform: "none",
+                      backgroundColor:
+                        timeout?.unit === u ? "action.selected" : "transparent",
+                      color:
+                        timeout?.unit === u ? "text.primary" : "text.disabled",
+                      border: "1px solid",
+                      borderColor:
+                        timeout?.unit === u ? "action.focus" : "divider",
+                      "&:hover": {
+                        backgroundColor: "action.hover",
+                      },
+                    }}
+                  >
+                    {u === "millisecond" ? "ms" : u === "second" ? "s" : "m"}
+                  </Button>
+                ))}
+              </Box>
             </Box>
           </Box>
           <Box
@@ -393,13 +492,6 @@ export default function ServiceTaskConfig({
         </Box>
       </CollapsibleSection>
 
-      <CollapsibleSection title="On Error">
-        <OnErrorSection
-          value={onError}
-          onChange={(v) => set("onError", v)}
-          availableContext={availableContext}
-        />
-      </CollapsibleSection>
     </Box>
   );
 }

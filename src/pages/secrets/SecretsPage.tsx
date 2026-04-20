@@ -30,8 +30,7 @@ import { secretProviderService } from "../../api/services/secretProviders";
 import { secretService } from "../../api/services/secrets";
 import { useApiCall } from "../../hooks/useApiCall";
 import { ENVIRONMENT_OPTIONS } from "../../constants/environment";
-import type { SecretProvider } from "../../types";
-import type { SecretItem } from "../../api/schemas";
+import type { SecretProvider, SecretItem } from "../../api/schemas";
 
 // ─── Preconfigured provider presets ──────────────────────────────────────────
 const PROVIDER_PRESETS = [
@@ -57,6 +56,17 @@ function ProviderCard({
   const [open, setOpen] = useState(false);
   const [secrets, setSecrets] = useState<SecretItem[]>([]);
   const [loadingSecrets, setLoadingSecrets] = useState(false);
+
+  const providerConfig =
+    provider.configuration && typeof provider.configuration === "object"
+      ? (provider.configuration as Record<string, unknown>)
+      : null;
+  const providerHost =
+    typeof providerConfig?.host === "string" ? providerConfig.host : "-";
+  const providerProjectId =
+    typeof providerConfig?.projectId === "string"
+      ? providerConfig.projectId
+      : "-";
 
   const fetchSecrets = useCallback(async () => {
     if (!provider.id) return;
@@ -111,10 +121,10 @@ function ProviderCard({
           </Box>
           <Box>
             <Typography sx={{ fontWeight: 700, fontSize: "0.95rem" }}>
-              {provider.label}
+              {provider.label ?? provider.type}
             </Typography>
             <Typography variant="caption" color="text.secondary">
-              {provider.configuration.host} · {provider.configuration.projectId}
+              {providerHost} · {providerProjectId}
             </Typography>
           </Box>
         </Box>
@@ -208,7 +218,7 @@ function ProviderCard({
                     />
                     <Box>
                       <Typography sx={{ fontWeight: 600, fontSize: "0.875rem" }}>
-                        {s.label}
+                        {s.label || s.key}
                       </Typography>
                       <Typography
                         variant="caption"
@@ -283,22 +293,39 @@ export default function SecretsPage() {
   // Secret form
   const [secretOpen, setSecretOpen] = useState(false);
   const [secretSaving, setSecretSaving] = useState(false);
+  const [loadingAvailableSecrets, setLoadingAvailableSecrets] = useState(false);
+  const [availableProviderSecrets, setAvailableProviderSecrets] = useState<string[]>([]);
   const [activeProvider, setActiveProvider] = useState<SecretProvider | null>(
     null,
   );
   const [secretForm, setSecretForm] = useState<{
     providerId: string;
     environment: string;
-    label: string;
     key: string;
   }>({
     providerId: "",
     environment: ENVIRONMENT_OPTIONS[0] || "production",
-    label: "",
     key: "",
   });
   // Ref to refresh the specific provider card
   const [secretRefreshKey, setSecretRefreshKey] = useState(0);
+
+  const loadAvailableProviderSecrets = async (
+    providerId: string,
+    environment: string,
+  ) => {
+    setLoadingAvailableSecrets(true);
+    const data = await call(
+      () => secretService.listAvailableByProvider(providerId, environment),
+      { showError: true },
+    );
+    const availableKeys = data?.secrets ?? [];
+    setAvailableProviderSecrets(availableKeys);
+    setSecretForm((current) =>
+      availableKeys.includes(current.key) ? current : { ...current, key: "" },
+    );
+    setLoadingAvailableSecrets(false);
+  };
 
   const loadProviders = useCallback(async () => {
     setLoading(true);
@@ -359,14 +386,20 @@ export default function SecretsPage() {
   };
 
   const openAddSecret = (provider: SecretProvider) => {
+    const defaultEnvironment = ENVIRONMENT_OPTIONS[0] || "production";
+
     setActiveProvider(provider);
+    setAvailableProviderSecrets([]);
     setSecretForm({
       providerId: provider.id ?? "",
-      environment: ENVIRONMENT_OPTIONS[0] || "production",
-      label: "",
+      environment: defaultEnvironment,
       key: "",
     });
     setSecretOpen(true);
+
+    if (provider.id) {
+      void loadAvailableProviderSecrets(provider.id, defaultEnvironment);
+    }
   };
 
   const handleSecretSave = async () => {
@@ -376,7 +409,6 @@ export default function SecretsPage() {
         secretService.create({
           providerId: secretForm.providerId,
           environment: secretForm.environment,
-          label: secretForm.label,
           key: secretForm.key,
         }),
       { successMsg: "Secret mapped successfully." },
@@ -386,9 +418,16 @@ export default function SecretsPage() {
     if (success) {
       setSecretOpen(false);
       setActiveProvider(null);
+      setAvailableProviderSecrets([]);
       // Trigger refresh of provider cards
       setSecretRefreshKey((k) => k + 1);
     }
+  };
+
+  const closeSecretDialog = () => {
+    setSecretOpen(false);
+    setActiveProvider(null);
+    setAvailableProviderSecrets([]);
   };
 
     const handleDeleteSecret = async (secretId: string | undefined) => {
@@ -646,7 +685,7 @@ export default function SecretsPage() {
       {/* ── Map Secret Dialog ───────────────────────────────────────────── */}
       <Dialog
         open={secretOpen}
-        onClose={() => !secretSaving && setSecretOpen(false)}
+        onClose={() => !secretSaving && closeSecretDialog()}
         maxWidth="sm"
         fullWidth
         PaperProps={{ sx: { borderRadius: "16px" } }}
@@ -672,9 +711,20 @@ export default function SecretsPage() {
               fullWidth
               size="small"
               value={secretForm.environment}
-              onChange={(e) =>
-                setSecretForm({ ...secretForm, environment: e.target.value })
-              }
+              onChange={(e) => {
+                const nextEnvironment = e.target.value;
+                const providerId = secretForm.providerId;
+
+                setSecretForm((current) => ({
+                  ...current,
+                  environment: nextEnvironment,
+                  key: "",
+                }));
+
+                if (providerId) {
+                  void loadAvailableProviderSecrets(providerId, nextEnvironment);
+                }
+              }}
             >
               {ENVIRONMENT_OPTIONS.map((env) => (
                 <MenuItem key={env} value={env}>
@@ -683,33 +733,42 @@ export default function SecretsPage() {
               ))}
             </TextField>
             <TextField
-              label="Reference Label"
-              placeholder="e.g., API_KEY (used as secret.API_KEY)"
-              fullWidth
-              size="small"
-              value={secretForm.label}
-              onChange={(e) =>
-                setSecretForm({ ...secretForm, label: e.target.value })
-              }
-              helperText="This is the name you'll use in workflow expressions"
-            />
-            <TextField
+              select
               label="Secret Key (in Provider)"
-              placeholder="The exact key name in Infisical"
               fullWidth
               size="small"
               value={secretForm.key}
               onChange={(e) =>
                 setSecretForm({ ...secretForm, key: e.target.value })
               }
-              helperText="Must match exactly the key stored in your provider"
-            />
+              disabled={loadingAvailableSecrets || availableProviderSecrets.length === 0}
+              helperText={
+                loadingAvailableSecrets
+                  ? "Loading available keys from provider..."
+                  : availableProviderSecrets.length === 0
+                    ? "No keys found for this provider/environment"
+                    : "Select a key from your provider"
+              }
+            >
+              <MenuItem value="" disabled>
+                {loadingAvailableSecrets
+                  ? "Loading keys..."
+                  : availableProviderSecrets.length === 0
+                    ? "No keys available"
+                    : "Select a key"}
+              </MenuItem>
+              {availableProviderSecrets.map((secretKey) => (
+                <MenuItem key={secretKey} value={secretKey}>
+                  {secretKey}
+                </MenuItem>
+              ))}
+            </TextField>
           </Box>
         </DialogContent>
 
         <DialogActions sx={{ p: 2, gap: 1 }}>
           <Button
-            onClick={() => setSecretOpen(false)}
+            onClick={closeSecretDialog}
             color="inherit"
             disabled={secretSaving}
           >
@@ -719,7 +778,7 @@ export default function SecretsPage() {
             variant="contained"
             onClick={handleSecretSave}
             disabled={
-              secretSaving || !secretForm.label || !secretForm.key
+              secretSaving || !secretForm.key
             }
             startIcon={
               secretSaving ? (

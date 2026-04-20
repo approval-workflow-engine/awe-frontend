@@ -1,7 +1,9 @@
 import { apiClient } from "../client";
 import {
+  AvailableProviderSecretsResponseSchema,
   SecretCreateResponseSchema,
   SecretsResponseSchema,
+  type AvailableProviderSecretsResponse,
   type Secret,
   type SecretItem,
   type SecretsResponse,
@@ -20,6 +22,17 @@ export const secretService = {
 
   listByProvider: async (providerId: string): Promise<SecretsResponse> => {
     return apiClient.get(`/secrets/by-provider/${providerId}`, SecretsResponseSchema);
+  },
+
+  listAvailableByProvider: async (
+    providerId: string,
+    environment: string,
+  ): Promise<AvailableProviderSecretsResponse> => {
+    return apiClient.get(
+      `/secrets/${providerId}`,
+      AvailableProviderSecretsResponseSchema,
+      { params: { environment } },
+    );
   },
 
   delete: async (secretId: string): Promise<DeleteSecretResponse> => {

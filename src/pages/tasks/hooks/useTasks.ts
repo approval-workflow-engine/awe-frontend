@@ -1,8 +1,11 @@
 import { useState, useCallback } from "react";
 import { useApiCall } from "../../../hooks/useApiCall";
 import { taskService } from "../../../api/services/task";
-import type { PendingUserTask } from "../../../api/schemas/task";
-import type { PaginationParams, Pagination } from "../../../api/schemas/common";
+import type {
+  PendingUserTask,
+  PendingTasksQueryParams,
+} from "../../../api/schemas/task";
+import type { Pagination } from "../../../api/schemas/common";
 
 interface FetchResult {
   tasks: PendingUserTask[];
@@ -14,7 +17,7 @@ export function useTasks() {
   const [tasks, setTasks] = useState<PendingUserTask[]>([]);
 
   const fetch = useCallback(
-    async (params?: PaginationParams): Promise<FetchResult | null> => {
+    async (params?: PendingTasksQueryParams): Promise<FetchResult | null> => {
       const res = await call(() => taskService.getPendingTasks(params));
       const tasks_ = res?.tasks ?? [];
       setTasks(tasks_);
@@ -24,7 +27,7 @@ export function useTasks() {
   );
 
   const silentFetch = useCallback(
-    async (params?: PaginationParams) => {
+    async (params?: PendingTasksQueryParams) => {
       const res = await call(() => taskService.getPendingTasks(params), {
         silent: true,
       });
