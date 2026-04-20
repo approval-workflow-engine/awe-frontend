@@ -1,4 +1,4 @@
-import { useMemo, useRef } from "react";
+import { useRef } from "react";
 import {
   Box,
   Typography,
@@ -8,7 +8,6 @@ import {
   Chip,
   Tooltip,
   Divider,
-  MenuItem,
 } from "@mui/material";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import AttachFileIcon from "@mui/icons-material/AttachFile";
@@ -47,7 +46,6 @@ interface ScriptCredentials {
   apiKey?: string;
 }
 
-const SECRET_REFERENCE_REGEX = /^secret\.([A-Za-z_][A-Za-z0-9_]*)$/;
 
 function getScriptServiceType(config: Record<string, unknown>): ScriptServiceType {
   if (config.serviceType === "gemini" || config.executionService === "gemini") {
@@ -86,10 +84,6 @@ function getTimeoutConfig(config: Record<string, unknown>): TimeoutConfig | unde
   return undefined;
 }
 
-function getSecretName(expression: string): string | null {
-  const match = SECRET_REFERENCE_REGEX.exec(expression.trim());
-  return match?.[1] ?? null;
-}
 
 function normalizeCredentialValue(value: unknown): string {
   return typeof value === "string" ? value : "";
@@ -168,15 +162,6 @@ export default function ScriptTaskConfig({
     apiKey: normalizeCredentialValue(rawCredentials.apiKey),
   };
 
-  const availableSecretNames = useMemo(
-    () => [...new Set(availableSecrets.map((secret) => secret.name))],
-    [availableSecrets],
-  );
-
-  // const onError = (c.onError as OnErrorConfig) ?? {
-  //   mode: "terminate",
-  //   outputMap: [],
-  // };
 
   const updateWithCleanup = (patch: Record<string, unknown>) => {
     const nextConfig = {
@@ -250,106 +235,20 @@ export default function ScriptTaskConfig({
     placeholder: string,
   ) => {
     const value = credentials[key] ?? "";
-    const selectedSecret = getSecretName(value);
-    const mode = selectedSecret ? "secret" : "manual";
 
     return (
       <Box display="flex" flexDirection="column" gap={0.5}>
-        <Box display="flex" alignItems="center" justifyContent="space-between">
-          <Typography sx={{ fontSize: 10, color: "text.secondary", fontWeight: 500 }}>
-            {label}
-          </Typography>
-          <Box display="flex" gap={0.25}>
-            <Button
-              size="small"
-              onClick={() => {
-                if (mode === "manual") return;
-                setCredentialValue(key, "");
-              }}
-              sx={{
-                fontSize: 8,
-                height: 20,
-                minWidth: 0,
-                px: 0.6,
-                borderRadius: "4px",
-                textTransform: "none",
-                border: "1px solid",
-                borderColor: mode === "manual" ? "action.focus" : "divider",
-                backgroundColor:
-                  mode === "manual" ? "action.selected" : "transparent",
-                color: mode === "manual" ? "text.primary" : "text.disabled",
-              }}
-            >
-              Manual
-            </Button>
-            <Button
-              size="small"
-              onClick={() => {
-                if (mode === "secret") return;
-                const firstSecret = availableSecretNames[0];
-                setCredentialValue(key, firstSecret ? `secret.${firstSecret}` : "secret.");
-              }}
-              sx={{
-                fontSize: 8,
-                height: 20,
-                minWidth: 0,
-                px: 0.6,
-                borderRadius: "4px",
-                textTransform: "none",
-                border: "1px solid",
-                borderColor: mode === "secret" ? "action.focus" : "divider",
-                backgroundColor:
-                  mode === "secret" ? "action.selected" : "transparent",
-                color: mode === "secret" ? "text.primary" : "text.disabled",
-              }}
-            >
-              Secret
-            </Button>
-          </Box>
-        </Box>
+        <Typography sx={{ fontSize: 10, color: "text.secondary", fontWeight: 500 }}>
+          {label}
+        </Typography>
 
-        {mode === "secret" ? (
-          <TextField
-            select
-            size="small"
-            value={selectedSecret ?? ""}
-            onChange={(event) =>
-              setCredentialValue(key, `secret.${event.target.value}`)
-            }
-            disabled={availableSecretNames.length === 0}
-            helperText={
-              availableSecretNames.length === 0
-                ? "No mapped secrets found on Start node"
-                : "Maps to secret.NAME at runtime"
-            }
-            sx={{
-              "& .MuiOutlinedInput-root": {
-                borderRadius: "6px",
-                fontSize: 11,
-                "& fieldset": { borderColor: "divider" },
-              },
-              "& .MuiFormHelperText-root": { marginLeft: 0, fontSize: 9 },
-            }}
-          >
-            <MenuItem value="" disabled>
-              Select secret
-            </MenuItem>
-            {availableSecretNames.map((secretName) => (
-              <MenuItem key={secretName} value={secretName} sx={{ fontSize: 11 }}>
-                {secretName}
-              </MenuItem>
-            ))}
-          </TextField>
-        ) : (
-          <ExpressionInput
-            value={value}
-            onChange={(nextValue) => setCredentialValue(key, nextValue)}
-            placeholder={placeholder}
-            availableContext={availableContext}
-            availableSecrets={availableSecrets}
-            hint='Use a FEEL expression. Static values should be quoted like "value".'
-          />
-        )}
+        <ExpressionInput
+          value={value}
+          onChange={(nextValue) => setCredentialValue(key, nextValue)}
+          placeholder={placeholder}
+          availableContext={availableContext}
+          availableSecrets={availableSecrets}
+        />
       </Box>
     );
   };

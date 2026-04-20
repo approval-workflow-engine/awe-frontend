@@ -87,7 +87,7 @@ export const InstancesResponseSchema = z.object({
   pagination: PaginationSchema.optional(),
 });
 
-export const AdvanceInstanceResponseSchema = z.object({});
+
 
 export const InstanceActionResponseSchema = z.object({
   instance: z.unknown(),
@@ -163,9 +163,7 @@ export type CreateInstanceResponse = z.infer<
 >;
 export type InstanceResponse = z.infer<typeof InstanceResponseSchema>;
 export type InstancesResponse = z.infer<typeof InstancesResponseSchema>;
-export type AdvanceInstanceResponse = z.infer<
-  typeof AdvanceInstanceResponseSchema
->;
+
 export type InstanceActionResponse = z.infer<
   typeof InstanceActionResponseSchema
 >;

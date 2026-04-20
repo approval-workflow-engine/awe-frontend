@@ -37,8 +37,8 @@ function toInstanceFromListItem(item: InstanceListItem): Instance {
     autoAdvance: item.auto_advance,
     workflow: {
       name: item.workflow_name,
-      id: item.workflow_version_id,
-      version: item.version_number ?? 0,
+      id: undefined, // need fix
+      version: item.version_number ?? null,
     },
     currentTask: null,
   };

@@ -282,7 +282,7 @@ export default function ServiceTaskConfig({
             <Typography
               sx={{ fontSize: 9, color: "text.secondary", opacity: 0.8 }}
             >
-              JSON body - use context.varName for dynamic values
+              JSON body - use context.varName or secret.varName for dynamic values
             </Typography>
             <Box
               sx={{
@@ -297,7 +297,9 @@ export default function ServiceTaskConfig({
                 onChange={(e) => handleBodyChange(e.target.value)}
                 rows={5}
                 spellCheck={false}
-                placeholder={'{\n  "key": "context.value"\n}'}
+                placeholder={
+                  '{\n  "key": "context.value",\n  "api": "secret.key"\n}'
+                }
                 style={{
                   width: "100%",
                   boxSizing: "border-box",
