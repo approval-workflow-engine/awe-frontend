@@ -2,6 +2,8 @@ import { z } from "zod";
 import { dateTransform, optionalDateTransform } from "./common";
 import { PaginationSchema, EnvironmentTypeSchema } from "./common";
 
+const VersionValueSchema = z.union([z.string(), z.number()]).nullable();
+
 export const InstanceStatusSchema = z.enum([
   "in_progress",
   "completed",
@@ -35,7 +37,7 @@ export const InstanceSchema = z.object({
   workflow: z.object({
     name: z.string().nullable().optional(),
     id: z.string().nullable().optional(),
-    version: z.coerce.number(),
+    version: VersionValueSchema,
   }),
   currentTask: CurrentTaskSchema.nullable().optional(),
 });
@@ -55,7 +57,7 @@ export const InstanceListItemSchema = z.object({
   started_on: optionalDateTransform,
   status: InstanceStatusSchema,
   workflow_version_id: z.string(),
-  version_number: z.coerce.number().nullable(),
+  version_number: VersionValueSchema,
   workflow_name: z.string(),
 });
 
@@ -74,7 +76,7 @@ export const CreateInstanceResponseSchema = z.object({
   environment: EnvironmentTypeSchema,
   workflow: z.object({
     id: z.string(),
-    version: z.coerce.number(),
+    version: VersionValueSchema,
   }),
 });
 

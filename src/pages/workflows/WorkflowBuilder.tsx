@@ -37,6 +37,7 @@ import ArrowDropDownIcon from "@mui/icons-material/ArrowDropDown";
 import { secretService } from "../../api/services/secrets";
 
 import { workflowService } from "../../api/services/workflow";
+import type { VersionIncrementType } from "../../api/schemas";
 import { useApiCall } from "../../hooks/useApiCall";
 import { useThemeMode } from "../../context/useThemeMode";
 import NodePalette from "./builder/components/NodePalette";
@@ -73,12 +74,12 @@ export default function WorkflowBuilder() {
   const { goBack } = useBackNavigation("/workflows");
 
   const [workflowName, setWorkflowName] = useState("");
-  const [loadedVersionNumber, setLoadedVersionNumber] = useState<number | null>(
-    null,
-  );
-  const [savedVersionNumber, setSavedVersionNumber] = useState<number | null>(
-    null,
-  );
+  const [loadedVersionNumber, setLoadedVersionNumber] = useState<
+    number | string | null
+  >(null);
+  const [savedVersionNumber, setSavedVersionNumber] = useState<
+    number | string | null
+  >(null);
   const [savedVersionId, setSavedVersionId] = useState<string | null>(
     versionId ?? null,
   );
@@ -89,6 +90,11 @@ export default function WorkflowBuilder() {
   const [cloning, setCloning] = useState(false);
   const [releaseMenuAnchorEl, setReleaseMenuAnchorEl] =
     useState<null | HTMLElement>(null);
+  const [commitActionMode, setCommitActionMode] = useState<
+    "commit" | "commitAndActivate"
+  >("commit");
+  const [releaseIncrementType, setReleaseIncrementType] =
+    useState<VersionIncrementType>("major");
   const [canvasLoading, setCanvasLoading] = useState(() => !!versionId);
   const [configPanelWidth, setConfigPanelWidth] = useState(320);
   const [isResizingConfig, setIsResizingConfig] = useState(false);
@@ -164,6 +170,7 @@ export default function WorkflowBuilder() {
     setSavedVersionNumber,
     setLoadedVersionNumber,
     setVersionStatus,
+    isDirty,
     setIsDirty,
     nodes,
     edges,
@@ -255,10 +262,10 @@ export default function WorkflowBuilder() {
             const { nodes: n, edges: e, inputs: i } = definitionToCanvas(vData);
             hydrateCanvas(n.length > 0 ? n : [buildStartNode()], e, i);
             const vn =
-              (vData.versionNumber as number) ??
-              (vData.version as number) ??
+              (vData.versionNumber as number | string | null | undefined) ??
+              (vData.version as number | string | null | undefined) ??
               loadedVersionNumber;
-            if (typeof vn === "number") {
+            if (typeof vn === "number" || typeof vn === "string") {
               setLoadedVersionNumber(vn);
               setSavedVersionNumber(vn);
             }
@@ -403,8 +410,15 @@ export default function WorkflowBuilder() {
     const clonedBody = (cloned ?? {}) as {
       id?: string;
       versionId?: string;
+      workflowVersion?: {
+        id?: string;
+      };
     };
-    const clonedVersionId = clonedBody.id ?? clonedBody.versionId ?? null;
+    const clonedVersionId =
+      clonedBody.id ??
+      clonedBody.versionId ??
+      clonedBody.workflowVersion?.id ??
+      null;
 
     if (clonedVersionId) {
       navigate(`/workflows/${workflowId}/builder/${clonedVersionId}`);
@@ -882,6 +896,7 @@ export default function WorkflowBuilder() {
               <MenuItem
                 disabled={!canCommit || committing}
                 onClick={() => {
+                  setCommitActionMode("commit");
                   setReleaseMenuAnchorEl(null);
                   setCommitConfirmOpen(true);
                 }}
@@ -894,8 +909,9 @@ export default function WorkflowBuilder() {
               <MenuItem
                 disabled={!canCommitAndActivate || releasing}
                 onClick={() => {
+                  setCommitActionMode("commitAndActivate");
                   setReleaseMenuAnchorEl(null);
-                  void handleCommitAndActivate();
+                  setCommitConfirmOpen(true);
                 }}
               >
                 <ListItemIcon>
@@ -1141,8 +1157,18 @@ export default function WorkflowBuilder() {
         }
         commitConfirmOpen={commitConfirmOpen}
         onCloseCommitConfirm={() => setCommitConfirmOpen(false)}
-        onConfirmCommit={handleCommit}
-        committing={committing}
+        onConfirmCommit={() => {
+          if (commitActionMode === "commitAndActivate") {
+            void handleCommitAndActivate(releaseIncrementType);
+            return;
+          }
+
+          void handleCommit(releaseIncrementType);
+        }}
+        committing={commitActionMode === "commitAndActivate" ? releasing : committing}
+        commitActionMode={commitActionMode}
+        releaseIncrementType={releaseIncrementType}
+        onReleaseIncrementTypeChange={setReleaseIncrementType}
         activateConfirmOpen={activateConfirmOpen}
         onCloseActivateConfirm={() => setActivateConfirmOpen(false)}
         onConfirmActivate={handleActivate}

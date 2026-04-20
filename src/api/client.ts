@@ -70,8 +70,8 @@ class ApiClient {
         const isTargetedNoEnvironmentEndpoint = (() => {
           if (method === "POST" || method === "PATCH" || method === "DELETE") {
             if (
-              (method === "POST" && /^\/workflows\/[^/]+\/versions$/.test(path)) ||
-              (method === "POST" && /^\/workflows\/(save|validate)$/.test(path)) ||
+              (method === "POST" && /^\/workflows\/[^/]+\/(draft|versions)$/.test(path)) ||
+              (method === "POST" && /^\/workflows\/validate$/.test(path)) ||
               (method === "PATCH" && /^\/workflows\/[^/]+$/.test(path)) ||
               (method === "POST" && /^\/workflows\/versions\/[^/]+\/(validate|publish|activate|deactivate|clone|promote)$/.test(path)) ||
               (method === "PATCH" && /^\/workflows\/versions\/[^/]+$/.test(path)) ||
@@ -101,10 +101,9 @@ class ApiClient {
           return false;
         })();
         const shouldSkipEnvironmentFilter =
-          (method === "GET" && url.startsWith("/systems/api-keys")) ||
-          url.startsWith("/systems/me") ||
           url.startsWith("/auth/") ||
-          url.startsWith("/systems/register") ||
+          (method === "GET" && (path === "/me" || path.startsWith("/api-keys"))) ||
+          (method === "POST" && path === "/organizations/register") ||
           isTargetedNoEnvironmentEndpoint;
 
         if (!shouldSkipEnvironmentFilter) {
@@ -127,7 +126,6 @@ class ApiClient {
               }
             }
           } else {
-            // Non-GET: inject environment into request body
             if (config.data == null) {
               config.data = { environment: activeEnvironmentType };
             } else if (typeof config.data === "string") {

@@ -58,6 +58,24 @@ function ConfigRow({ label, value, mono = false }: { label: string; value: React
   );
 }
 
+function formatTimeout(config: any): string | undefined {
+  if (config?.timeout && typeof config.timeout === 'object') {
+    const delay = config.timeout.delay;
+    const unit = config.timeout.unit;
+    if (typeof delay === 'number' && delay > 0) {
+      const suffix =
+        unit === 'millisecond' ? 'ms' : unit === 'minute' ? 'm' : 's';
+      return `${delay}${suffix}`;
+    }
+  }
+
+  if (typeof config?.timeoutMs === 'number' && config.timeoutMs > 0) {
+    return `${config.timeoutMs}ms`;
+  }
+
+  return undefined;
+}
+
 function StartNodeConfig({ config }: { config: any }) {
   return (
     <>
@@ -129,7 +147,7 @@ function ServiceNodeConfig({ config }: { config: any }) {
       <ConfigSection title="Endpoint">
         <ConfigRow label="Method" value={config.method} mono />
         <ConfigRow label="URL" value={config.urlExpression} mono />
-        <ConfigRow label="Timeout" value={config.timeoutMs ? `${config.timeoutMs}ms` : undefined} />
+        <ConfigRow label="Timeout" value={formatTimeout(config)} />
         <ConfigRow label="Max Attempts" value={config.maxAttempts} />
         {config.backoff && (
           <ConfigRow label="Backoff" value={`${config.backoff.type} / ${config.backoff.delay}${config.backoff.unit}`} />
@@ -223,14 +241,32 @@ function EmailNodeConfig({ config }: { config: any }) {
 }
 
 function ScriptNodeConfig({ config }: { config: any }) {
+  const credentials = config.credentials && typeof config.credentials === 'object'
+    ? config.credentials
+    : null;
+
+  const credentialRows = credentials
+    ? Object.entries(credentials as Record<string, unknown>).filter(([, value]) =>
+        typeof value === 'string' && value.trim() !== '',
+      )
+    : [];
+
   return (
     <>
       <ConfigSection title="Execution">
         <ConfigRow label="Runtime" value={config.runtime} mono />
-        <ConfigRow label="Service" value={config.executionService} mono />
+        <ConfigRow label="Service" value={config.serviceType ?? config.executionService} mono />
+        <ConfigRow label="Timeout" value={formatTimeout(config)} />
         <ConfigRow label="Entry Function" value={config.entryFunctionName} mono />
         <ConfigRow label="Max Attempts" value={config.maxAttempts} />
       </ConfigSection>
+      {credentialRows.length > 0 && (
+        <ConfigSection title="Credentials">
+          {credentialRows.map(([key, value]) => (
+            <ConfigRow key={key} label={key} value={value as string} mono />
+          ))}
+        </ConfigSection>
+      )}
       {config.parameterMap && config.parameterMap.length > 0 && (
         <ConfigSection title="Parameters">
           {config.parameterMap.map((p: any, idx: number) => (

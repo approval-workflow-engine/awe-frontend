@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useSnackbar } from "notistack";
 import { useApiCall } from "../../../../hooks/useApiCall";
 import { workflowService } from "../../../../api/services/workflow";
+import type { VersionIncrementType } from "../../../../api/schemas";
 import { canvasToVersionPayload } from "../utils/serialization";
 import type { CanvasNode, CanvasEdge } from "../type/types";
 import type { ValidationResult } from "../../../../types";
@@ -11,10 +12,11 @@ interface UseBuilderActionsProps {
   workflowId: string | undefined;
   savedVersionId: string | null;
   setSavedVersionId: (id: string | null) => void;
-  savedVersionNumber: number | null;
-  setSavedVersionNumber: (n: number | null) => void;
-  setLoadedVersionNumber: (n: number | null) => void;
+  savedVersionNumber: number | string | null;
+  setSavedVersionNumber: (n: number | string | null) => void;
+  setLoadedVersionNumber: (n: number | string | null) => void;
   setVersionStatus: (s: string) => void;
+  isDirty: boolean;
   setIsDirty: (b: boolean) => void;
   nodes: CanvasNode[];
   edges: CanvasEdge[];
@@ -44,9 +46,11 @@ interface UseBuilderActionsReturn {
   setDeactivateConfirmOpen: React.Dispatch<React.SetStateAction<boolean>>;
   handleSaveDraft: () => Promise<boolean>;
   handleValidateDefinition: () => Promise<void>;
-  handleCommit: () => Promise<void>;
+  handleCommit: (incrementType: VersionIncrementType) => Promise<void>;
   handleActivate: () => Promise<void>;
-  handleCommitAndActivate: () => Promise<void>;
+  handleCommitAndActivate: (
+    incrementType: VersionIncrementType,
+  ) => Promise<void>;
   handleDeactivate: () => Promise<void>;
   handleCopyPayload: () => void;
 }
@@ -59,6 +63,7 @@ export function useBuilderActions({
   setSavedVersionNumber,
   setLoadedVersionNumber,
   setVersionStatus,
+  isDirty,
   setIsDirty,
   nodes,
   edges,
@@ -88,6 +93,22 @@ export function useBuilderActions({
   const [activateConfirmOpen, setActivateConfirmOpen] = useState(false);
   const [deactivateConfirmOpen, setDeactivateConfirmOpen] = useState(false);
 
+  const applyStatusResponse = useCallback(
+    (response?: { status?: string; version?: number | string | null }) => {
+      if (!response) return;
+
+      if (response.status) {
+        setVersionStatus(response.status);
+      }
+
+      if (response.version !== undefined && response.version !== null) {
+        setSavedVersionNumber(response.version);
+        setLoadedVersionNumber(response.version);
+      }
+    },
+    [setLoadedVersionNumber, setSavedVersionNumber, setVersionStatus],
+  );
+
   const handleSaveDraft = async (): Promise<boolean> => {
     if (!workflowId) return false;
 
@@ -96,44 +117,91 @@ export function useBuilderActions({
     setErrorsPopoverOpen(false);
 
     const payload = canvasToVersionPayload(nodes, edges);
-    const saveResponse = await call(
-      () =>
-        workflowService.saveVersion({
-          workflowId,
-          versionId: savedVersionId,
-          description: payload.description ?? null,
-          nodes: payload.nodes,
-          edges: payload.edges,
-        } as never),
-      { showError: true },
-    );
 
-    if (!saveResponse) {
+    let targetVersionId = savedVersionId;
+    let operation: "created" | "updated" = "updated";
+    let result: ValidationResult | null = null;
+
+    if (!targetVersionId) {
+      const createdVersion = await call(
+        () =>
+          workflowService.createVersion(workflowId, {
+            description: payload.description || undefined,
+            nodes: payload.nodes,
+            edges: payload.edges,
+          } as never),
+        { showError: true },
+      );
+
+      if (!createdVersion) {
+        setSaving(false);
+        return false;
+      }
+
+      operation = "created";
+      targetVersionId = createdVersion.id;
+      setSavedVersionId(createdVersion.id);
+
+      if (createdVersion.version !== undefined && createdVersion.version !== null) {
+        setSavedVersionNumber(createdVersion.version);
+        setLoadedVersionNumber(createdVersion.version);
+      }
+
+      setVersionStatus(createdVersion.status);
+
+      result = {
+        valid: createdVersion.valid,
+        errors: createdVersion.errors,
+        warnings: createdVersion.warnings ?? [],
+        versionId: createdVersion.id,
+        version:
+          createdVersion.version ??
+          (savedVersionNumber === null ? undefined : savedVersionNumber),
+        status: createdVersion.status,
+      };
+    } else {
+      const existingVersionId = targetVersionId;
+      const updatedVersion = await call(
+        () =>
+          workflowService.updateVersion(existingVersionId, {
+            description: payload.description ?? null,
+            nodes: payload.nodes,
+            edges: payload.edges,
+          } as never),
+        { showError: true },
+      );
+
+      if (!updatedVersion) {
+        setSaving(false);
+        return false;
+      }
+
+      result = {
+        valid: updatedVersion.valid,
+        errors: updatedVersion.errors,
+        warnings: updatedVersion.warnings ?? [],
+        versionId: existingVersionId,
+        version:
+          savedVersionNumber === null ? undefined : savedVersionNumber,
+        status: updatedVersion.status,
+      };
+      setVersionStatus(updatedVersion.status);
+    }
+
+    if (!result || !targetVersionId) {
       setSaving(false);
       return false;
     }
 
-    const result: ValidationResult = {
-      valid: saveResponse.validation.valid,
-      errors: saveResponse.validation.errors,
-      warnings: saveResponse.validation.warnings,
-      versionId: saveResponse.save.versionId,
-      version: saveResponse.save.version,
-      status: saveResponse.validation.status,
-    };
-
-    setSavedVersionId(saveResponse.save.versionId);
-    setSavedVersionNumber(saveResponse.save.version);
-    setLoadedVersionNumber(saveResponse.save.version);
-    setVersionStatus(saveResponse.validation.status);
+    setSavedVersionId(targetVersionId);
     setValidationResult(result);
     setErrorsPopoverOpen(!result.valid);
     setIsDirty(false);
 
-    enqueueSnackbar(
-      `Draft ${saveResponse.save.operation} (v${saveResponse.save.version})`,
-      { variant: "success" },
-    );
+    const versionSuffix = result.version ? ` (v${result.version})` : "";
+    enqueueSnackbar(`Draft ${operation}${versionSuffix}.`, {
+      variant: "success",
+    });
     enqueueSnackbar(
       result.valid
         ? "Validation passed with no errors"
@@ -151,24 +219,35 @@ export function useBuilderActions({
 
     const payload = canvasToVersionPayload(nodes, edges);
     const response = await call(
-      () =>
-        workflowService.validateWorkflow({
+      () => {
+        // For clean persisted drafts, fetch validation from /validate on the version.
+        if (savedVersionId && !isDirty) {
+          return workflowService.validateVersion(savedVersionId);
+        }
+
+        return workflowService.validateWorkflow({
+          description: payload.description ?? null,
           nodes: payload.nodes,
           edges: payload.edges,
-        }),
+        });
+      },
       { showError: true },
     );
 
-    const result: ValidationResult = response
-      ? {
-          ...response,
-          warnings: response.warnings ?? [],
-        }
-      : {
-          valid: false,
-          errors: [{ code: -1, message: "Validation request failed" }],
-          warnings: [],
-        };
+    const result: ValidationResult = {
+      ...(response ?? {
+        valid: false,
+        errors: [{ code: -1, message: "Validation request failed" }],
+        warnings: [],
+      }),
+      warnings: response?.warnings ?? [],
+      versionId: savedVersionId ?? undefined,
+      version: savedVersionNumber ?? undefined,
+    };
+
+    if (response?.status) {
+      setVersionStatus(response.status);
+    }
 
     setValidationResult(result);
     setErrorsPopoverOpen(!result.valid);
@@ -183,20 +262,27 @@ export function useBuilderActions({
     setValidating(false);
   };
 
-  const handleCommit = async () => {
+  const handleCommit = async (incrementType: VersionIncrementType) => {
     if (!savedVersionId) return;
 
     setCommitting(true);
     const res = await call(
-      () => workflowService.updateVersionStatus(savedVersionId, "published"),
+      () =>
+        workflowService.updateVersionStatus(
+          savedVersionId,
+          "published",
+          incrementType,
+        ),
       {
-        successMsg: `v${savedVersionNumber ?? "-"} committed.`,
+        successMsg: `v${savedVersionNumber ?? "-"} committed (${incrementType} release).`,
         showError: true,
       },
     );
     setCommitting(false);
     setCommitConfirmOpen(false);
-    if (res) setVersionStatus("published");
+    if (res) {
+      applyStatusResponse(res);
+    }
   };
 
   const handleActivate = async () => {
@@ -212,16 +298,26 @@ export function useBuilderActions({
     );
     setActivating(false);
     setActivateConfirmOpen(false);
-    if (res) navigate(`/workflows/${workflowId}/versions`);
+    if (res) {
+      applyStatusResponse(res);
+      navigate(`/workflows/${workflowId}/versions`);
+    }
   };
 
-  const handleCommitAndActivate = async () => {
+  const handleCommitAndActivate = async (
+    incrementType: VersionIncrementType,
+  ) => {
     if (!savedVersionId || !workflowId) return;
 
     setReleasing(true);
 
     const committed = await call(
-      () => workflowService.updateVersionStatus(savedVersionId, "published"),
+      () =>
+        workflowService.updateVersionStatus(
+          savedVersionId,
+          "published",
+          incrementType,
+        ),
       {
         showError: true,
       },
@@ -232,7 +328,7 @@ export function useBuilderActions({
       return;
     }
 
-    setVersionStatus("published");
+    applyStatusResponse(committed);
 
     const activated = await call(
       () => workflowService.updateVersionStatus(savedVersionId, "active"),
@@ -245,6 +341,7 @@ export function useBuilderActions({
     setReleasing(false);
 
     if (activated) {
+      applyStatusResponse(activated);
       navigate(`/workflows/${workflowId}/versions`);
     }
   };
@@ -262,7 +359,9 @@ export function useBuilderActions({
     );
     setDeactivating(false);
     setDeactivateConfirmOpen(false);
-    if (res) setVersionStatus("published");
+    if (res) {
+      applyStatusResponse(res);
+    }
   };
 
   const handleCopyPayload = () => {

@@ -1,4 +1,4 @@
-import { apiClient } from "../client";
+import { ApiClientError, apiClient } from "../client";
 import {
   WorkflowsResponseSchema,
   WorkflowResponseSchema,
@@ -13,8 +13,7 @@ import {
   WorkflowVersionStatusResponseSchema,
   WorkflowVersionPromoteResponseSchema,
   WorkflowVersionCloneResponseSchema,
-  WorkflowVersionSaveRequestSchema,
-  WorkflowVersionSaveResponseSchema,
+  UpdateVersionStatusRequestSchema,
   CreateVersionRequestSchema,
   UpdateVersionRequestSchema,
   ValidationResultSchema,
@@ -32,8 +31,7 @@ import {
   type WorkflowVersionStatusResponse,
   type WorkflowVersionPromoteResponse,
   type WorkflowVersionCloneResponse,
-  type WorkflowVersionSaveRequest,
-  type WorkflowVersionSaveResponse,
+  type VersionIncrementType,
   type CreateVersionRequest,
   type UpdateVersionRequest,
   type ValidationResult,
@@ -92,12 +90,29 @@ export class WorkflowService {
     workflowId: string,
     data: CreateVersionRequest,
   ): Promise<WorkflowVersionCreateResponse> {
-    return apiClient.post(
-      `/workflows/${workflowId}/versions`,
-      data,
-      WorkflowVersionCreateResponseSchema,
-      CreateVersionRequestSchema,
-    );
+    try {
+      return await apiClient.post(
+        `/workflows/${workflowId}/draft`,
+        data,
+        WorkflowVersionCreateResponseSchema,
+        CreateVersionRequestSchema,
+      );
+    } catch (error) {
+      // Keep backward compatibility with backends that still expose /versions.
+      if (
+        error instanceof ApiClientError &&
+        (error.status === 404 || error.status === 405)
+      ) {
+        return apiClient.post(
+          `/workflows/${workflowId}/versions`,
+          data,
+          WorkflowVersionCreateResponseSchema,
+          CreateVersionRequestSchema,
+        );
+      }
+
+      throw error;
+    }
   }
 
   async getVersion(versionId: string): Promise<WorkflowVersionDetailResponse> {
@@ -116,17 +131,6 @@ export class WorkflowService {
       data,
       WorkflowVersionUpdateResponseSchema,
       UpdateVersionRequestSchema,
-    );
-  }
-
-  async saveVersion(
-    data: WorkflowVersionSaveRequest,
-  ): Promise<WorkflowVersionSaveResponse> {
-    return apiClient.post(
-      "/workflows/save",
-      data,
-      WorkflowVersionSaveResponseSchema,
-      WorkflowVersionSaveRequestSchema,
     );
   }
 
@@ -165,13 +169,20 @@ export class WorkflowService {
   async updateVersionStatus(
     versionId: string,
     status: "published" | "active",
+    incrementType?: VersionIncrementType,
   ): Promise<WorkflowVersionStatusResponse> {
     const endpoint =
       status === "active"
         ? `/workflows/versions/${versionId}/activate`
         : `/workflows/versions/${versionId}/publish`;
 
-    return apiClient.post(endpoint, {}, WorkflowVersionStatusResponseSchema);
+    const payload = UpdateVersionStatusRequestSchema.parse({ incrementType });
+
+    return apiClient.post(
+      endpoint,
+      payload,
+      WorkflowVersionStatusResponseSchema,
+    );
   }
 
   async promoteWorkflowVersion(

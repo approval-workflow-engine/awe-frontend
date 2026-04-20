@@ -22,9 +22,7 @@ export default function RegisterPage() {
   const [showPw, setShowPw] = useState(false);
   const [form, setForm] = useState({
     name: "",
-    description: "",
-    orgName: "",
-    contactEmail: "",
+    email: "",
     password: "",
     confirmPassword: "",
   });
@@ -46,11 +44,9 @@ export default function RegisterPage() {
       return;
     }
     const payload = {
-      name: form.name,
-      orgName: form.orgName,
-      contactEmail: form.contactEmail,
+      name: form.name.trim(),
+      email: form.email.trim(),
       password: form.password,
-      ...(form.description ? { description: form.description } : {}),
     };
     const data = await call(() => authService.register(payload), {
       showError: true,
@@ -101,14 +97,14 @@ export default function RegisterPage() {
             Create your account
           </Typography>
           <Typography sx={{ fontSize: 13, color: "text.secondary" }}>
-            Register a new AWE system
+            Register your organization account
           </Typography>
         </Box>
 
         <form onSubmit={handleSubmit}>
           <TextField
             fullWidth
-            label="System Name *"
+            label="Organization Name *"
             name="name"
             size="small"
             value={form.name}
@@ -119,32 +115,11 @@ export default function RegisterPage() {
 
           <TextField
             fullWidth
-            label="Description"
-            name="description"
-            size="small"
-            value={form.description}
-            sx={{ ...inputStyle, mb: 1.5 }}
-            onChange={handleChange}
-          />
-
-          <TextField
-            fullWidth
-            label="Organisation Name *"
-            name="orgName"
-            size="small"
-            value={form.orgName}
-            sx={{ ...inputStyle, mb: 1.5 }}
-            onChange={handleChange}
-            required
-          />
-
-          <TextField
-            fullWidth
-            label="Contact Email *"
-            name="contactEmail"
+            label="Email *"
+            name="email"
             type="email"
             size="small"
-            value={form.contactEmail}
+            value={form.email}
             sx={{ ...inputStyle, mb: 1.5 }}
             onChange={handleChange}
             autoComplete="email"
@@ -203,7 +178,13 @@ export default function RegisterPage() {
             fullWidth
             variant="contained"
             type="submit"
-            disabled={loading}
+            disabled={
+              loading ||
+              !form.name.trim() ||
+              !form.email.trim() ||
+              !form.password ||
+              !form.confirmPassword
+            }
             sx={{
               height: 40,
               fontWeight: 600,
@@ -214,7 +195,7 @@ export default function RegisterPage() {
             {loading ? (
               <CircularProgress size={20} sx={{ color: "white" }} />
             ) : (
-              "Register System"
+              "Create Account"
             )}
           </Button>
         </form>

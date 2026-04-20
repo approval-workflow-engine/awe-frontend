@@ -10,27 +10,30 @@ export const SecretItemSchema = z.object({
   createdAt: z.union([z.string(), z.date()]).nullable().optional(),
 });
 
-// Shape sent when CREATING a secret (request payload)
 export const SecretSchema = z.object({
   id: z.string().uuid().optional(),
   providerId: z.string().uuid(),
   environment: z.string(),
-  label: z.string(),
   key: z.string(),
   created_on: z.string().optional(),
 });
 
-// Create response is the full item
 export const SecretCreateResponseSchema = SecretItemSchema;
 
-// List response
 export const SecretsResponseSchema = z.object({
   secrets: z.array(SecretItemSchema),
+});
+
+export const AvailableProviderSecretsResponseSchema = z.object({
+  secrets: z.array(z.string()),
 });
 
 export type Secret = z.infer<typeof SecretSchema>;
 export type SecretItem = z.infer<typeof SecretItemSchema>;
 export type SecretsResponse = z.infer<typeof SecretsResponseSchema>;
+export type AvailableProviderSecretsResponse = z.infer<
+  typeof AvailableProviderSecretsResponseSchema
+>;
 
 export const DeleteSecretResponseSchema = z.object({
   success: z.boolean(),

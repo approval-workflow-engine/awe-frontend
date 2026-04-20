@@ -121,8 +121,8 @@ function fmtDate(iso: string | null | undefined) {
 export default function Settings() {
   const { call } = useApiCall();
 
-  const [systemInfo, setSystemInfo] = useState<User | null>(null);
-  const [systemLoading, setSystemLoading] = useState(true);
+  const [organizationInfo, setOrganizationInfo] = useState<User | null>(null);
+  const [organizationLoading, setOrganizationLoading] = useState(true);
 
   const [idCopied, setIdCopied] = useState(false);
 
@@ -142,29 +142,17 @@ export default function Settings() {
   const [newKey, setNewKey] = useState<string | null>(null);
   const [keyCopied, setKeyCopied] = useState(false);
 
-  const fetchSystemInfo = useCallback(async () => {
-    setSystemLoading(true);
+  const fetchOrganizationInfo = useCallback(async () => {
+    setOrganizationLoading(true);
     try {
-      const res = await call(() => authService.getCurrentSystem(), {
+      const res = await call(() => authService.getCurrentOrganization(), {
         showError: false,
       });
       if (res) {
-        const body = res as {
-          system?: {
-            id: string;
-            name: string;
-            orgName: string;
-            contactEmail: string;
-            environment?: string;
-            createdAt?: string;
-          };
-        };
-        if (body.system) {
-          setSystemInfo(body.system);
-        }
+        setOrganizationInfo(res as User);
       }
     } finally {
-      setSystemLoading(false);
+      setOrganizationLoading(false);
     }
   }, [call]);
 
@@ -189,8 +177,8 @@ export default function Settings() {
   }, [fetchApiKeys]);
 
   useEffect(() => {
-    fetchSystemInfo();
-  }, [fetchSystemInfo]);
+    fetchOrganizationInfo();
+  }, [fetchOrganizationInfo]);
 
   const handleRevoke = (key: ApiKey) => {
     setRevokeTarget(key);
@@ -249,8 +237,8 @@ export default function Settings() {
   };
 
   const copyId = () => {
-    if (!systemInfo?.id) return;
-    navigator.clipboard.writeText(systemInfo.id).then(() => {
+    if (!organizationInfo?.id) return;
+    navigator.clipboard.writeText(organizationInfo.id).then(() => {
       setIdCopied(true);
       setTimeout(() => setIdCopied(false), 2000);
     });
@@ -268,7 +256,7 @@ export default function Settings() {
     <Box>
       <PageHeader
         title="Settings"
-        subtitle="System configuration and API access"
+        subtitle="Organization profile and API access"
       />
 
       <Paper sx={{ mb: 2.5, overflow: "hidden" }}>
@@ -288,7 +276,7 @@ export default function Settings() {
               color: "text.primary",
             }}
           >
-            System Information
+            Organization Information
           </Typography>
           <Typography sx={{ fontSize: 12, color: "text.secondary", mt: 0.25 }}>
             Read-only profile fetched from the API
@@ -296,7 +284,7 @@ export default function Settings() {
         </Box>
 
         <Box sx={{ px: 2.5 }}>
-          {systemLoading ? (
+          {organizationLoading ? (
             <Box py={2}>
               {[0, 1, 2, 3].map((i) => (
                 <Box key={i} py={0.75}>
@@ -304,29 +292,23 @@ export default function Settings() {
                 </Box>
               ))}
             </Box>
-          ) : systemInfo ? (
+          ) : organizationInfo ? (
             <>
-              <InfoRow label="System Name">
+              <InfoRow label="Organization Name">
                 <Typography
                   sx={{ fontSize: 13, fontWeight: 500, color: "text.primary" }}
                 >
-                  {systemInfo.name}
-                </Typography>
-              </InfoRow>
-
-              <InfoRow label="Organisation">
-                <Typography sx={{ fontSize: 13, color: "text.primary" }}>
-                  {systemInfo.orgName}
+                  {organizationInfo.name}
                 </Typography>
               </InfoRow>
 
               <InfoRow label="Contact Email">
                 <Typography sx={{ fontSize: 13, color: "text.primary" }}>
-                  {systemInfo.contactEmail}
+                  {organizationInfo.email}
                 </Typography>
               </InfoRow>
 
-              <InfoRow label="System ID">
+              <InfoRow label="Organization ID">
                 <Box display="flex" alignItems="center" gap={0.5}>
                   <Typography
                     sx={{
@@ -338,7 +320,7 @@ export default function Settings() {
                       whiteSpace: "nowrap",
                     }}
                   >
-                    {systemInfo.id}
+                    {organizationInfo.id}
                   </Typography>
                   <Tooltip title={idCopied ? "Copied!" : "Copy"}>
                     <IconButton
@@ -364,8 +346,28 @@ export default function Settings() {
                     color: "text.disabled",
                   }}
                 >
-                  {systemInfo.createdAt
-                    ? new Date(systemInfo.createdAt).toLocaleString("en-GB", {
+                  {organizationInfo.createdAt
+                    ? new Date(organizationInfo.createdAt).toLocaleString("en-GB", {
+                        day: "2-digit",
+                        month: "short",
+                        year: "numeric",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })
+                    : "-"}
+                </Typography>
+              </InfoRow>
+
+              <InfoRow label="Updated">
+                <Typography
+                  sx={{
+                    fontFamily: "'JetBrains Mono', monospace",
+                    fontSize: 12,
+                    color: "text.disabled",
+                  }}
+                >
+                  {organizationInfo.updatedAt
+                    ? new Date(organizationInfo.updatedAt).toLocaleString("en-GB", {
                         day: "2-digit",
                         month: "short",
                         year: "numeric",
@@ -379,7 +381,7 @@ export default function Settings() {
           ) : (
             <Box py={5} textAlign="center">
               <Typography sx={{ fontSize: 13, color: "text.secondary" }}>
-                No system information available.
+                No organization information available.
               </Typography>
             </Box>
           )}
@@ -412,7 +414,7 @@ export default function Settings() {
             <Typography
               sx={{ fontSize: 12, color: "text.secondary", mt: 0.25 }}
             >
-              Manage your system API keys
+              Manage your organization API keys
             </Typography>
           </Box>
           <Button

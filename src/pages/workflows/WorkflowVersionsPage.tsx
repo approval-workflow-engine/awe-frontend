@@ -20,6 +20,10 @@ import {
   DialogActions,
   Skeleton,
   Chip,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
 } from "@mui/material";
 import EditIcon from "@mui/icons-material/Edit";
 import VisibilityIcon from "@mui/icons-material/Visibility";
@@ -36,6 +40,7 @@ import AppPagination from "../../components/common/AppPagination";
 import { useBackNavigation } from "../../hooks/useBackNavigation";
 import type { Workflow, WorkflowVersion } from "../../types";
 import type { Pagination } from "../../api/schemas/common";
+import type { VersionIncrementType } from "../../api/schemas";
 import {
   getActiveEnvironmentType,
   type EnvironmentType,
@@ -60,7 +65,7 @@ const STATUS_LABELS: Record<string, string> = {
 const ACTION_CONFIG: Record<
   LifecycleAction,
   {
-    title: (vn: number) => string;
+    title: (vn: number | string) => string;
     body: string;
     confirmLabel: string;
     confirmColor: string;
@@ -145,6 +150,8 @@ export default function WorkflowVersionsPage() {
     action: LifecycleAction;
   } | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
+  const [publishIncrementType, setPublishIncrementType] =
+    useState<VersionIncrementType>("major");
   const [promoteTarget, setPromoteTarget] = useState<WorkflowVersion | null>(
     null,
   );
@@ -196,8 +203,8 @@ export default function WorkflowVersionsPage() {
               wf as {
                 versions?: Array<{
                   status?: string;
-                  version?: number;
-                  versionNumber?: number;
+                  version?: number | string;
+                  versionNumber?: number | string;
                 }>;
               }
             )?.versions ?? [];
@@ -282,8 +289,15 @@ export default function WorkflowVersionsPage() {
     try {
       if (action === "commit") {
         await call(
-          () => workflowService.updateVersionStatus(version.id, "published"),
-          { successMsg: `v${version.versionNumber} committed.` },
+          () =>
+            workflowService.updateVersionStatus(
+              version.id,
+              "published",
+              publishIncrementType,
+            ),
+          {
+            successMsg: `v${version.versionNumber} committed (${publishIncrementType} release).`,
+          },
         );
         setActionTarget(null);
         fetchData();
@@ -312,8 +326,15 @@ export default function WorkflowVersionsPage() {
         const clonedBody = (cloned ?? {}) as {
           id?: string;
           versionId?: string;
+          workflowVersion?: {
+            id?: string;
+          };
         };
-        const clonedVersionId = clonedBody.id ?? clonedBody.versionId ?? null;
+        const clonedVersionId =
+          clonedBody.id ??
+          clonedBody.versionId ??
+          clonedBody.workflowVersion?.id ??
+          null;
 
         setActionTarget(null);
 
@@ -722,12 +743,33 @@ export default function WorkflowVersionsPage() {
                 fontSize: 16,
               }}
             >
-              {cfg.title(actionTarget.version.versionNumber)}
+              {cfg.title(actionTarget.version.versionNumber ?? "-")}
             </DialogTitle>
             <DialogContent sx={{ pt: "8px !important" }}>
               <Typography sx={{ fontSize: 13, color: "text.secondary" }}>
                 {cfg.body}
               </Typography>
+              {actionTarget.action === "commit" && (
+                <FormControl fullWidth size="small" sx={{ mt: 2 }}>
+                  <InputLabel id="versions-increment-type-label">
+                    Version Bump
+                  </InputLabel>
+                  <Select
+                    labelId="versions-increment-type-label"
+                    value={publishIncrementType}
+                    label="Version Bump"
+                    onChange={(event) =>
+                      setPublishIncrementType(
+                        event.target.value as VersionIncrementType,
+                      )
+                    }
+                  >
+                    <MenuItem value="major">Major</MenuItem>
+                    <MenuItem value="minor">Minor</MenuItem>
+                    <MenuItem value="patch">Patch</MenuItem>
+                  </Select>
+                </FormControl>
+              )}
             </DialogContent>
             <DialogActions sx={{ px: 3, pb: 2 }}>
               <Button

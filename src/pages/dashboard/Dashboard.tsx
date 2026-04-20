@@ -156,7 +156,7 @@ export default function Dashboard() {
     <Box>
       <PageHeader
         title="Dashboard"
-        subtitle="Overview of your workflow system"
+        subtitle="Overview of your organization workflows"
       />
 
       <Grid container spacing={2} mb={4}>

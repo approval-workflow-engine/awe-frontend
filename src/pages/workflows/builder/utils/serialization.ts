@@ -19,6 +19,19 @@ type BackoffConfig = {
   unit: BackoffUnit;
 };
 
+type TimeoutConfig = {
+  delay: number;
+  unit: BackoffUnit;
+};
+
+type ScriptServiceType = "jdoodle" | "gemini";
+
+type ScriptCredentials = {
+  clientId?: string;
+  clientSecret?: string;
+  apiKey?: string;
+};
+
 type OnErrorMode = "terminate" | "continue";
 
 const DEFAULT_BACKOFF: BackoffConfig = {
@@ -26,6 +39,8 @@ const DEFAULT_BACKOFF: BackoffConfig = {
   delay: 1,
   unit: "second",
 };
+
+const DEFAULT_TIMEOUT_UNIT: BackoffUnit = "millisecond";
 
 function toApiNodeType(type: string): string {
   switch (type) {
@@ -100,6 +115,84 @@ function normalizeBackoff(value: unknown): BackoffConfig {
       : DEFAULT_BACKOFF.delay;
 
   return { type, delay, unit };
+}
+
+function normalizeTimeout(value: unknown): TimeoutConfig | undefined {
+  const raw = asRecord(value);
+  if (!Object.keys(raw).length) {
+    return undefined;
+  }
+
+  const delay =
+    typeof raw.delay === "number" && Number.isFinite(raw.delay) && raw.delay > 0
+      ? raw.delay
+      : undefined;
+
+  if (delay === undefined) {
+    return undefined;
+  }
+
+  const unit: BackoffUnit =
+    raw.unit === "millisecond" || raw.unit === "second" || raw.unit === "minute"
+      ? raw.unit
+      : DEFAULT_TIMEOUT_UNIT;
+
+  return {
+    delay,
+    unit,
+  };
+}
+
+function normalizeTimeoutFromConfig(config: UnknownRecord): TimeoutConfig | undefined {
+  const timeout = normalizeTimeout(config.timeout);
+  if (timeout) {
+    return timeout;
+  }
+
+  if (
+    typeof config.timeoutMs === "number" &&
+    Number.isFinite(config.timeoutMs) &&
+    config.timeoutMs > 0
+  ) {
+    return {
+      delay: config.timeoutMs,
+      unit: "millisecond",
+    };
+  }
+
+  return undefined;
+}
+
+function normalizeScriptServiceType(config: UnknownRecord): ScriptServiceType {
+  if (config.serviceType === "gemini" || config.executionService === "gemini") {
+    return "gemini";
+  }
+
+  return "jdoodle";
+}
+
+function normalizeScriptCredentials(
+  serviceType: ScriptServiceType,
+  config: UnknownRecord,
+): ScriptCredentials | null {
+  const raw = asRecord(config.credentials);
+
+  if (serviceType === "gemini") {
+    const apiKey = normalizeFeelStringInput(asString(raw.apiKey));
+    return apiKey.trim() ? { apiKey } : null;
+  }
+
+  const clientId = normalizeFeelStringInput(asString(raw.clientId));
+  const clientSecret = normalizeFeelStringInput(asString(raw.clientSecret));
+
+  if (!clientId.trim() && !clientSecret.trim()) {
+    return null;
+  }
+
+  return {
+    clientId,
+    clientSecret,
+  };
 }
 
 function normalizeDefaultValueForSerialization(
@@ -454,14 +547,15 @@ function serializeConfiguration(
 
     case "script": {
       const rawBackoff = normalizeBackoff(config.backoff);
+      const timeout = normalizeTimeoutFromConfig(config);
+      const serviceType = normalizeScriptServiceType(config);
+      const credentials = normalizeScriptCredentials(serviceType, config);
 
       return {
         runtime: "python3" as const,
         maxAttempts:
           typeof config.maxAttempts === "number" ? config.maxAttempts : 1,
-        ...(typeof config.timeoutMs === "number"
-          ? { timeoutMs: config.timeoutMs }
-          : {}),
+        ...(timeout ? { timeout } : {}),
         backoff: rawBackoff,
         onError: normalizeOnErrorConfiguration(config.onError),
         sourceCode:
@@ -470,8 +564,8 @@ function serializeConfiguration(
           typeof config.entryFunctionName === "string"
             ? config.entryFunctionName
             : "main",
-        executionService:
-          config.executionService === "gemini" ? "gemini" : "jdoodle",
+        serviceType,
+        ...(credentials ? { credentials } : { credentials: null }),
         parameterMap: Array.isArray(config.parameterMap)
           ? config.parameterMap.map((p: any) => ({
               name: p.name ?? "",
@@ -511,8 +605,10 @@ function serializeConfiguration(
       };
       if (typeof config.maxAttempts === "number")
         svc.maxAttempts = config.maxAttempts;
-      if (typeof config.timeoutMs === "number")
-        svc.timeoutMs = config.timeoutMs;
+      const timeout = normalizeTimeoutFromConfig(config);
+      if (timeout) {
+        svc.timeout = timeout;
+      }
       svc.backoff = rawBackoff;
       svc.onError = normalizeOnErrorConfiguration(config.onError);
       if ("headers" in config)
@@ -803,6 +899,13 @@ export function definitionToCanvas(def: unknown): {
     if (typeof node.config.urlExpression === "string") {
       node.config.urlExpression = feelUrlToTemplate(node.config.urlExpression);
     }
+    const timeout = normalizeTimeoutFromConfig(node.config);
+    if (timeout) {
+      node.config.timeout = timeout;
+    } else {
+      delete node.config.timeout;
+    }
+    delete node.config.timeoutMs;
     node.config.backoff = normalizeBackoff(node.config.backoff);
     node.config.onError = normalizeOnErrorConfigurationForCanvas(
       node.config.onError,
@@ -811,6 +914,37 @@ export function definitionToCanvas(def: unknown): {
 
   cNodes.forEach((node) => {
     if (node.type !== "script_task") return;
+    const timeout = normalizeTimeoutFromConfig(node.config);
+    if (timeout) {
+      node.config.timeout = timeout;
+    } else {
+      delete node.config.timeout;
+    }
+    delete node.config.timeoutMs;
+
+    const serviceType = normalizeScriptServiceType(node.config);
+    node.config.serviceType = serviceType;
+    delete node.config.executionService;
+
+    const rawCredentials = asRecord(node.config.credentials);
+    if (serviceType === "gemini") {
+      const apiKey = asString(rawCredentials.apiKey);
+      node.config.credentials = apiKey.trim()
+        ? {
+            apiKey: feelStringLiteralToInput(apiKey),
+          }
+        : null;
+    } else {
+      const clientId = asString(rawCredentials.clientId);
+      const clientSecret = asString(rawCredentials.clientSecret);
+      node.config.credentials = clientId.trim() || clientSecret.trim()
+        ? {
+            clientId: feelStringLiteralToInput(clientId),
+            clientSecret: feelStringLiteralToInput(clientSecret),
+          }
+        : null;
+    }
+
     node.config.backoff = normalizeBackoff(node.config.backoff);
     node.config.onError = normalizeOnErrorConfigurationForCanvas(
       node.config.onError,

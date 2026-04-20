@@ -18,7 +18,7 @@ import { inputStyle } from "../../styles/authStyles";
 import { authService } from "../../api/services/auth";
 import { useApp } from "../../context/useApp";
 import { useApiCall } from "../../hooks/useApiCall";
-import type { LoginResponse, User } from "../../types";
+import type { LoginResponse } from "../../api/schemas";
 
 export default function LoginPage() {
   const [showPw, setShowPw] = useState(false);
@@ -38,16 +38,9 @@ export default function LoginPage() {
       errorMsg: "Invalid email or password",
     });
     if (data) {
-      const body = data as {
-        system?: User;
-        accessToken?: string;
-        refreshToken?: string;
-      };
-      const system = body.system;
-      const accessToken = body.accessToken;
-      const refreshToken = body.refreshToken;
-      if (system && accessToken && refreshToken) {
-        login(system, accessToken, refreshToken);
+      const { organization, accessToken, refreshToken } = data;
+      if (organization && accessToken && refreshToken) {
+        login(organization, accessToken, refreshToken);
         navigate("/dashboard", { replace: true });
       }
     }
