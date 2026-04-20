@@ -14,11 +14,38 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const storedUser = localStorage.getItem(TOKEN_KEYS.USER);
     if (token && storedUser) {
       try {
-        setUser(JSON.parse(storedUser) as User);
+        const parsedUser = JSON.parse(storedUser) as
+          | (Partial<User> & { contactEmail?: string })
+          | null;
+
+        const normalizedUser: User = {
+          id: String(parsedUser?.id ?? ""),
+          name: String(parsedUser?.name ?? ""),
+          email: String(parsedUser?.email ?? parsedUser?.contactEmail ?? ""),
+          ...(typeof parsedUser?.environment === "string"
+            ? { environment: parsedUser.environment }
+            : {}),
+          ...(typeof parsedUser?.createdAt === "string"
+            ? { createdAt: parsedUser.createdAt }
+            : {}),
+          ...(typeof parsedUser?.updatedAt === "string"
+            ? { updatedAt: parsedUser.updatedAt }
+            : {}),
+          ...(Array.isArray(parsedUser?.apiKeys)
+            ? { apiKeys: parsedUser.apiKeys }
+            : {}),
+        };
+
+        if (!normalizedUser.id || !normalizedUser.name || !normalizedUser.email) {
+          throw new Error("Invalid stored user payload");
+        }
+
+        setUser(normalizedUser);
         setIsAuthenticated(true);
       } catch {
         localStorage.removeItem(TOKEN_KEYS.USER);
         localStorage.removeItem(TOKEN_KEYS.ACCESS);
+        localStorage.removeItem(TOKEN_KEYS.REFRESH);
       }
     }
     setLoading(false);

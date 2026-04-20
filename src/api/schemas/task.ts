@@ -75,10 +75,9 @@ export const CompleteTaskResponseSchema = z.object({
   completedAt: dateTransform,
 });
 
-  export const RetryTaskResponseSchema = z.object({
-    status: z.string(),
-    message: z.string().optional(),
-  });
+export const RetryTaskResponseSchema = z.object({
+  instance: z.unknown(),
+});
 
 export type TaskStatus = z.infer<typeof TaskStatusSchema>;
 export type UserTaskDisplayField = z.infer<typeof UserTaskDisplayFieldSchema>;

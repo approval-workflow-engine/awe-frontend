@@ -66,8 +66,8 @@ export class AuthService {
     );
   }
 
-  async getCurrentSystem(): Promise<{ system: Organization }> {
-    return apiClient.get("/me", z.object({ system: OrganizationDetailSchema }));
+  async getCurrentOrganization(): Promise<Organization> {
+    return apiClient.get("/me", OrganizationDetailSchema);
   }
 
   async getApiKeys(): Promise<ApiKeysResponse> {

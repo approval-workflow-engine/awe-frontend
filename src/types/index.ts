@@ -19,10 +19,10 @@ export interface Pagination {
 export interface User {
   id: string;
   name: string;
-  orgName: string;
-  contactEmail: string;
+  email: string;
   environment?: string;
   createdAt?: string;
+  updatedAt?: string;
   apiKeys?: ApiKey[];
 }
 
@@ -41,21 +41,23 @@ export interface LoginPayload {
 }
 
 export interface LoginResponse {
-  system: User;
+  organization: User;
   accessToken: string;
   refreshToken: string;
 }
 
 export interface RegisterPayload {
   name: string;
-  description?: string;
-  orgName: string;
-  contactEmail: string;
+  email: string;
   password: string;
 }
 
 export interface RegisterResponse {
-  apiKey?: string;
+  id: string;
+  name: string;
+  email: string;
+  environments: string[];
+  createdAt: string;
 }
 
 export interface WorkflowLatestVersion {

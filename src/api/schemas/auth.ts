@@ -1,10 +1,13 @@
 import { z } from "zod";
 import { EnvironmentTypeSchema } from "./common";
 
-export const OrganizationDetailSchema = z.object({
+export const OrganizationBasicSchema = z.object({
   id: z.uuidv4(),
   name: z.string(),
-  email: z.string(),
+  email: z.email(),
+});
+
+export const OrganizationDetailSchema = OrganizationBasicSchema.extend({
   createdAt: z.string(),
   updatedAt: z.string(),
 });
@@ -15,11 +18,7 @@ export const LoginRequestSchema = z.object({
 });
 
 export const LoginResponseSchema = z.object({
-  organization: {
-    id: z.uuidv4(),
-    name: z.string(),
-    email: z.string(),
-  },
+  organization: OrganizationBasicSchema,
   accessToken: z.string(),
   refreshToken: z.string(),
 });
@@ -85,6 +84,7 @@ export const RevokeApiKeyResponseSchema = z.object({
 });
 
 export type Organization = z.infer<typeof OrganizationDetailSchema>;
+export type OrganizationBasic = z.infer<typeof OrganizationBasicSchema>;
 export type LoginRequest = z.infer<typeof LoginRequestSchema>;
 export type LoginResponse = z.infer<typeof LoginResponseSchema>;
 export type RefreshTokenRequest = z.infer<typeof RefreshTokenRequestSchema>;

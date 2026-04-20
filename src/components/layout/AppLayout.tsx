@@ -66,8 +66,7 @@ export default function AppLayout() {
         collapsed={collapsed}
         activePath={location.pathname}
         userName={user?.name}
-        userOrgName={user?.orgName}
-        userContactEmail={user?.contactEmail}
+        userEmail={user?.email}
         onNavigate={navigate}
         onToggleCollapse={toggleCollapse}
       />

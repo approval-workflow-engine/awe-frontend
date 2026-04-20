@@ -47,8 +47,7 @@ interface AppSidebarProps {
   collapsed: boolean;
   activePath: string;
   userName?: string;
-  userOrgName?: string;
-  userContactEmail?: string;
+  userEmail?: string;
   onNavigate: (path: string) => void;
   onToggleCollapse: (collapsed: boolean) => void;
 }
@@ -57,14 +56,13 @@ export default function AppSidebar({
   collapsed,
   activePath,
   userName,
-  userOrgName,
-  userContactEmail,
+  userEmail,
   onNavigate,
   onToggleCollapse,
 }: AppSidebarProps) {
   const width = collapsed ? COLLAPSED_WIDTH : EXPANDED_WIDTH;
-  const avatarLabel = (userName || userOrgName || "U")[0]?.toUpperCase() ?? "U";
-  const displayName = userName || userOrgName || "User";
+  const avatarLabel = (userName || userEmail || "U")[0]?.toUpperCase() ?? "U";
+  const displayName = userName || "User";
 
   const isActive = (path: string) => activePath.startsWith(path);
 
@@ -265,7 +263,7 @@ export default function AppSidebar({
                   textOverflow: "ellipsis",
                 }}
               >
-                {userContactEmail || ""}
+                {userEmail || ""}
               </Typography>
             </Box>
           </>

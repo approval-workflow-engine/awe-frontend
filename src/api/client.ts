@@ -101,10 +101,9 @@ class ApiClient {
           return false;
         })();
         const shouldSkipEnvironmentFilter =
-          (method === "GET" && url.startsWith("/systems/api-keys")) ||
-          url.startsWith("/systems/me") ||
           url.startsWith("/auth/") ||
-          url.startsWith("/systems/register") ||
+          (method === "GET" && (path === "/me" || path.startsWith("/api-keys"))) ||
+          (method === "POST" && path === "/organizations/register") ||
           isTargetedNoEnvironmentEndpoint;
 
         if (!shouldSkipEnvironmentFilter) {
