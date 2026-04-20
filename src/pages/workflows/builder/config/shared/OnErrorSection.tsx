@@ -6,18 +6,13 @@ import DataTypeSelect from "./DataTypeSelect";
 import JsonPathInput from "./JsonPathInput";
 import AddRowButton from "./AddRowButton";
 import type { AvailableCtxVar } from "../context";
-import type { ContextVariable } from "../../type/types";
+import type {
+  ContextVariable,
+  OnErrorConfig,
+  OnErrorOutputMap,
+  OnErrorMode,
+} from "../../type/types";
 import { DataType } from "../../type/types";
-
-type OnErrorMode = "terminate" | "map";
-
-interface ErrorMapRow {
-  fromType: "jsonPath" | "expression";
-  jsonPath?: string;
-  dataType?: string;
-  valueExpression?: string;
-  contextVariable: ContextVariable;
-}
 
 interface Props {
   value: unknown;
@@ -32,17 +27,41 @@ export default function OnErrorSection({
   onChange,
   availableContext,
 }: Props) {
-  const mode: OnErrorMode = value === "terminate" ? "terminate" : "map";
-  const errorMap: ErrorMapRow[] =
-    mode === "map" && typeof value === "object" && value !== null
-      ? (((value as Record<string, unknown>).errorMap as ErrorMapRow[]) ?? [])
+  const parsedValue =
+    typeof value === "object" && value !== null
+      ? (value as Partial<OnErrorConfig>)
+      : {};
+
+  const legacyErrorMap =
+    typeof value === "object" && value !== null
+      ? ((value as Record<string, unknown>).errorMap as OnErrorOutputMap[] | undefined)
+      : undefined;
+
+  const mode: OnErrorMode =
+    parsedValue.mode === "continue" || Array.isArray(legacyErrorMap)
+      ? "continue"
+      : "terminate";
+
+  const outputMap: OnErrorOutputMap[] = Array.isArray(parsedValue.outputMap)
+    ? parsedValue.outputMap
+    : Array.isArray(legacyErrorMap)
+      ? legacyErrorMap
       : [];
 
-  const updateMap = (rows: ErrorMapRow[]) => onChange({ errorMap: rows });
-  const update = (idx: number, patch: Partial<ErrorMapRow>) =>
-    updateMap(errorMap.map((r, i) => (i === idx ? { ...r, ...patch } : r)));
+  const updateValue = (nextMode: OnErrorMode, nextOutputMap: OnErrorOutputMap[]) =>
+    onChange({ mode: nextMode, outputMap: nextOutputMap });
+
+  const updateMap = (rows: OnErrorOutputMap[]) => updateValue("continue", rows);
+
+  const update = (idx: number, patch: Partial<OnErrorOutputMap>) =>
+    updateMap(
+      outputMap.map((r, i) =>
+        i === idx ? ({ ...r, ...patch } as OnErrorOutputMap) : r,
+      ),
+    );
+
   const remove = (idx: number) =>
-    updateMap(errorMap.filter((_, i) => i !== idx));
+    updateMap(outputMap.filter((_, i) => i !== idx));
 
   const activeStyle = (color: string) => ({
     backgroundColor: `rgba(${color},0.15)`,
@@ -58,7 +77,7 @@ export default function OnErrorSection({
         <Button
           size="small"
           variant={mode === "terminate" ? "contained" : "outlined"}
-          onClick={() => onChange("terminate")}
+          onClick={() => updateValue("terminate", [])}
           sx={{
             fontSize: 10,
             height: 26,
@@ -75,8 +94,8 @@ export default function OnErrorSection({
         </Button>
         <Button
           size="small"
-          variant={mode === "map" ? "contained" : "outlined"}
-          onClick={() => onChange({ errorMap: [] })}
+          variant={mode === "continue" ? "contained" : "outlined"}
+          onClick={() => updateValue("continue", [])}
           sx={{
             fontSize: 10,
             height: 26,
@@ -84,12 +103,12 @@ export default function OnErrorSection({
             flex: 1,
             fontWeight: 600,
             textTransform: "none",
-            ...(mode === "map"
+            ...(mode === "continue"
               ? activeStyle("79,110,247")
               : { borderColor: "divider", color: "text.secondary" }),
           }}
         >
-          Map to Context
+          Continue
         </Button>
       </Box>
 
@@ -106,9 +125,9 @@ export default function OnErrorSection({
         </Typography>
       )}
 
-      {mode === "map" && (
+      {mode === "continue" && (
         <Box display="flex" flexDirection="column" gap={0.75}>
-          {errorMap.map((row, idx) => (
+          {outputMap.map((row, idx) => (
             <Box
               key={idx}
               sx={{
@@ -221,10 +240,11 @@ export default function OnErrorSection({
             label="Add Error Mapping"
             onClick={() =>
               updateMap([
-                ...errorMap,
+                  ...outputMap,
                 {
                   fromType: "jsonPath",
                   jsonPath: "",
+                    dataType: DataType.STRING,
                   contextVariable: EMPTY_CV,
                 },
               ])

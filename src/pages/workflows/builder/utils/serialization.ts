@@ -19,6 +19,8 @@ type BackoffConfig = {
   unit: BackoffUnit;
 };
 
+type OnErrorMode = "terminate" | "continue";
+
 const DEFAULT_BACKOFF: BackoffConfig = {
   type: "fixed",
   delay: 1,
@@ -98,6 +100,174 @@ function normalizeBackoff(value: unknown): BackoffConfig {
       : DEFAULT_BACKOFF.delay;
 
   return { type, delay, unit };
+}
+
+function normalizeDefaultValueForSerialization(
+  dataType: string,
+  value: unknown,
+): unknown {
+  if (value === undefined) {
+    return undefined;
+  }
+
+  if (dataType === "null") {
+    return null;
+  }
+
+  if (dataType === "number") {
+    if (typeof value === "number") {
+      return value;
+    }
+
+    if (typeof value === "string") {
+      const trimmed = value.trim();
+      if (!trimmed) {
+        return value;
+      }
+
+      const parsed = Number(trimmed);
+      return Number.isNaN(parsed) ? value : parsed;
+    }
+
+    return value;
+  }
+
+  if (dataType === "boolean") {
+    if (typeof value === "boolean") {
+      return value;
+    }
+
+    if (typeof value === "string") {
+      if (value === "true") {
+        return true;
+      }
+
+      if (value === "false") {
+        return false;
+      }
+    }
+
+    return value;
+  }
+
+  if (dataType === "object" || dataType === "list") {
+    if (typeof value !== "string") {
+      return value;
+    }
+
+    const trimmed = value.trim();
+    if (!trimmed) {
+      return value;
+    }
+
+    try {
+      return JSON.parse(trimmed);
+    } catch {
+      return value;
+    }
+  }
+
+  return value;
+}
+
+function normalizeDefaultValueForCanvas(dataType: string, value: unknown): unknown {
+  if (value === undefined) {
+    return undefined;
+  }
+
+  if (dataType === "object" || dataType === "list") {
+    if (typeof value === "string") {
+      return value;
+    }
+
+    try {
+      return JSON.stringify(value);
+    } catch {
+      return String(value);
+    }
+  }
+
+  return value;
+}
+
+function normalizeOnErrorConfiguration(config: unknown): UnknownRecord {
+  const raw = asRecord(config);
+
+  const sourceRows = Array.isArray(raw.outputMap)
+    ? raw.outputMap
+    : Array.isArray(raw.errorMap)
+      ? raw.errorMap
+      : [];
+
+  const mode: OnErrorMode =
+    raw.mode === "continue" || (raw.mode === undefined && sourceRows.length > 0)
+      ? "continue"
+      : "terminate";
+
+  const outputMap = sourceRows.map((entry: any) => {
+    const fromType = entry.fromType === "expression" ? "expression" : "jsonPath";
+    const contextVariableName =
+      entry.contextVariableName ?? entry.contextVariable?.name ?? "";
+
+    if (fromType === "expression") {
+      return {
+        fromType,
+        valueExpression: entry.valueExpression ?? "",
+        contextVariableName,
+      };
+    }
+
+    return {
+      fromType,
+      jsonPath: entry.jsonPath ?? "",
+      dataType: entry.dataType ?? entry.type ?? "string",
+      contextVariableName,
+    };
+  });
+
+  return {
+    mode,
+    outputMap: mode === "continue" ? outputMap : [],
+  };
+}
+
+function normalizeOnErrorConfigurationForCanvas(value: unknown): UnknownRecord {
+  const raw = asRecord(value);
+  const sourceRows = Array.isArray(raw.outputMap) ? raw.outputMap : [];
+  const mode: OnErrorMode =
+    raw.mode === "continue" || (raw.mode === undefined && sourceRows.length > 0)
+      ? "continue"
+      : "terminate";
+
+  const outputMap = sourceRows.map(
+    (entry: any) => {
+      const fromType = entry.fromType === "expression" ? "expression" : "jsonPath";
+      const contextVariable = {
+        name: entry.contextVariableName ?? entry.contextVariable?.name ?? "",
+        scope: "global" as const,
+      };
+
+      if (fromType === "expression") {
+        return {
+          fromType,
+          valueExpression: entry.valueExpression ?? "",
+          contextVariable,
+        };
+      }
+
+      return {
+        fromType,
+        jsonPath: entry.jsonPath ?? "",
+        dataType: entry.dataType ?? entry.type ?? "string",
+        contextVariable,
+      };
+    },
+  );
+
+  return {
+    mode,
+    outputMap: mode === "continue" ? outputMap : [],
+  };
 }
 
 function toFeelStringLiteral(value: string): string {
@@ -233,6 +403,14 @@ function serializeConfiguration(
               contextVariableName:
                 r.contextVariableName ?? r.contextVariable?.name ?? "",
               fetchableId: r.fetchableId,
+              required: r.required !== false,
+              defaultValue:
+                r.required === false
+                  ? normalizeDefaultValueForSerialization(
+                      r.dataType ?? r.type ?? "string",
+                      r.defaultValue,
+                    )
+                  : undefined,
             }))
           : [],
         secretDataMap: Array.isArray(config.secretDataMap)
@@ -281,7 +459,11 @@ function serializeConfiguration(
         runtime: "python3" as const,
         maxAttempts:
           typeof config.maxAttempts === "number" ? config.maxAttempts : 1,
+        ...(typeof config.timeoutMs === "number"
+          ? { timeoutMs: config.timeoutMs }
+          : {}),
         backoff: rawBackoff,
+        onError: normalizeOnErrorConfiguration(config.onError),
         sourceCode:
           typeof config.sourceCode === "string" ? config.sourceCode : "",
         entryFunctionName:
@@ -332,6 +514,7 @@ function serializeConfiguration(
       if (typeof config.timeoutMs === "number")
         svc.timeoutMs = config.timeoutMs;
       svc.backoff = rawBackoff;
+      svc.onError = normalizeOnErrorConfiguration(config.onError);
       if ("headers" in config)
         svc.headers = Array.isArray(config.headers)
           ? config.headers.map((h: any) => ({
@@ -422,6 +605,14 @@ function serializeConfiguration(
               contextVariableName:
                 r.contextVariableName ?? r.contextVariable?.name ?? "",
               type: r.type ?? r.dataType ?? "string",
+              required: r.required !== false,
+              defaultValue:
+                r.required === false
+                  ? normalizeDefaultValueForSerialization(
+                      r.type ?? r.dataType ?? "string",
+                      r.defaultValue,
+                    )
+                  : undefined,
               uiType: r.uiType,
               options: Array.isArray(r.options)
                 ? r.options.map((o: any) => ({
@@ -498,7 +689,14 @@ export function canvasToDefinition(
       .map((i) => ({
         name: i.contextVariableName || i.contextVariable?.name || "",
         type: i.dataType || i.type || "string",
-        required: i.required || false,
+        required: i.required !== false,
+        defaultValue:
+          i.required === false
+            ? normalizeDefaultValueForSerialization(
+                i.dataType || i.type || "string",
+                i.defaultValue,
+              )
+            : undefined,
       }));
   }
 
@@ -606,11 +804,17 @@ export function definitionToCanvas(def: unknown): {
       node.config.urlExpression = feelUrlToTemplate(node.config.urlExpression);
     }
     node.config.backoff = normalizeBackoff(node.config.backoff);
+    node.config.onError = normalizeOnErrorConfigurationForCanvas(
+      node.config.onError,
+    );
   });
 
   cNodes.forEach((node) => {
     if (node.type !== "script_task") return;
     node.config.backoff = normalizeBackoff(node.config.backoff);
+    node.config.onError = normalizeOnErrorConfigurationForCanvas(
+      node.config.onError,
+    );
   });
 
   cNodes.forEach((node) => {
@@ -690,6 +894,21 @@ export function definitionToCanvas(def: unknown): {
           : [],
       }),
     );
+
+    node.config.inputDataMap = (Array.isArray(node.config.inputDataMap)
+      ? node.config.inputDataMap
+      : []
+    ).map((entry: any) => ({
+      ...entry,
+      required: entry.required !== false,
+      defaultValue:
+        entry.required === false
+          ? normalizeDefaultValueForCanvas(
+              entry.dataType ?? entry.type ?? "string",
+              entry.defaultValue,
+            )
+          : undefined,
+    }));
   });
 
   // Deserialize End node resultMap: variableName → contextVariable
@@ -719,6 +938,11 @@ export function definitionToCanvas(def: unknown): {
           scope: "global",
         },
         type: r.type ?? "string",
+        required: r.required !== false,
+        defaultValue:
+          r.required === false
+            ? normalizeDefaultValueForCanvas(r.type ?? "string", r.defaultValue)
+            : undefined,
         uiType: r.uiType,
         options: r.options,
       }),
@@ -839,7 +1063,14 @@ export function definitionToCanvas(def: unknown): {
       .map((i) => ({
         name: i.contextVariableName || i.contextVariable?.name || "",
         type: i.dataType || i.type || "string",
-        required: i.required || false,
+        required: i.required !== false,
+        defaultValue:
+          i.required === false
+            ? normalizeDefaultValueForCanvas(
+                i.dataType || i.type || "string",
+                i.defaultValue,
+              )
+            : undefined,
       }));
   }
 

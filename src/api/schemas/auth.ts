@@ -33,6 +33,10 @@ export const RefreshTokenResponseSchema = z.object({
   refreshToken: z.string(),
 });
 
+export const LogoutRequestSchema = z.object({
+  refreshToken: z.string().optional(),
+});
+
 export const RegisterRequestSchema = z.object({
   name: z.string(),
   email: z.email(),
@@ -85,6 +89,7 @@ export type LoginRequest = z.infer<typeof LoginRequestSchema>;
 export type LoginResponse = z.infer<typeof LoginResponseSchema>;
 export type RefreshTokenRequest = z.infer<typeof RefreshTokenRequestSchema>;
 export type RefreshTokenResponse = z.infer<typeof RefreshTokenResponseSchema>;
+export type LogoutRequest = z.infer<typeof LogoutRequestSchema>;
 export type RegisterRequest = z.infer<typeof RegisterRequestSchema>;
 export type RegisterResponse = z.infer<typeof RegisterResponseSchema>;
 export type ApiKey = z.infer<typeof ApiKeySchema>;

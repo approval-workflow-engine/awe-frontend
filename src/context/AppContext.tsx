@@ -37,7 +37,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const logout = useCallback(async () => {
     try {
-      await authService.logout();
+      const refreshToken = localStorage.getItem(TOKEN_KEYS.REFRESH) ?? undefined;
+      await authService.logout({ refreshToken });
     } catch {
       //
     } finally {

@@ -58,6 +58,31 @@ export interface WorkflowInput {
     name: string;
     type: "string" | "number" | "boolean" | "object";
     required: boolean;
+    defaultValue?: unknown;
+}
+
+export type OnErrorMode = "terminate" | "continue";
+
+export interface OnErrorJsonPathOutputMap {
+    fromType: "jsonPath";
+    jsonPath: string;
+    dataType: string;
+    contextVariable: ContextVariable;
+}
+
+export interface OnErrorExpressionOutputMap {
+    fromType: "expression";
+    valueExpression: string;
+    contextVariable: ContextVariable;
+}
+
+export type OnErrorOutputMap =
+    | OnErrorJsonPathOutputMap
+    | OnErrorExpressionOutputMap;
+
+export interface OnErrorConfig {
+    mode: OnErrorMode;
+    outputMap: OnErrorOutputMap[];
 }
 
 export type SelectedItem =

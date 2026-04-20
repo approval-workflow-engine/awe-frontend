@@ -4,6 +4,7 @@ import type {
   CanvasEdge,
   WorkflowInput,
   ContextVariable,
+  OnErrorConfig,
 } from "../type/types";
 
 export interface AvailableCtxVar {
@@ -90,6 +91,29 @@ export function getAvailableContext(
           sourceNode: n.label,
         });
       });
+
+      if (n.type === "service_task" || n.type === "script_task") {
+        const onError = (n.config.onError as OnErrorConfig | undefined) ?? {
+          mode: "terminate",
+          outputMap: [],
+        };
+
+        if (onError.mode === "continue") {
+          onError.outputMap.forEach((row) => {
+            const cv = row.contextVariable;
+            if (!cv?.name) return;
+
+            vars.push({
+              name: cv.name,
+              type:
+                row.fromType === "jsonPath"
+                  ? row.dataType ?? DataType.STRING
+                  : DataType.STRING,
+              sourceNode: n.label,
+            });
+          });
+        }
+      }
     });
 
   const seen = new Set<string>();

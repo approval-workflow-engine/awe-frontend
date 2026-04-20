@@ -2,6 +2,7 @@ import { apiClient } from "../client";
 import {
   LoginRequestSchema,
   LoginResponseSchema,
+  LogoutRequestSchema,
   RefreshTokenRequestSchema,
   RefreshTokenResponseSchema,
   RegisterRequestSchema,
@@ -13,6 +14,7 @@ import {
   OrganizationDetailSchema,
   type LoginRequest,
   type LoginResponse,
+  type LogoutRequest,
   type RefreshTokenRequest,
   type RefreshTokenResponse,
   type RegisterRequest,
@@ -46,11 +48,12 @@ export class AuthService {
     );
   }
 
-  async logout(): Promise<{ success: boolean }> {
+  async logout(request: LogoutRequest = {}): Promise<Record<string, never>> {
     return apiClient.post(
-      "/auth/logout",
-      {},
-      z.object({ success: z.boolean() }),
+      '/auth/logout',
+      request,
+      z.object({}),
+      LogoutRequestSchema,
     );
   }
 

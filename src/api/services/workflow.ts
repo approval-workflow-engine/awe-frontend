@@ -13,6 +13,8 @@ import {
   WorkflowVersionStatusResponseSchema,
   WorkflowVersionPromoteResponseSchema,
   WorkflowVersionCloneResponseSchema,
+  WorkflowVersionSaveRequestSchema,
+  WorkflowVersionSaveResponseSchema,
   CreateVersionRequestSchema,
   UpdateVersionRequestSchema,
   ValidationResultSchema,
@@ -30,6 +32,8 @@ import {
   type WorkflowVersionStatusResponse,
   type WorkflowVersionPromoteResponse,
   type WorkflowVersionCloneResponse,
+  type WorkflowVersionSaveRequest,
+  type WorkflowVersionSaveResponse,
   type CreateVersionRequest,
   type UpdateVersionRequest,
   type ValidationResult,
@@ -112,6 +116,17 @@ export class WorkflowService {
       data,
       WorkflowVersionUpdateResponseSchema,
       UpdateVersionRequestSchema,
+    );
+  }
+
+  async saveVersion(
+    data: WorkflowVersionSaveRequest,
+  ): Promise<WorkflowVersionSaveResponse> {
+    return apiClient.post(
+      "/workflows/save",
+      data,
+      WorkflowVersionSaveResponseSchema,
+      WorkflowVersionSaveRequestSchema,
     );
   }
 

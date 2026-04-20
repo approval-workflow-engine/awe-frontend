@@ -71,6 +71,7 @@ class ApiClient {
           if (method === "POST" || method === "PATCH" || method === "DELETE") {
             if (
               (method === "POST" && /^\/workflows\/[^/]+\/versions$/.test(path)) ||
+              (method === "POST" && /^\/workflows\/(save|validate)$/.test(path)) ||
               (method === "PATCH" && /^\/workflows\/[^/]+$/.test(path)) ||
               (method === "POST" && /^\/workflows\/versions\/[^/]+\/(validate|publish|activate|deactivate|clone|promote)$/.test(path)) ||
               (method === "PATCH" && /^\/workflows\/versions\/[^/]+$/.test(path)) ||

@@ -19,6 +19,8 @@ export const UserTaskResponseFieldSchema = z.object({
   label: z.string(),
   type: z.string().optional(),
   dataType: z.string().optional(),
+  required: z.boolean().optional(),
+  defaultValue: z.unknown().optional(),
   uiType: z.enum(['text', 'textarea', 'number', 'dropdown', 'checkbox', 'date-picker']).optional(),
   options: z.array(UserTaskResponseFieldOptionSchema).optional(),
   contextVariable: z.object({

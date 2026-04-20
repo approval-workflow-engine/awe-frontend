@@ -19,8 +19,9 @@ import { CollapsibleSection } from "../shared/CollapsibleSection";
 import ResponseMapSection, {
   type ResponseMapRow,
 } from "../shared/ResponseMapSection";
+import OnErrorSection from "../shared/OnErrorSection";
 import type { AvailableCtxVar } from "../context";
-import type { CanvasNode } from "../../type/types";
+import type { CanvasNode, OnErrorConfig } from "../../type/types";
 
 interface ParamRow {
   name: string;
@@ -71,6 +72,10 @@ export default function ScriptTaskConfig({
     );
 
   const backoff = (c.backoff as Backoff) ?? { type: "fixed", delay: 1, unit: "second" };
+  const onError = (c.onError as OnErrorConfig) ?? {
+    mode: "terminate",
+    outputMap: [],
+  };
   const setBackoff = (patch: Partial<Backoff>) =>
     set("backoff", { ...backoff, ...patch });
 
@@ -496,6 +501,22 @@ export default function ScriptTaskConfig({
             justifyContent="space-between"
           >
             <Typography sx={{ fontSize: 11, color: "text.secondary" }}>
+              Timeout (ms)
+            </Typography>
+            <Box sx={{ width: 100 }}>
+              <NumberInput
+                value={c.timeoutMs as number | undefined}
+                onChange={(v) => set("timeoutMs", v)}
+                min={1}
+              />
+            </Box>
+          </Box>
+          <Box
+            display="flex"
+            alignItems="center"
+            justifyContent="space-between"
+          >
+            <Typography sx={{ fontSize: 11, color: "text.secondary" }}>
               Retry Delay
             </Typography>
             <Box display="flex" gap={0.5} sx={{ width: 140 }}>
@@ -580,6 +601,14 @@ export default function ScriptTaskConfig({
             </Box>
           </Box>
         </Box>
+      </CollapsibleSection>
+
+      <CollapsibleSection title="On Error">
+        <OnErrorSection
+          value={onError}
+          onChange={(v) => set("onError", v)}
+          availableContext={availableContext}
+        />
       </CollapsibleSection>
     </Box>
   );
