@@ -1,4 +1,4 @@
-import { apiClient } from '../client';
+import { apiClient } from "../client";
 import {
   LoginRequestSchema,
   LoginResponseSchema,
@@ -10,7 +10,7 @@ import {
   CreateApiKeyRequestSchema,
   CreateApiKeyResponseSchema,
   RevokeApiKeyResponseSchema,
-  SystemSchema,
+  OrganizationDetailSchema,
   type LoginRequest,
   type LoginResponse,
   type RefreshTokenRequest,
@@ -21,64 +21,70 @@ import {
   type CreateApiKeyRequest,
   type CreateApiKeyResponse,
   type RevokeApiKeyResponse,
-  type System,
-} from '../schemas';
-import { z } from 'zod';
+  type Organization,
+} from "../schemas";
+import { z } from "zod";
 
 export class AuthService {
   async login(credentials: LoginRequest): Promise<LoginResponse> {
     return apiClient.post(
-      '/auth/login',
+      "/auth/login",
       credentials,
       LoginResponseSchema,
-      LoginRequestSchema
+      LoginRequestSchema,
     );
   }
 
-  async refreshToken(request: RefreshTokenRequest): Promise<RefreshTokenResponse> {
+  async refreshToken(
+    request: RefreshTokenRequest,
+  ): Promise<RefreshTokenResponse> {
     return apiClient.post(
-      '/auth/refresh',
+      "/auth/refresh",
       request,
       RefreshTokenResponseSchema,
-      RefreshTokenRequestSchema
+      RefreshTokenRequestSchema,
     );
   }
 
   async logout(): Promise<{ success: boolean }> {
-    return apiClient.post('/auth/logout', {}, z.object({ success: z.boolean() }));
+    return apiClient.post(
+      "/auth/logout",
+      {},
+      z.object({ success: z.boolean() }),
+    );
   }
 
   async register(data: RegisterRequest): Promise<RegisterResponse> {
     return apiClient.post(
-      '/systems/register',
+      "/organizations/register",
       data,
       RegisterResponseSchema,
-      RegisterRequestSchema
+      RegisterRequestSchema,
     );
   }
 
-  async getCurrentSystem(): Promise<{ system: System }> {
-    return apiClient.get('/systems/me', z.object({ system: SystemSchema }));
+  async getCurrentSystem(): Promise<{ system: Organization }> {
+    return apiClient.get("/me", z.object({ system: OrganizationDetailSchema }));
   }
 
   async getApiKeys(): Promise<ApiKeysResponse> {
-    return apiClient.get('/systems/api-keys', ApiKeysResponseSchema);
+    return apiClient.get("/api-keys", ApiKeysResponseSchema);
   }
 
   async createApiKey(data: CreateApiKeyRequest): Promise<CreateApiKeyResponse> {
     return apiClient.post(
-      '/systems/api-keys',
+      "/api-keys",
       data,
       CreateApiKeyResponseSchema,
-      CreateApiKeyRequestSchema
+      CreateApiKeyRequestSchema,
     );
   }
 
   async revokeApiKey(keyId: string): Promise<RevokeApiKeyResponse> {
     return apiClient.patch(
-      `/systems/api-keys/${keyId}/revoke`,
+      `/api-keys/${keyId}/revoke`,
       {},
-      RevokeApiKeyResponseSchema
+      RevokeApiKeyResponseSchema,
     );
   }
 }
