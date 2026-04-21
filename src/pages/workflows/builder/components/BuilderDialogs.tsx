@@ -111,14 +111,14 @@ export default function BuilderDialogs({
       <Dialog open={commitConfirmOpen} onClose={onCloseCommitConfirm} maxWidth="xs" fullWidth>
         <DialogTitle sx={{ fontFamily: "'Syne', sans-serif", fontWeight: 700, fontSize: 16 }}>
           {commitActionMode === "commitAndActivate"
-            ? `Commit & Activate v${savedVersionNumber}?`
-            : `Commit v${savedVersionNumber}?`}
+            ? `Commit & Activate`
+            : `Commit`}
         </DialogTitle>
-        <DialogContent sx={{ pt: '8px !important' }}>
+        <DialogContent>
           <Typography sx={{ fontSize: 13, color: 'text.secondary' }}>
             {commitActionMode === "commitAndActivate"
-              ? `This will publish and immediately activate v${savedVersionNumber}.`
-              : `Locking v${savedVersionNumber} marks it as ready for activation. The version can no longer be edited after committing.`}
+              ? `This will publish and immediately activate the draft`
+              : `Locking draft marks it as ready for activation. The version can no longer be edited after committing.`}
           </Typography>
           <FormControl fullWidth size="small" sx={{ mt: 2 }}>
             <InputLabel id="increment-type-label">Version Bump</InputLabel>
@@ -160,7 +160,7 @@ export default function BuilderDialogs({
 
       <Dialog open={activateConfirmOpen} onClose={onCloseActivateConfirm} maxWidth="xs" fullWidth>
         <DialogTitle sx={{ fontFamily: "'Syne', sans-serif", fontWeight: 700, fontSize: 16 }}>
-          Activate v{savedVersionNumber}?
+          Activate 
         </DialogTitle>
         <DialogContent sx={{ pt: '8px !important' }}>
           <Typography sx={{ fontSize: 13, color: 'text.secondary' }}>
