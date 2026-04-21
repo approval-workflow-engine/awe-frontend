@@ -274,7 +274,7 @@ export function useBuilderActions({
           incrementType,
         ),
       {
-        successMsg: `v${savedVersionNumber ?? "-"} committed (${incrementType} release).`,
+        successMsg: `version${savedVersionNumber ?? ""} committed (${incrementType} release).`,
         showError: true,
       },
     );
