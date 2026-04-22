@@ -24,7 +24,6 @@ import {
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import AccountTreeIcon from "@mui/icons-material/AccountTree";
-import HistoryIcon from "@mui/icons-material/History";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 import RefreshIcon from "@mui/icons-material/Refresh";
@@ -368,7 +367,8 @@ export default function WorkflowsPage() {
               ) : (
                 filteredWorkflows.map((wf) => {
                   const latestStatus = wf.latestVersion?.status ?? null;
-                  const latestVersionId = wf.latestVersion?.latestVersionId ?? null;
+                  const latestVersionId =
+                    wf.latestVersion?.latestVersionId ?? null;
 
                   return (
                     <TableRow
@@ -377,6 +377,8 @@ export default function WorkflowsPage() {
                         "&:hover": { backgroundColor: "action.hover" },
                         transition: "background-color 0.1s",
                       }}
+                      onClick={() => navigate(`/workflows/${wf.id}/versions`)}
+                      style={{ cursor: "pointer" }}
                     >
                       <TableCell sx={{ py: 1.25 }}>
                         <Typography
@@ -469,20 +471,7 @@ export default function WorkflowsPage() {
                               <AccountTreeIcon fontSize="small" />
                             </IconButton>
                           </Tooltip>
-                          <Tooltip title="Version History">
-                            <IconButton
-                              size="small"
-                              onClick={() =>
-                                navigate(`/workflows/${wf.id}/versions`)
-                              }
-                              sx={{
-                                color: "text.disabled",
-                                "&:hover": { color: "primary.main" },
-                              }}
-                            >
-                              <HistoryIcon fontSize="small" />
-                            </IconButton>
-                          </Tooltip>
+
                           <Tooltip title="Edit">
                             <IconButton
                               size="small"

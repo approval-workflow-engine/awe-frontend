@@ -53,22 +53,26 @@ export const RegisterResponseSchema = z.object({
 export const ApiKeySchema = z.object({
   id: z.string().uuidv4(),
   label: z.string().nullable().optional(),
-  isRevoked: z.boolean(),
+  prefix: z.string().optional(),
   createdAt: z.string().datetime(),
   revokedAt: z.string().datetime().nullable(),
   environment: EnvironmentTypeSchema,
-});
+}).transform((apiKey) => ({
+  ...apiKey,
+  isRevoked: apiKey.revokedAt !== null,
+}));
 
 export const CreateApiKeyResponseSchema = z.object({
   id: z.string().uuidv4(),
   label: z.string().nullable().optional(),
+  prefix: z.string().optional(),
   apiKey: z.string(),
   environment: EnvironmentTypeSchema,
   createdAt: z.string().datetime(),
 });
 
 export const CreateApiKeyRequestSchema = z.object({
-  label: z.string().min(1).optional(),
+  label: z.string().min(1),
   environment: EnvironmentTypeSchema,
 });
 
@@ -77,9 +81,6 @@ export const ApiKeysResponseSchema = z.object({
 });
 
 export const RevokeApiKeyResponseSchema = z.object({
-  id: z.string().uuidv4(),
-  label: z.string().nullable().optional(),
-  isRevoked: z.boolean(),
   revokedAt: z.string().datetime().nullable(),
 });
 

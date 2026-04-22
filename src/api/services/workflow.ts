@@ -134,13 +134,7 @@ export class WorkflowService {
     );
   }
 
-  async validateVersion(versionId: string): Promise<ValidationResult> {
-    return apiClient.post(
-      `/workflows/versions/${versionId}/validate`,
-      {},
-      ValidationResultSchema,
-    );
-  }
+ 
 
   async cloneWorkflowVersion(versionId: string): Promise<WorkflowVersionCloneResponse> {
     return apiClient.post(
@@ -181,6 +175,16 @@ export class WorkflowService {
     return apiClient.post(
       endpoint,
       payload,
+      WorkflowVersionStatusResponseSchema,
+    );
+  }
+
+  async deactivateWorkflowVersion(
+    versionId: string,
+  ): Promise<WorkflowVersionStatusResponse> {
+    return apiClient.post(
+      `/workflows/versions/${versionId}/deactivate`,
+      {},
       WorkflowVersionStatusResponseSchema,
     );
   }

@@ -34,6 +34,7 @@ export const InstanceSchema = z.object({
   startedAt: optionalDateTransform,
   endedAt: optionalDateTransform,
   autoAdvance: z.boolean(),
+  // control_signal: z.string().nullable(),
   workflow: z.object({
     name: z.string().nullable().optional(),
     id: z.string().nullable().optional(),
@@ -56,6 +57,7 @@ export const InstanceListItemSchema = z.object({
   output_variables: z.unknown().nullable(),
   started_on: optionalDateTransform,
   status: InstanceStatusSchema,
+  control_signal: z.string().nullable(),
   workflow_version_id: z.string(),
   version_number: VersionValueSchema,
   workflow_name: z.string(),

@@ -35,6 +35,7 @@ import VisibilityIcon from "@mui/icons-material/Visibility";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import ArrowDropDownIcon from "@mui/icons-material/ArrowDropDown";
 import { secretService } from "../../api/services/secrets";
+import type { SecretItem } from "../../api/schemas/secrets";
 
 import { workflowService } from "../../api/services/workflow";
 import type { VersionIncrementType } from "../../api/schemas";
@@ -55,6 +56,13 @@ import {
   VERSION_STATUS_COLOR,
   VERSION_STATUS_BG,
 } from "./builder/config/constants";
+import type { AvailableCtxVar } from "./builder/config/context";
+
+type ContextPanelVar = {
+  name: string;
+  type: string;
+  source: string;
+};
 
 const VERSION_STATUS_LABELS: Record<string, string> = {
   draft: "Draft",
@@ -99,7 +107,9 @@ export default function WorkflowBuilder() {
   const [configPanelWidth, setConfigPanelWidth] = useState(320);
   const [isResizingConfig, setIsResizingConfig] = useState(false);
   const configResizeOriginRef = useRef({ x: 0, width: 320 });
-  const [allAvailableSecrets, setAllAvailableSecrets] = useState<any[]>([]);
+  const [allAvailableSecrets, setAllAvailableSecrets] = useState<
+    AvailableCtxVar[]
+  >([]);
 
   const {
     nodes,
@@ -170,7 +180,6 @@ export default function WorkflowBuilder() {
     setSavedVersionNumber,
     setLoadedVersionNumber,
     setVersionStatus,
-    isDirty,
     setIsDirty,
     nodes,
     edges,
@@ -301,12 +310,17 @@ export default function WorkflowBuilder() {
       try {
         const response = await call(() => secretService.list(), { showError: false });
         if (response?.secrets) {
-          const transformed = response.secrets.map((s: any) => ({
-            id: s.id,
-            name: s.label,
-            type: "string",
-            sourceNode: "Secret Management",
-          }));
+          const transformed = response.secrets
+            .filter(
+              (secret): secret is SecretItem & { id: string } =>
+                typeof secret.id === "string",
+            )
+            .map((secret) => ({
+              id: secret.id,
+              name: secret.label,
+              type: "string",
+              sourceNode: "Secret Management",
+            }));
           setAllAvailableSecrets(transformed);
         }
       } catch (err) {
@@ -317,22 +331,39 @@ export default function WorkflowBuilder() {
   }, [call]);
 
   const mappedSecrets = useMemo(() => {
-    const startNode = nodes.find((n: any) => n.type === "start");
+    const startNode = nodes.find((n) => n.type === "start");
     if (!startNode?.config?.secretDataMap) return [];
-    
-    const sdm = startNode.config.secretDataMap as Array<{ secretKey: string; secretId: string }>;
-    return sdm
-      .map(row => {
-        const secret = allAvailableSecrets.find(s => s.id === row.secretId);
-        if (!secret) return null;
-        return {
+
+    const secretDataMap = (startNode.config.secretDataMap as Array<{
+      secretKey?: string;
+      secretId?: string;
+    }>) ?? [];
+
+    return secretDataMap.flatMap((row): AvailableCtxVar[] => {
+      if (!row.secretKey || !row.secretId) return [];
+
+      const secret = allAvailableSecrets.find((s) => s.id === row.secretId);
+      if (!secret) return [];
+
+      return [
+        {
           name: row.secretKey,
           type: "string",
           sourceNode: "Start Node (Mapped)",
-        };
-      })
-      .filter(Boolean) as any[];
+        },
+      ];
+    });
   }, [nodes, allAvailableSecrets]);
+
+  const mappedSecretsForContextPanel = useMemo<ContextPanelVar[]>(
+    () =>
+      mappedSecrets.map((secretVar) => ({
+        name: secretVar.name,
+        type: secretVar.type,
+        source: secretVar.sourceNode,
+      })),
+    [mappedSecrets],
+  );
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -1044,7 +1075,7 @@ export default function WorkflowBuilder() {
             <ContextVarsPanel
               nodes={nodes}
               inputs={inputs}
-              availableSecrets={mappedSecrets}
+              availableSecrets={mappedSecretsForContextPanel}
             />
           </Box>
 

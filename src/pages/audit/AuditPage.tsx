@@ -29,7 +29,7 @@ function truncate(s: string, n = 12) {
 }
 
 function safeDate(val: string | null | undefined) {
-  return val ? formatDate(val) : '—';
+  return val ? formatDate(val) : '-';
 }
 
 export default function AuditPage() {
@@ -154,12 +154,12 @@ export default function AuditPage() {
                   </TableCell>
                   <TableCell>
                     <Typography fontSize={13}>
-                      {inst.workflow_name ?? '—'}
+                      {inst.workflow_name ?? '-'}
                     </Typography>
                   </TableCell>
                   <TableCell>
                     <Typography fontSize={13}>
-                      {inst.version_number != null ? `v${inst.version_number}` : '—'}
+                      {inst.version_number != null ? `v${inst.version_number}` : '-'}
                     </Typography>
                   </TableCell>
                   <TableCell>

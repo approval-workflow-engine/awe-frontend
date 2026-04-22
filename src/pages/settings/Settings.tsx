@@ -118,6 +118,10 @@ function fmtDate(iso: string | null | undefined) {
   });
 }
 
+function isApiKeyRevoked(key: ApiKey): boolean {
+  return Boolean(key.revokedAt);
+}
+
 export default function Settings() {
   const { call } = useApiCall();
 
@@ -131,7 +135,7 @@ export default function Settings() {
   const [revokingId, setRevokingId] = useState<string | null>(null);
   const [revokeTarget, setRevokeTarget] = useState<ApiKey | null>(null);
   const [infoDismissed, setInfoDismissed] = useState(false);
-  const [showRevoked, setShowRevoked] = useState(false);
+  const [showRevoked, setShowRevoked] = useState(true);
 
   const [regenOpen, setRegenOpen] = useState(false);
   const [regenLabel, setRegenLabel] = useState("");
@@ -190,14 +194,23 @@ export default function Settings() {
     setRevokingId(keyId);
     setRevokeTarget(null);
     try {
-      await call(() => authService.revokeApiKey(keyId), { showError: true });
-      setApiKeys((prev) =>
-        prev.map((k) =>
-          k.id === keyId
-            ? { ...k, isRevoked: true, revokedAt: new Date().toISOString() }
-            : k,
-        ),
-      );
+      const res = await call(() => authService.revokeApiKey(keyId), {
+        showError: true,
+      });
+      if (res) {
+        const revokedAt = (res as { revokedAt: string | null }).revokedAt;
+        setApiKeys((prev) =>
+          prev.map((k) =>
+            k.id === keyId
+              ? {
+                  ...k,
+                  isRevoked: true,
+                  revokedAt: revokedAt ?? new Date().toISOString(),
+                }
+              : k,
+          ),
+        );
+      }
     } finally {
       setRevokingId(null);
     }
@@ -278,9 +291,6 @@ export default function Settings() {
           >
             Organization Information
           </Typography>
-          <Typography sx={{ fontSize: 12, color: "text.secondary", mt: 0.25 }}>
-            Read-only profile fetched from the API
-          </Typography>
         </Box>
 
         <Box sx={{ px: 2.5 }}>
@@ -294,19 +304,6 @@ export default function Settings() {
             </Box>
           ) : organizationInfo ? (
             <>
-              <InfoRow label="Organization Name">
-                <Typography
-                  sx={{ fontSize: 13, fontWeight: 500, color: "text.primary" }}
-                >
-                  {organizationInfo.name}
-                </Typography>
-              </InfoRow>
-
-              <InfoRow label="Contact Email">
-                <Typography sx={{ fontSize: 13, color: "text.primary" }}>
-                  {organizationInfo.email}
-                </Typography>
-              </InfoRow>
 
               <InfoRow label="Organization ID">
                 <Box display="flex" alignItems="center" gap={0.5}>
@@ -338,6 +335,20 @@ export default function Settings() {
                 </Box>
               </InfoRow>
 
+              <InfoRow label="Organization Name">
+                <Typography
+                  sx={{ fontSize: 13, fontWeight: 500, color: "text.primary" }}
+                >
+                  {organizationInfo.name}
+                </Typography>
+              </InfoRow>
+
+              <InfoRow label="Contact Email">
+                <Typography sx={{ fontSize: 13, color: "text.primary" }}>
+                  {organizationInfo.email}
+                </Typography>
+              </InfoRow>
+
               <InfoRow label="Created">
                 <Typography
                   sx={{
@@ -348,26 +359,6 @@ export default function Settings() {
                 >
                   {organizationInfo.createdAt
                     ? new Date(organizationInfo.createdAt).toLocaleString("en-GB", {
-                        day: "2-digit",
-                        month: "short",
-                        year: "numeric",
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })
-                    : "-"}
-                </Typography>
-              </InfoRow>
-
-              <InfoRow label="Updated">
-                <Typography
-                  sx={{
-                    fontFamily: "'JetBrains Mono', monospace",
-                    fontSize: 12,
-                    color: "text.disabled",
-                  }}
-                >
-                  {organizationInfo.updatedAt
-                    ? new Date(organizationInfo.updatedAt).toLocaleString("en-GB", {
                         day: "2-digit",
                         month: "short",
                         year: "numeric",
@@ -523,10 +514,13 @@ export default function Settings() {
             </Box>
           ) : apiKeys.length > 0 ? (
             (() => {
-              const activeKeys = apiKeys.filter((k) => !k.isRevoked);
-              const revokedKeys = apiKeys.filter((k) => k.isRevoked);
+              const activeKeys = apiKeys.filter((k) => !isApiKeyRevoked(k));
+              const revokedKeys = apiKeys.filter((k) => isApiKeyRevoked(k));
 
-              const renderRow = (key: ApiKey, idx: number, total: number) => (
+              const renderRow = (key: ApiKey, idx: number, total: number) => {
+                const revoked = isApiKeyRevoked(key);
+
+                return (
                 <Box
                   key={key.id}
                   sx={{
@@ -551,7 +545,7 @@ export default function Settings() {
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
-                      backgroundColor: key.isRevoked
+                      backgroundColor: revoked
                         ? "rgba(239,68,68,0.08)"
                         : "rgba(79,110,247,0.10)",
                     }}
@@ -559,7 +553,7 @@ export default function Settings() {
                     <VpnKeyOutlinedIcon
                       sx={{
                         fontSize: 15,
-                        color: key.isRevoked ? "#ef4444" : "#4f6ef7",
+                        color: revoked ? "#ef4444" : "#4f6ef7",
                       }}
                     />
                   </Box>
@@ -570,7 +564,7 @@ export default function Settings() {
                         fontSize: 13,
                         fontWeight: 600,
                         lineHeight: 1.3,
-                        color: key.isRevoked
+                        color: revoked
                           ? "text.secondary"
                           : "text.primary",
                       }}
@@ -590,7 +584,7 @@ export default function Settings() {
                       {key.environment && (
                         <EnvChip type={key.environment} />
                       )}
-                      {key.isRevoked && key.revokedAt && (
+                      {revoked && key.revokedAt && (
                         <>
                           <Box
                             sx={{
@@ -615,8 +609,8 @@ export default function Settings() {
                     gap={1}
                     sx={{ flexShrink: 0 }}
                   >
-                    <KeyStatusChip isRevoked={key.isRevoked} />
-                    {!key.isRevoked && (
+                    <KeyStatusChip isRevoked={revoked} />
+                    {!revoked && (
                       <Tooltip title="Revoke key" placement="left">
                         <span>
                           <IconButton
@@ -643,7 +637,8 @@ export default function Settings() {
                     )}
                   </Box>
                 </Box>
-              );
+                );
+              };
 
               return (
                 <Box>

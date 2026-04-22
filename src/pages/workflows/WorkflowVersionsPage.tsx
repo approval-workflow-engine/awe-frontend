@@ -25,8 +25,7 @@ import {
   Select,
   MenuItem,
 } from "@mui/material";
-import EditIcon from "@mui/icons-material/Edit";
-import VisibilityIcon from "@mui/icons-material/Visibility";
+
 import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
 import BoltIcon from "@mui/icons-material/Bolt";
 import PowerSettingsNewIcon from "@mui/icons-material/PowerSettingsNew";
@@ -110,7 +109,9 @@ const ENV_DISPLAY: Record<EnvironmentType, string> = {
 };
 
 const isEnvironmentType = (value: unknown): value is EnvironmentType => {
-  return value === "development" || value === "staging" || value === "production";
+  return (
+    value === "development" || value === "staging" || value === "production"
+  );
 };
 
 const getPromotionSourceEnvironment = (
@@ -260,7 +261,11 @@ export default function WorkflowVersionsPage() {
   };
 
   const handlePromote = async () => {
-    if (!promoteTarget || !promoteSourceEnvironment || !promoteDestinationEnvironment) {
+    if (
+      !promoteTarget ||
+      !promoteSourceEnvironment ||
+      !promoteDestinationEnvironment
+    ) {
       return;
     }
 
@@ -435,6 +440,7 @@ export default function WorkflowVersionsPage() {
                 <TableCell>Version</TableCell>
                 <TableCell>Status</TableCell>
                 <TableCell>Created</TableCell>
+                <TableCell>Published</TableCell>
                 <TableCell align="right" sx={{ width: 140 }}>
                   Actions
                 </TableCell>
@@ -445,7 +451,7 @@ export default function WorkflowVersionsPage() {
               {loading ? (
                 [0, 1, 2].map((i) => (
                   <TableRow key={i}>
-                    <TableCell colSpan={4}>
+                    <TableCell colSpan={5}>
                       <Skeleton height={36} />
                     </TableCell>
                   </TableRow>
@@ -504,18 +510,19 @@ export default function WorkflowVersionsPage() {
               ) : (
                 filteredVersions.map((v) => {
                   const st = normalizeStatus(v);
-                  const isDraft = st === "draft";
                   const isValid = st === "valid";
                   const isCommitted = st === "published";
                   const isActive = st === "active";
                   const canClone = isCommitted || isActive;
-                  const promotionSourceEnvironment = getPromotionSourceEnvironment(
-                    v.environment,
-                    activeEnvironmentType,
-                  );
-                  const promotionTargetEnvironment = getNextPromotionTargetEnvironment(
-                    promotionSourceEnvironment,
-                  );
+                  const promotionSourceEnvironment =
+                    getPromotionSourceEnvironment(
+                      v.environment,
+                      activeEnvironmentType,
+                    );
+                  const promotionTargetEnvironment =
+                    getNextPromotionTargetEnvironment(
+                      promotionSourceEnvironment,
+                    );
                   const canPromote =
                     (isCommitted || isActive) &&
                     Boolean(promotionTargetEnvironment);
@@ -528,7 +535,14 @@ export default function WorkflowVersionsPage() {
                   };
 
                   return (
-                    <TableRow key={v.id} hover>
+                    <TableRow
+                      key={v.id}
+                      hover
+                      onClick={() =>
+                        navigate(`/workflows/${workflowId}/builder/${v.id}`)
+                      }
+                      style={{ cursor: "pointer" }}
+                    >
                       <TableCell>
                         <Typography
                           sx={{
@@ -538,7 +552,7 @@ export default function WorkflowVersionsPage() {
                             color: "text.primary",
                           }}
                         >
-                          v{v.versionNumber}
+                          {v.versionNumber? "v" : ""}{v.versionNumber ?? "-"}
                         </Typography>
                       </TableCell>
 
@@ -569,6 +583,19 @@ export default function WorkflowVersionsPage() {
                           {formatDate(v.createdAt)}
                         </Typography>
                       </TableCell>
+                      
+                      <TableCell>
+                        <Typography
+                          sx={{
+                            fontFamily: "'JetBrains Mono', monospace",
+                            fontSize: 11,
+                            color: "text.disabled",
+                          }}
+                        >
+                          {formatDate(v.publishedAt)}
+                        </Typography>
+                      </TableCell>
+
 
                       <TableCell align="right">
                         <Box
@@ -577,7 +604,7 @@ export default function WorkflowVersionsPage() {
                           justifyContent="flex-end"
                           gap={0.75}
                         >
-                          {(isCommitted || isActive) && (
+                          {(isCommitted || isActive) && (v.environment !== "production") && (
                             <Tooltip title={promoteTooltip}>
                               <span>
                                 <IconButton
@@ -587,11 +614,14 @@ export default function WorkflowVersionsPage() {
                                   sx={{
                                     color: "text.disabled",
                                     "&:hover": {
-                                      color: canPromote ? "#f59e0b" : "text.disabled",
+                                      color: canPromote
+                                        ? "#f59e0b"
+                                        : "text.disabled",
                                     },
                                   }}
                                 >
-                                  {promoteLoading && promoteTarget?.id === v.id ? (
+                                  {promoteLoading &&
+                                  promoteTarget?.id === v.id ? (
                                     <CircularProgress size={14} />
                                   ) : (
                                     <ArrowUpwardIcon fontSize="small" />
@@ -600,33 +630,6 @@ export default function WorkflowVersionsPage() {
                               </span>
                             </Tooltip>
                           )}
-
-                          <Tooltip
-                            title={
-                              isDraft || isValid
-                                ? "Edit in Builder"
-                                : "View in Builder"
-                            }
-                          >
-                            <IconButton
-                              size="small"
-                              onClick={() =>
-                                navigate(
-                                  `/workflows/${workflowId}/builder/${v.id}`,
-                                )
-                              }
-                              sx={{
-                                color: "text.disabled",
-                                "&:hover": { color: "primary.main" },
-                              }}
-                            >
-                              {isDraft || isValid ? (
-                                <EditIcon fontSize="small" />
-                              ) : (
-                                <VisibilityIcon fontSize="small" />
-                              )}
-                            </IconButton>
-                          </Tooltip>
 
                           {isValid && (
                             <Tooltip title="Commit (lock for activation)">

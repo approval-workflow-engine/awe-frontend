@@ -37,7 +37,7 @@ import type {
 const MONO = "'JetBrains Mono', monospace";
 
 function safeDate(val: string | null | undefined) {
-  return val ? formatDateWithSeconds(val) : "—";
+  return val ? formatDateWithSeconds(val) : "-";
 }
 
 function toRecord(value: unknown): Record<string, unknown> | null {
@@ -48,7 +48,7 @@ function toRecord(value: unknown): Record<string, unknown> | null {
 }
 
 function formatDuration(durationMs: number | null): string {
-  if (!durationMs || durationMs < 0) return "—";
+  if (!durationMs || durationMs < 0) return "-";
 
   const seconds = Math.floor((durationMs / 1000) % 60);
   const minutes = Math.floor((durationMs / (1000 * 60)) % 60);
