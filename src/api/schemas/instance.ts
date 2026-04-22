@@ -2,6 +2,8 @@ import { z } from "zod";
 import { dateTransform, optionalDateTransform } from "./common";
 import { PaginationSchema, EnvironmentTypeSchema } from "./common";
 
+const VersionValueSchema = z.union([z.string(), z.number()]).nullable();
+
 export const InstanceStatusSchema = z.enum([
   "in_progress",
   "completed",
@@ -32,10 +34,11 @@ export const InstanceSchema = z.object({
   startedAt: optionalDateTransform,
   endedAt: optionalDateTransform,
   autoAdvance: z.boolean(),
+  // control_signal: z.string().nullable(),
   workflow: z.object({
     name: z.string().nullable().optional(),
     id: z.string().nullable().optional(),
-    version: z.coerce.number(),
+    version: VersionValueSchema,
   }),
   currentTask: CurrentTaskSchema.nullable().optional(),
 });
@@ -54,8 +57,9 @@ export const InstanceListItemSchema = z.object({
   output_variables: z.unknown().nullable(),
   started_on: optionalDateTransform,
   status: InstanceStatusSchema,
+  control_signal: z.string().nullable(),
   workflow_version_id: z.string(),
-  version_number: z.coerce.number().nullable(),
+  version_number: VersionValueSchema,
   workflow_name: z.string(),
 });
 
@@ -74,7 +78,7 @@ export const CreateInstanceResponseSchema = z.object({
   environment: EnvironmentTypeSchema,
   workflow: z.object({
     id: z.string(),
-    version: z.coerce.number(),
+    version: VersionValueSchema,
   }),
 });
 
@@ -85,7 +89,7 @@ export const InstancesResponseSchema = z.object({
   pagination: PaginationSchema.optional(),
 });
 
-export const AdvanceInstanceResponseSchema = z.object({});
+
 
 export const InstanceActionResponseSchema = z.object({
   instance: z.unknown(),
@@ -161,9 +165,7 @@ export type CreateInstanceResponse = z.infer<
 >;
 export type InstanceResponse = z.infer<typeof InstanceResponseSchema>;
 export type InstancesResponse = z.infer<typeof InstancesResponseSchema>;
-export type AdvanceInstanceResponse = z.infer<
-  typeof AdvanceInstanceResponseSchema
->;
+
 export type InstanceActionResponse = z.infer<
   typeof InstanceActionResponseSchema
 >;

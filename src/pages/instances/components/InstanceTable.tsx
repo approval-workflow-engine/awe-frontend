@@ -9,11 +9,11 @@ import {
   Box,
   Skeleton,
   Button,
-} from '@mui/material';
-import { useNavigate } from 'react-router-dom';
-import StatusChip from '../../../components/common/StatusChip';
-import type { InstanceListItem } from '../../../api/schemas/instance';
-import { formatDate } from '../../../utils/formatUtils';
+} from "@mui/material";
+import { useNavigate } from "react-router-dom";
+import StatusChip from "../../../components/common/StatusChip";
+import type { InstanceListItem } from "../../../api/schemas/instance";
+import { formatDate } from "../../../utils/formatUtils";
 
 const MONO = "'JetBrains Mono', monospace";
 
@@ -22,7 +22,7 @@ function truncate(s: string, n = 8) {
 }
 
 function formatSafeDate(s: string | null) {
-  return s ? formatDate(s) : '—';
+  return s ? formatDate(s) : "-";
 }
 
 interface Props {
@@ -38,7 +38,13 @@ export default function InstanceTable({ instances, loading }: Props) {
       <Table size="small">
         <TableHead>
           <TableRow
-            sx={{ '& th': { fontWeight: 700, fontSize: 12, color: 'text.secondary' } }}
+            sx={{
+              "& th": {
+                fontWeight: 700,
+                fontSize: 12,
+                color: "text.secondary",
+              },
+            }}
           >
             <TableCell>Instance ID</TableCell>
             <TableCell>Workflow</TableCell>
@@ -60,7 +66,7 @@ export default function InstanceTable({ instances, loading }: Props) {
           ) : instances.length === 0 ? (
             <TableRow>
               <TableCell colSpan={6}>
-                <Box sx={{ py: 6, textAlign: 'center' }}>
+                <Box sx={{ py: 6, textAlign: "center" }}>
                   <Typography color="text.secondary" fontSize={13}>
                     No instances found. Create one to get started.
                   </Typography>
@@ -72,8 +78,12 @@ export default function InstanceTable({ instances, loading }: Props) {
               <TableRow
                 key={inst.id}
                 hover
-                onClick={() => navigate(`/instances/${inst.id}`, { state: { instance: inst } })}
-                sx={{ cursor: 'pointer', '& td': { fontSize: 13, py: 1.25 } }}
+                onClick={() =>
+                  navigate(`/instances/${inst.id}`, {
+                    state: { instance: inst },
+                  })
+                }
+                sx={{ cursor: "pointer", "& td": { fontSize: 13, py: 1.25 } }}
               >
                 <TableCell>
                   <Typography sx={{ fontFamily: MONO, fontSize: 12 }}>
@@ -84,19 +94,37 @@ export default function InstanceTable({ instances, loading }: Props) {
                   {inst.workflow_name ? (
                     <Typography fontSize={13}>{inst.workflow_name}</Typography>
                   ) : (
-                    <Typography sx={{ fontFamily: MONO, fontSize: 11, color: 'text.secondary' }}>
+                    <Typography
+                      sx={{
+                        fontFamily: MONO,
+                        fontSize: 11,
+                        color: "text.secondary",
+                      }}
+                    >
                       {truncate(inst.workflow_version_id, 12)}
                     </Typography>
                   )}
                 </TableCell>
                 <TableCell>
                   <Typography fontSize={13}>
-                    {inst.version_number != null ? `v${inst.version_number}` : '-'}
+                    {inst.version_number != null
+                      ? `v${inst.version_number}`
+                      : "-"}
                   </Typography>
                 </TableCell>
+
                 <TableCell>
-                  <StatusChip status={inst.status} />
+                  <StatusChip
+                    status={
+                      inst.control_signal === "pause"
+                        ? "pausing"
+                        : inst.control_signal === "terminate"
+                          ? "terminating"
+                          : inst.status
+                    }
+                  />
                 </TableCell>
+
                 <TableCell>
                   <Typography fontSize={12} color="text.secondary">
                     {formatSafeDate(inst.started_on)}
@@ -110,7 +138,12 @@ export default function InstanceTable({ instances, loading }: Props) {
                       event.stopPropagation();
                       navigate(`/audit/${inst.id}`);
                     }}
-                    sx={{ fontSize: 11, fontWeight: 600, borderRadius: '8px', height: 30 }}
+                    sx={{
+                      fontSize: 11,
+                      fontWeight: 600,
+                      borderRadius: "8px",
+                      height: 30,
+                    }}
                   >
                     View Audits
                   </Button>

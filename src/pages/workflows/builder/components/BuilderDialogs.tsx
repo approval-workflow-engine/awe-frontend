@@ -6,7 +6,12 @@ import {
   Typography,
   Button,
   CircularProgress,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
 } from '@mui/material';
+import type { VersionIncrementType } from '../../../../api/schemas';
 
 interface NavigationBlocker {
   state: string;
@@ -23,6 +28,9 @@ interface BuilderDialogsProps {
   onCloseCommitConfirm: () => void;
   onConfirmCommit: () => void;
   committing: boolean;
+  commitActionMode: "commit" | "commitAndActivate";
+  releaseIncrementType: VersionIncrementType;
+  onReleaseIncrementTypeChange: (value: VersionIncrementType) => void;
 
   activateConfirmOpen: boolean;
   onCloseActivateConfirm: () => void;
@@ -44,7 +52,7 @@ interface BuilderDialogsProps {
   onSaveAndLeave: () => Promise<unknown>;
   saving: boolean;
 
-  savedVersionNumber: number | null;
+  savedVersionNumber: number | string | null;
 }
 
 export default function BuilderDialogs({
@@ -55,6 +63,9 @@ export default function BuilderDialogs({
   onCloseCommitConfirm,
   onConfirmCommit,
   committing,
+  commitActionMode,
+  releaseIncrementType,
+  onReleaseIncrementTypeChange,
   activateConfirmOpen,
   onCloseActivateConfirm,
   onConfirmActivate,
@@ -99,12 +110,33 @@ export default function BuilderDialogs({
 
       <Dialog open={commitConfirmOpen} onClose={onCloseCommitConfirm} maxWidth="xs" fullWidth>
         <DialogTitle sx={{ fontFamily: "'Syne', sans-serif", fontWeight: 700, fontSize: 16 }}>
-          Commit v{savedVersionNumber}?
+          {commitActionMode === "commitAndActivate"
+            ? `Commit & Activate`
+            : `Commit`}
         </DialogTitle>
-        <DialogContent sx={{ pt: '8px !important' }}>
+        <DialogContent>
           <Typography sx={{ fontSize: 13, color: 'text.secondary' }}>
-            Locking <strong>v{savedVersionNumber}</strong> marks it as ready for activation. The version can no longer be edited after committing.
+            {commitActionMode === "commitAndActivate"
+              ? `This will publish and immediately activate the draft`
+              : `Locking draft marks it as ready for activation. The version can no longer be edited after committing.`}
           </Typography>
+          <FormControl fullWidth size="small" sx={{ mt: 2 }}>
+            <InputLabel id="increment-type-label">Version Bump</InputLabel>
+            <Select
+              labelId="increment-type-label"
+              value={releaseIncrementType}
+              label="Version Bump"
+              onChange={(event) =>
+                onReleaseIncrementTypeChange(
+                  event.target.value as VersionIncrementType,
+                )
+              }
+            >
+              <MenuItem value="major">Major</MenuItem>
+              <MenuItem value="minor">Minor</MenuItem>
+              <MenuItem value="patch">Patch</MenuItem>
+            </Select>
+          </FormControl>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>
           <Button size="small" onClick={onCloseCommitConfirm} sx={{ color: 'text.secondary' }}>Cancel</Button>
@@ -115,14 +147,20 @@ export default function BuilderDialogs({
             onClick={onConfirmCommit}
             sx={{ borderRadius: '8px', fontWeight: 600, backgroundColor: '#f59e0b', color: '#fff', '&:hover': { backgroundColor: '#d97706' } }}
           >
-            {committing ? <CircularProgress size={14} sx={{ color: '#fff' }} /> : 'Commit'}
+            {committing ? (
+              <CircularProgress size={14} sx={{ color: '#fff' }} />
+            ) : commitActionMode === "commitAndActivate" ? (
+              'Commit & Activate'
+            ) : (
+              'Commit'
+            )}
           </Button>
         </DialogActions>
       </Dialog>
 
       <Dialog open={activateConfirmOpen} onClose={onCloseActivateConfirm} maxWidth="xs" fullWidth>
         <DialogTitle sx={{ fontFamily: "'Syne', sans-serif", fontWeight: 700, fontSize: 16 }}>
-          Activate v{savedVersionNumber}?
+          Activate 
         </DialogTitle>
         <DialogContent sx={{ pt: '8px !important' }}>
           <Typography sx={{ fontSize: 13, color: 'text.secondary' }}>

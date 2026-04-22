@@ -136,6 +136,7 @@ export default function CreateInstanceDialog({
         output_variables: null,
         started_on: timestamp,
         status: instance.status,
+        control_signal: null,
         workflow_version_id: instance.workflow.id,
         version_number: instance.workflow.version,
         workflow_name: selectedWorkflow?.name || "Unknown",

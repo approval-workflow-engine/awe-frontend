@@ -20,7 +20,6 @@ type Backoff = {
   unit: "millisecond" | "second" | "minute";
 };
 
-type FailurePolicy = "fail" | "continue";
 
 type RecipientField = "to" | "cc" | "bcc";
 
@@ -57,7 +56,6 @@ export default function EmailTaskConfig({
   const setBackoff = (patch: Partial<Backoff>) =>
     set("backoff", { ...backoff, ...patch });
 
-  const failurePolicy = (c.failurePolicy as FailurePolicy) ?? "fail";
 
   const updateRecipient = (
     field: RecipientField,
@@ -334,56 +332,9 @@ export default function EmailTaskConfig({
             </Box>
           </Box>
 
-          <Box display="flex" flexDirection="column" gap={0.5}>
-            <Typography sx={{ fontSize: 11, color: "text.secondary" }}>
-              On Send Failure
-            </Typography>
-            <Box display="flex" gap={0.5}>
-              <Button
-                size="small"
-                onClick={() => set("failurePolicy", "fail")}
-                sx={{
-                  fontSize: 9,
-                  height: 24,
-                  borderRadius: "5px",
-                  textTransform: "none",
-                  flex: 1,
-                  backgroundColor:
-                    failurePolicy === "fail" ? "rgba(239,68,68,0.15)" : "transparent",
-                  color: failurePolicy === "fail" ? "#ef4444" : "text.disabled",
-                  border: "1px solid",
-                  borderColor:
-                    failurePolicy === "fail" ? "rgba(239,68,68,0.45)" : "divider",
-                }}
-              >
-                Fail Task
-              </Button>
-              <Button
-                size="small"
-                onClick={() => set("failurePolicy", "continue")}
-                sx={{
-                  fontSize: 9,
-                  height: 24,
-                  borderRadius: "5px",
-                  textTransform: "none",
-                  flex: 1,
-                  backgroundColor:
-                    failurePolicy === "continue"
-                      ? "rgba(34,197,94,0.15)"
-                      : "transparent",
-                  color:
-                    failurePolicy === "continue" ? "#22c55e" : "text.disabled",
-                  border: "1px solid",
-                  borderColor:
-                    failurePolicy === "continue"
-                      ? "rgba(34,197,94,0.45)"
-                      : "divider",
-                }}
-              >
-                Continue Workflow
-              </Button>
-            </Box>
-          </Box>
+          
+            
+          
         </Box>
       </CollapsibleSection>
 

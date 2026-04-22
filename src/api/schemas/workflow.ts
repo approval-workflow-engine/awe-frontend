@@ -8,6 +8,12 @@ export const WorkflowVersionStatusSchema = z.enum([
   "active",
 ]);
 
+export const VersionIncrementTypeSchema = z.enum([
+  "major",
+  "minor",
+  "patch",
+]);
+
 export const NodeConfigSchema = z.record(z.string(), z.any());
 
 export const NodeSchema = z.object({
@@ -42,13 +48,15 @@ export const WorkflowInputSchema = z.object({
   required: z.boolean(),
 });
 
+const VersionValueSchema = z.union([z.string(), z.number()]).nullable();
+
 const WorkflowVersionDetailNodeSchema = NodeSchema;
 const WorkflowVersionDetailEdgeSchema = EdgeSchema;
 
 export const WorkflowVersionDetailResponseSchema = z.object({
   id: z.string(),
   workflowId: z.string(),
-  version: z.number(),
+  version: VersionValueSchema.optional(),
   status: WorkflowVersionStatusSchema,
   publishedAt: z.string().datetime().nullable().optional(),
   createdAt: z.string().datetime(),
@@ -61,32 +69,42 @@ export const WorkflowVersionDetailResponseSchema = z.object({
       z.object({
         jsonPath: z.string(),
         dataType: WorkflowInputSchema.shape.type,
+        required: z.boolean().optional(),
+        defaultValue: z.unknown().optional(),
       }),
     )
     .optional(),
 });
 
+export const ValidationErrorSchema = z.object({
+  code: z.number(),
+  message: z.string(),
+  nodeId: z.string().optional(),
+  edgeId: z.string().optional(),
+});
+
 export const WorkflowVersionCreateResponseSchema = z.object({
   id: z.string(),
-  workflowId: z.string(),
-  version: z.number(),
   status: WorkflowVersionStatusSchema,
   createdAt: z.string().datetime(),
+  valid: z.boolean(),
+  errors: z.array(ValidationErrorSchema),
+  warnings: z.array(ValidationErrorSchema).optional().default([]),
+  workflowId: z.string().optional(),
+  version: VersionValueSchema.optional(),
 });
 
 export const WorkflowVersionUpdateResponseSchema = z.object({
-  id: z.string(),
-  workflowId: z.string(),
-  version: z.number(),
+  valid: z.boolean(),
+  errors: z.array(ValidationErrorSchema),
+  warnings: z.array(ValidationErrorSchema).optional().default([]),
   status: WorkflowVersionStatusSchema,
-  description: z.string().nullable().optional(),
-  updatedAt: z.string().datetime(),
 });
 
 export const WorkflowVersionStatusResponseSchema = z.object({
   id: z.string(),
   workflowId: z.string(),
-  version: z.number(),
+  version: VersionValueSchema.optional(),
   status: WorkflowVersionStatusSchema,
   publishedAt: z.string().datetime().nullable().optional(),
 });
@@ -100,26 +118,21 @@ export const WorkflowVersionPromoteResponseSchema = z.object({
 
 export const WorkflowVersionCloneResponseSchema = z
   .object({
-    id: z.string(),
-    workflow_id: z.string(),
-    version: z.number(),
-    status: WorkflowVersionStatusSchema,
-    description: z.string().nullable().optional(),
-    published_on: z.string().datetime().nullable().optional(),
-    created_on: z.string().datetime(),
-    modified_on: z.string().datetime(),
-    created_by: z.string(),
-    modified_by: z.string(),
-    deleted_on: z.string().datetime().nullable().optional(),
-    deleted_by: z.string().nullable().optional(),
-    is_deleted: z.boolean().optional(),
+    id: z.string().optional(),
+    versionId: z.string().optional(),
+    workflowVersion: z
+      .object({
+        id: z.string(),
+      })
+      .passthrough()
+      .optional(),
   })
   .passthrough();
 
 const WorkflowLatestVersionSchema = z.object({
-  latestVersionId: z.string().uuid().nullable(),
+  latestVersionId: z.uuid().nullable(),
   status: WorkflowVersionStatusSchema.nullable(),
-  latestVersionNumber: z.number().nullable().optional(),
+  latestVersionNumber: VersionValueSchema.optional(),
 });
 
 export const WorkflowSchema = z.object({
@@ -127,19 +140,19 @@ export const WorkflowSchema = z.object({
   name: z.string(),
   description: z.string().nullable().optional(),
   environment: EnvironmentTypeSchema.optional(),
-  createdAt: z.string().datetime({ message: "Invalid ISO datetime" }),
-  updatedAt: z.string().datetime({ message: "Invalid ISO datetime" }).optional(),
+  createdAt: z.iso.datetime({ message: "Invalid ISO datetime" }),
+  updatedAt: z.iso.datetime({ message: "Invalid ISO datetime" }).optional(),
   latestVersion: WorkflowLatestVersionSchema.optional(),
   versions: z
     .array(
       z.object({
         id: z.string(),
-        version: z.number(),
+        version: VersionValueSchema,
         status: WorkflowVersionStatusSchema,
         description: z.string().nullable().optional(),
-        publishedAt: z.string().datetime({ message: "Invalid ISO datetime" }).nullable().optional(),
-        createdAt: z.string().datetime({ message: "Invalid ISO datetime" }),
-        updatedAt: z.string().datetime({ message: "Invalid ISO datetime" }),
+        publishedAt: z.iso.datetime({ message: "Invalid ISO datetime" }).nullable().optional(),
+        createdAt: z.iso.datetime({ message: "Invalid ISO datetime" }),
+        updatedAt: z.iso.datetime({ message: "Invalid ISO datetime" }),
       }),
     )
     .optional(),
@@ -162,7 +175,7 @@ export const UpdateWorkflowResponseSchema = z.object({
   name: z.string(),
   description: z.string().nullable().optional(),
   environment: EnvironmentTypeSchema.optional(),
-  updatedAt: z.string().datetime(),
+  updatedAt: z.iso.datetime(),
 });
 
 export const WorkflowResponseSchema = z.object({
@@ -177,13 +190,13 @@ export const WorkflowsResponseSchema = z.object({
 export const WorkflowVersionListItemSchema = z.object({
   id: z.string(),
   workflowId: z.string(),
-  versionNumber: z.number(),
+  versionNumber: VersionValueSchema.optional(),
   status: WorkflowVersionStatusSchema,
   description: z.string().nullable().optional(),
-  publishedAt: z.string().datetime().nullable().optional(),
+  publishedAt: z.iso.datetime().nullable().optional(),
   environment: EnvironmentTypeSchema.optional(),
-  createdAt: z.string().datetime(),
-  updatedAt: z.string().datetime(),
+  createdAt: z.iso.datetime(),
+  updatedAt: z.iso.datetime(),
 });
 
 export const WorkflowVersionsResponseSchema = z.object({
@@ -211,19 +224,14 @@ export const VersionResponseSchema = z.union([
 ]);
 
 export const UpdateVersionStatusRequestSchema = z.object({
-  status: WorkflowVersionStatusSchema,
-});
-
-export const ValidationErrorSchema = z.object({
-  code: z.number(),
-  message: z.string(),
-  nodeId: z.string().optional(),
-  edgeId: z.string().optional(),
+  incrementType: VersionIncrementTypeSchema.optional(),
 });
 
 export const ValidationResultSchema = z.object({
   valid: z.boolean(),
   errors: z.array(ValidationErrorSchema),
+  warnings: z.array(ValidationErrorSchema).optional().default([]),
+  status: WorkflowVersionStatusSchema.optional(),
 });
 
 export type WorkflowVersionStatus = z.infer<typeof WorkflowVersionStatusSchema>;
@@ -267,6 +275,7 @@ export type WorkflowVersionPromoteResponse = z.infer<
 export type WorkflowVersionCloneResponse = z.infer<
   typeof WorkflowVersionCloneResponseSchema
 >;
+export type VersionIncrementType = z.infer<typeof VersionIncrementTypeSchema>;
 export type UpdateVersionStatusRequest = z.infer<
   typeof UpdateVersionStatusRequestSchema
 >;

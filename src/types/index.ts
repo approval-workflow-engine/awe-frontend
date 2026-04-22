@@ -19,10 +19,10 @@ export interface Pagination {
 export interface User {
   id: string;
   name: string;
-  orgName: string;
-  contactEmail: string;
+  email: string;
   environment?: string;
   createdAt?: string;
+  updatedAt?: string;
   apiKeys?: ApiKey[];
 }
 
@@ -41,33 +41,35 @@ export interface LoginPayload {
 }
 
 export interface LoginResponse {
-  system: User;
+  organization: User;
   accessToken: string;
   refreshToken: string;
 }
 
 export interface RegisterPayload {
   name: string;
-  description?: string;
-  orgName: string;
-  contactEmail: string;
+  email: string;
   password: string;
 }
 
 export interface RegisterResponse {
-  apiKey?: string;
+  id: string;
+  name: string;
+  email: string;
+  environments: string[];
+  createdAt: string;
 }
 
 export interface WorkflowLatestVersion {
   latestVersionId: string | null;
   status: VersionStatus | null;
-  latestVersionNumber?: number | null;
+  latestVersionNumber?: number | string | null;
 }
 
 export interface WorkflowVersionSummary {
   id: string;
   description?: string | null;
-  version: number;
+  version: number | string | null;
   status: VersionStatus;
   createdAt: string;
   updatedAt: string;
@@ -90,7 +92,7 @@ export type VersionStatus = "draft" | "published" | "active" | "valid";
 export interface WorkflowVersion {
   id: string;
   workflowId: string;
-  versionNumber: number;
+  versionNumber: number | string | null;
   environment?: string;
   status: VersionStatus;
   definition?: WorkflowDefinition;
@@ -166,8 +168,9 @@ export interface ValidationError {
 export interface ValidationResult {
   valid: boolean;
   errors: ValidationError[];
+  warnings?: ValidationError[];
   versionId?: string;
-  version?: number;
+  version?: number | string;
   status?: string;
 }
 
@@ -320,6 +323,8 @@ export interface UserTaskResponseField {
   label: string;
   type?: string;
   dataType?: string;
+  required?: boolean;
+  defaultValue?: unknown;
   uiType?:
     | "text"
     | "textarea"
@@ -372,7 +377,6 @@ export interface Secret {
   id?: string;
   providerId: string;
   environment: string;
-  label: string;
   key: string;
   created_on?: string;
 }

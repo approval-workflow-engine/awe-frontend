@@ -1,22 +1,22 @@
 import { apiClient } from '../client';
 import {
   PendingTasksResponseSchema,
+  PendingTasksQueryParamsSchema,
   TaskDetailResponseSchema,
   CompleteTaskRequestSchema,
   CompleteTaskResponseSchema,
-  PaginationParamsSchema,
   type PendingTasksResponse,
   type TaskDetailResponse,
   type CompleteTaskRequest,
   type CompleteTaskResponse,
-  type PaginationParams,
+  type PendingTasksQueryParams,
   RetryTaskResponseSchema,
   type RetryTaskResponse,
 } from '../schemas';
 
 export class TaskService {
-  async getPendingTasks(params?: PaginationParams): Promise<PendingTasksResponse> {
-    const validatedParams = params ? PaginationParamsSchema.parse(params) : undefined;
+  async getPendingTasks(params?: PendingTasksQueryParams): Promise<PendingTasksResponse> {
+    const validatedParams = params ? PendingTasksQueryParamsSchema.parse(params) : undefined;
     return apiClient.get('/tasks', PendingTasksResponseSchema, {
       params: validatedParams,
     });

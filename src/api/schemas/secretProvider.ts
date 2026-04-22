@@ -7,12 +7,23 @@ export const InfisicalConfigurationSchema = z.object({
   machineIdentityId: z.string(),
 });
 
+const SecretProviderTypeSchema = z
+  .enum(["infisical", "aws-secrets-manager", "hashicorp-vault"])
+  .or(z.string());
+
+const SecretProviderConfigurationSchema = z.union([
+  InfisicalConfigurationSchema,
+  z.record(z.string(), z.unknown()),
+]);
+
 export const SecretProviderSchema = z.object({
   id: z.string().uuid().optional(),
-  type: z.literal("infisical"),
-  label: z.string(),
-  configuration: InfisicalConfigurationSchema,
-  created_on: z.string().optional(),
+  type: SecretProviderTypeSchema,
+  label: z.string().nullable().optional(),
+  configuration: SecretProviderConfigurationSchema,
+  created_on: z.string().nullable().optional(),
+  updated_on: z.string().nullable().optional(),
+  organization_id: z.string().nullable().optional(),
 });
 
 export const SecretProvidersResponseSchema = z.object({

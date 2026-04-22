@@ -17,7 +17,7 @@ export default function LogoMark() {
       </Typography>
 
       <Typography fontSize={12} color="#94a3b8">
-        Approval Workflow Engine
+        Another Workflow Engine
       </Typography>
     </Box>
   );

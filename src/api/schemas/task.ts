@@ -1,5 +1,10 @@
 import { z } from 'zod';
-import { dateTransform, PaginationSchema } from './common';
+import {
+  dateTransform,
+  optionalDateTransform,
+  PaginationParamsSchema,
+  PaginationSchema,
+} from './common';
 
 export const TaskStatusSchema = z.enum(['in_progress', 'completed', 'rejected', 'failed', 'terminated']);
 
@@ -19,6 +24,8 @@ export const UserTaskResponseFieldSchema = z.object({
   label: z.string(),
   type: z.string().optional(),
   dataType: z.string().optional(),
+  required: z.boolean().optional(),
+  defaultValue: z.unknown().optional(),
   uiType: z.enum(['text', 'textarea', 'number', 'dropdown', 'checkbox', 'date-picker']).optional(),
   options: z.array(UserTaskResponseFieldOptionSchema).optional(),
   contextVariable: z.object({
@@ -41,10 +48,11 @@ export const PendingUserTaskSchema = z.object({
   assignee: z.string().nullable(),
   createdAt: dateTransform,
   workflow: z.object({
-    instanceId: z.string().uuid(),
-    id: z.string().uuid(),
-    name: z.string(),
-    version: z.number(),
+    instanceId: z.string().uuid().optional(),
+    versionId: z.string().uuid().optional(),
+    id: z.string().uuid().optional(),
+    name: z.string().nullable().optional(),
+    version: z.union([z.string(), z.number()]).nullable().optional(),
   }),
 });
 
@@ -64,19 +72,22 @@ export const PendingTasksResponseSchema = z.object({
   pagination: PaginationSchema,
 });
 
+export const PendingTasksQueryParamsSchema = PaginationParamsSchema.extend({
+  assignee: z.string().optional(),
+});
+
 export const TaskDetailResponseSchema = TaskDetailSchema;
 
 export const CompleteTaskRequestSchema = z.record(z.string(), z.any());
 
 export const CompleteTaskResponseSchema = z.object({
   status: z.string(),
-  completedAt: dateTransform,
+  completedAt: optionalDateTransform,
 });
 
-  export const RetryTaskResponseSchema = z.object({
-    status: z.string(),
-    message: z.string().optional(),
-  });
+export const RetryTaskResponseSchema = z.object({
+  instance: z.unknown(),
+});
 
 export type TaskStatus = z.infer<typeof TaskStatusSchema>;
 export type UserTaskDisplayField = z.infer<typeof UserTaskDisplayFieldSchema>;
@@ -86,6 +97,7 @@ export type UserTaskNodeConfiguration = z.infer<typeof UserTaskNodeConfiguration
 export type PendingUserTask = z.infer<typeof PendingUserTaskSchema>;
 export type TaskDetail = z.infer<typeof TaskDetailSchema>;
 export type PendingTasksResponse = z.infer<typeof PendingTasksResponseSchema>;
+export type PendingTasksQueryParams = z.infer<typeof PendingTasksQueryParamsSchema>;
 export type TaskDetailResponse = z.infer<typeof TaskDetailResponseSchema>;
 export type CompleteTaskRequest = z.infer<typeof CompleteTaskRequestSchema>;
 export type CompleteTaskResponse = z.infer<typeof CompleteTaskResponseSchema>;

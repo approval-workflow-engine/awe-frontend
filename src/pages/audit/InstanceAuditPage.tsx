@@ -37,11 +37,18 @@ import type {
 const MONO = "'JetBrains Mono', monospace";
 
 function safeDate(val: string | null | undefined) {
-  return val ? formatDateWithSeconds(val) : "—";
+  return val ? formatDateWithSeconds(val) : "-";
+}
+
+function toRecord(value: unknown): Record<string, unknown> | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return null;
+  }
+  return value as Record<string, unknown>;
 }
 
 function formatDuration(durationMs: number | null): string {
-  if (!durationMs || durationMs < 0) return "—";
+  if (!durationMs || durationMs < 0) return "-";
 
   const seconds = Math.floor((durationMs / 1000) % 60);
   const minutes = Math.floor((durationMs / (1000 * 60)) % 60);
@@ -129,6 +136,9 @@ function JsonAccordion({ title, data }: { title: string; data: unknown }) {
 }
 
 function TaskExecutionRow({ exec }: { exec: AuditTaskExecution }) {
+  const inputVariables = toRecord(exec.inputVariables);
+  const outputVariables = toRecord(exec.outputVariables);
+
   return (
     <Box
       sx={{
@@ -166,11 +176,11 @@ function TaskExecutionRow({ exec }: { exec: AuditTaskExecution }) {
           Error: {exec.error}
         </Typography>
       )}
-      {exec.inputVariables && Object.keys(exec.inputVariables).length > 0 && (
-        <JsonAccordion title="Input Variables" data={exec.inputVariables} />
+      {inputVariables && Object.keys(inputVariables).length > 0 && (
+        <JsonAccordion title="Input Variables" data={inputVariables} />
       )}
-      {exec.outputVariables && Object.keys(exec.outputVariables).length > 0 && (
-        <JsonAccordion title="Output Variables" data={exec.outputVariables} />
+      {outputVariables && Object.keys(outputVariables).length > 0 && (
+        <JsonAccordion title="Output Variables" data={outputVariables} />
       )}
     </Box>
   );
@@ -303,7 +313,7 @@ export default function InstanceAuditPage() {
         (t.nodeName ?? "").toLowerCase().includes(q) ||
         t.taskType.toLowerCase().includes(q) ||
         t.currentStatus.toLowerCase().includes(q) ||
-        t.nodeId.toLowerCase().includes(q)
+        (t.nodeId ?? "").toLowerCase().includes(q)
       );
     }) ?? [];
 

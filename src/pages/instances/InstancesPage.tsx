@@ -1,16 +1,16 @@
-import { useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Box, Button, IconButton, Paper, Tooltip } from '@mui/material';
-import AddIcon from '@mui/icons-material/Add';
-import RefreshIcon from '@mui/icons-material/Refresh';
-import { useState } from 'react';
-import PageHeader from '../../components/common/PageHeader';
-import AppPagination from '../../components/common/AppPagination';
-import InstanceTable from './components/InstanceTable';
-import CreateInstanceDialog from './components/CreateInstanceDialog';
-import { useInstances } from './hooks/useInstances';
-import type { InstanceListItem } from '../../api/schemas/instance';
-import type { Pagination } from '../../api/schemas/common';
+import { useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { Box, Button, IconButton, Paper, Tooltip } from "@mui/material";
+import AddIcon from "@mui/icons-material/Add";
+import RefreshIcon from "@mui/icons-material/Refresh";
+import { useState } from "react";
+import PageHeader from "../../components/common/PageHeader";
+import AppPagination from "../../components/common/AppPagination";
+import InstanceTable from "./components/InstanceTable";
+import CreateInstanceDialog from "./components/CreateInstanceDialog";
+import { useInstances } from "./hooks/useInstances";
+import type { InstanceListItem } from "../../api/schemas/instance";
+import type { Pagination } from "../../api/schemas/common";
 
 export default function InstancesPage() {
   const navigate = useNavigate();
@@ -39,7 +39,9 @@ export default function InstancesPage() {
     }
   };
 
-  const handleChangeRowsPerPage = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleChangeRowsPerPage = async (
+    event: React.ChangeEvent<HTMLInputElement>,
+  ) => {
     const newLimit = parseInt(event.target.value, 10);
     setLimit(newLimit);
     setPage(0);
@@ -61,13 +63,17 @@ export default function InstancesPage() {
         action={
           <Box display="flex" alignItems="center" gap={1}>
             <Tooltip title="Reload">
-              <IconButton size="small" onClick={async () => {
-                const res = await fetch({ page: page + 1, limit });
-                if (res?.pagination) {
-                  setPagination(res.pagination);
-                }
-              }} disabled={loading}
-                sx={{ color: 'text.secondary' }}>
+              <IconButton
+                size="small"
+                onClick={async () => {
+                  const res = await fetch({ page: page + 1, limit });
+                  if (res?.pagination) {
+                    setPagination(res.pagination);
+                  }
+                }}
+                disabled={loading}
+                sx={{ color: "text.secondary" }}
+              >
                 <RefreshIcon fontSize="small" />
               </IconButton>
             </Tooltip>
@@ -83,7 +89,7 @@ export default function InstancesPage() {
         }
       />
 
-      <Paper variant="outlined" sx={{ overflow: 'hidden' }}>
+      <Paper variant="outlined" sx={{ overflow: "hidden" }}>
         <InstanceTable instances={instances} loading={loading} />
         <AppPagination
           pagination={pagination}

@@ -6,7 +6,7 @@ export function flattenJsonToBody(
     return prefix ? [{ jsonPath: prefix, valueExpression: "null" }] : [];
   }
   if (typeof obj === "string") {
-    const m = obj.match(/^(context\.\w+(?:\.\w+)*)$/);
+    const m = obj.match(/^((?:context|secret)\.\w+(?:\.\w+)*)$/);
     const valueExpression = m ? m[1] : JSON.stringify(obj);
     return prefix ? [{ jsonPath: prefix, valueExpression }] : [];
   }
@@ -41,7 +41,10 @@ export function bodyToJson(
     }
     const last = parts[parts.length - 1];
     if (!last) continue;
-    if (valueExpression.startsWith("context.")) {
+    if (
+      valueExpression.startsWith("context.") ||
+      valueExpression.startsWith("secret.")
+    ) {
       cur[last] = valueExpression;
     } else {
       try {

@@ -1,23 +1,15 @@
-import { z } from 'zod';
-import { EnvironmentTypeSchema } from './common';
+import { z } from "zod";
+import { EnvironmentTypeSchema } from "./common";
 
-export const SystemSchema = z.object({
-  id: z.string().uuidv4(),
+export const OrganizationBasicSchema = z.object({
+  id: z.uuidv4(),
   name: z.string(),
-  orgName: z.string(),
-  contactEmail: z.string().email(),
-  environment: EnvironmentTypeSchema.optional(),
-  createdAt: z.string().datetime().optional(),
-  updatedAt: z.string().datetime().optional(),
+  email: z.email(),
 });
 
-export const RegisterSystemSchema = z.object({
-  id: z.string().uuidv4(),
-  name: z.string(),
-  orgName: z.string(),
-  contactEmail: z.string().email(),
-  environments: z.array(EnvironmentTypeSchema),
-  createdAt: z.string().datetime(),
+export const OrganizationDetailSchema = OrganizationBasicSchema.extend({
+  createdAt: z.string(),
+  updatedAt: z.string(),
 });
 
 export const LoginRequestSchema = z.object({
@@ -26,7 +18,7 @@ export const LoginRequestSchema = z.object({
 });
 
 export const LoginResponseSchema = z.object({
-  system: SystemSchema,
+  organization: OrganizationBasicSchema,
   accessToken: z.string(),
   refreshToken: z.string(),
 });
@@ -40,37 +32,47 @@ export const RefreshTokenResponseSchema = z.object({
   refreshToken: z.string(),
 });
 
+export const LogoutRequestSchema = z.object({
+  refreshToken: z.string().optional(),
+});
+
 export const RegisterRequestSchema = z.object({
-  name: z.string().max(255),
-  orgName: z.string().max(255),
-  contactEmail: z.email(),
-  password: z.string().min(8),
-  description: z.string().optional(),
+  name: z.string(),
+  email: z.email(),
+  password: z.string(),
 });
 
 export const RegisterResponseSchema = z.object({
-  system: RegisterSystemSchema,
+  id: z.string(),
+  name: z.string(),
+  email: z.string(),
+  environments: z.array(EnvironmentTypeSchema),
+  createdAt: z.string(),
 });
 
 export const ApiKeySchema = z.object({
   id: z.string().uuidv4(),
-  label: z.string().optional(),
-  isRevoked: z.boolean(),
+  label: z.string().nullable().optional(),
+  prefix: z.string().optional(),
   createdAt: z.string().datetime(),
   revokedAt: z.string().datetime().nullable(),
   environment: EnvironmentTypeSchema,
-});
+}).transform((apiKey) => ({
+  ...apiKey,
+  isRevoked: apiKey.revokedAt !== null,
+}));
 
 export const CreateApiKeyResponseSchema = z.object({
   id: z.string().uuidv4(),
-  label: z.string(),
+  label: z.string().nullable().optional(),
+  prefix: z.string().optional(),
   apiKey: z.string(),
   environment: EnvironmentTypeSchema,
   createdAt: z.string().datetime(),
 });
 
 export const CreateApiKeyRequestSchema = z.object({
-  label: z.string().min(1).optional(),
+  label: z.string().min(1),
   environment: EnvironmentTypeSchema,
 });
 
@@ -79,17 +81,16 @@ export const ApiKeysResponseSchema = z.object({
 });
 
 export const RevokeApiKeyResponseSchema = z.object({
-  id: z.string().uuidv4(),
-  label: z.string().nullable().optional(),
-  isRevoked: z.boolean(),
   revokedAt: z.string().datetime().nullable(),
 });
 
-export type System = z.infer<typeof SystemSchema>;
+export type Organization = z.infer<typeof OrganizationDetailSchema>;
+export type OrganizationBasic = z.infer<typeof OrganizationBasicSchema>;
 export type LoginRequest = z.infer<typeof LoginRequestSchema>;
 export type LoginResponse = z.infer<typeof LoginResponseSchema>;
 export type RefreshTokenRequest = z.infer<typeof RefreshTokenRequestSchema>;
 export type RefreshTokenResponse = z.infer<typeof RefreshTokenResponseSchema>;
+export type LogoutRequest = z.infer<typeof LogoutRequestSchema>;
 export type RegisterRequest = z.infer<typeof RegisterRequestSchema>;
 export type RegisterResponse = z.infer<typeof RegisterResponseSchema>;
 export type ApiKey = z.infer<typeof ApiKeySchema>;

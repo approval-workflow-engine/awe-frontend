@@ -3,6 +3,7 @@ import {
   Typography,
   IconButton,
   TextField,
+  Button,
   Divider,
 } from "@mui/material";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
@@ -11,6 +12,7 @@ import ContextVariableSelector from "../shared/ContextVariableSelector";
 import DataTypeSelect from "../shared/DataTypeSelect";
 import UITypeSelect from "../shared/UITypeSelect";
 import DropdownOptionsConfigurator from "../shared/DropdownOptionsConfigurator";
+import DefaultValueInput from "../shared/DefaultValueInput";
 import AddRowButton from "../shared/AddRowButton";
 import { SectionLabel } from "../shared/CollapsibleSection";
 import type { AvailableCtxVar } from "../context";
@@ -25,6 +27,8 @@ interface ResponseMapRowUser {
   label: string;
   contextVariable?: ContextVariable;
   type: string;
+  required?: boolean;
+  defaultValue?: unknown;
   uiType?: UIType;
   options?: DropdownOption[];
 }
@@ -37,6 +41,30 @@ interface Props {
 }
 
 const EMPTY_CV: ContextVariable = { name: "", scope: "global" };
+
+function getDefaultValueForType(dataType: string): unknown {
+  if (dataType === DataType.BOOLEAN) {
+    return false;
+  }
+
+  if (dataType === DataType.NUMBER) {
+    return 0;
+  }
+
+  if (dataType === DataType.NULL) {
+    return null;
+  }
+
+  if (dataType === DataType.OBJECT) {
+    return "{}";
+  }
+
+  if (dataType === DataType.LIST) {
+    return "[]";
+  }
+
+  return "";
+}
 
 export default function UserTaskConfig({
   node,
@@ -253,7 +281,14 @@ export default function UserTaskConfig({
                   />
                   <DataTypeSelect
                     value={row.type || DataType.STRING}
-                    onChange={(v) => updateRes(idx, { type: v })}
+                    onChange={(v) =>
+                      updateRes(idx, {
+                        type: v,
+                        ...(row.required === false
+                          ? { defaultValue: getDefaultValueForType(v) }
+                          : {}),
+                      })
+                    }
                     exclude={[DataType.NULL]}
                   />
                   <IconButton
@@ -283,6 +318,65 @@ export default function UserTaskConfig({
                   />
                 )}
 
+                <Box display="flex" gap={0.5}>
+                  <Button
+                    size="small"
+                    variant={row.required !== false ? "contained" : "outlined"}
+                    onClick={() =>
+                      updateRes(idx, {
+                        required: true,
+                        defaultValue: undefined,
+                      })
+                    }
+                    sx={{
+                      fontSize: 9,
+                      height: 22,
+                      borderRadius: "5px",
+                      flex: 1,
+                      textTransform: "none",
+                    }}
+                  >
+                    Required
+                  </Button>
+                  <Button
+                    size="small"
+                    variant={row.required === false ? "contained" : "outlined"}
+                    onClick={() =>
+                      updateRes(idx, {
+                        required: false,
+                        defaultValue:
+                          row.defaultValue === undefined
+                            ? getDefaultValueForType(row.type || DataType.STRING)
+                            : row.defaultValue,
+                      })
+                    }
+                    sx={{
+                      fontSize: 9,
+                      height: 22,
+                      borderRadius: "5px",
+                      flex: 1,
+                      textTransform: "none",
+                    }}
+                  >
+                    Optional
+                  </Button>
+                </Box>
+
+                {row.required === false && (
+                  <Box>
+                    <Typography
+                      sx={{ fontSize: 9, color: "text.secondary", mb: 0.25 }}
+                    >
+                      Default Value
+                    </Typography>
+                    <DefaultValueInput
+                      dataType={row.type || DataType.STRING}
+                      value={row.defaultValue}
+                      onChange={(v) => updateRes(idx, { defaultValue: v })}
+                    />
+                  </Box>
+                )}
+
                 <Box>
                   <Typography
                     sx={{ fontSize: 9, color: "text.secondary", mb: 0.25 }}
@@ -306,6 +400,7 @@ export default function UserTaskConfig({
                   fieldId: generateId("field"),
                   label: "",
                   type: DataType.STRING,
+                  required: true,
                 },
               ])
             }
