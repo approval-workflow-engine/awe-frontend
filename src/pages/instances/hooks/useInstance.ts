@@ -6,7 +6,7 @@ import type { Instance } from "../../../api/schemas/instance";
 const TERMINAL_STATUSES = new Set(["completed", "failed", "terminated"]);
 
 export function useInstance() {
-  const { loading, error, call } = useApiCall();
+  const { loading, error, notFound, forbidden, unauthorized, call } = useApiCall();
   const [instance, setInstance] = useState<Instance | null>(null);
 
   const fetch = useCallback(
@@ -97,6 +97,9 @@ export function useInstance() {
     instance,
     loading,
     error,
+    notFound,
+    forbidden,
+    unauthorized,
     fetch,
     silentFetch,
     resume,

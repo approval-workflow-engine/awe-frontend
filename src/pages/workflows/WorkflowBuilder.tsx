@@ -51,12 +51,18 @@ import { useBuilderCanvas } from "./builder/hooks/useBuilderCanvas";
 import { useBuilderActions } from "./builder/hooks/useBuilderActions";
 import { definitionToCanvas } from "./builder/utils/serialization";
 import { buildStartNode } from "./builder/utils/nodeHelpers";
-import { useBackNavigation } from "../../hooks/useBackNavigation";
+
 import {
   VERSION_STATUS_COLOR,
   VERSION_STATUS_BG,
 } from "./builder/config/constants";
 import type { AvailableCtxVar } from "./builder/config/context";
+import {
+  NotFoundState,
+  ForbiddenState,
+  ErrorState,
+  LoadingState,
+} from "../../components/common/states";
 
 type ContextPanelVar = {
   name: string;
@@ -77,9 +83,8 @@ export default function WorkflowBuilder() {
     versionId?: string;
   }>();
   const navigate = useNavigate();
-  const { call } = useApiCall();
+  const { call, error, notFound, forbidden } = useApiCall();
   const { mode, toggleTheme } = useThemeMode();
-  const { goBack } = useBackNavigation("/workflows");
 
   const [workflowName, setWorkflowName] = useState("");
   const [loadedVersionNumber, setLoadedVersionNumber] = useState<
@@ -103,7 +108,7 @@ export default function WorkflowBuilder() {
   >("commit");
   const [releaseIncrementType, setReleaseIncrementType] =
     useState<VersionIncrementType>("major");
-  const [canvasLoading, setCanvasLoading] = useState(() => !!versionId);
+  const [canvasLoading, setCanvasLoading] = useState(() => !!versionId || !!workflowId);
   const [configPanelWidth, setConfigPanelWidth] = useState(320);
   const [isResizingConfig, setIsResizingConfig] = useState(false);
   const configResizeOriginRef = useRef({ x: 0, width: 320 });
@@ -237,64 +242,62 @@ export default function WorkflowBuilder() {
     };
   }, [isResizingConfig, handleConfigWidthChange]);
 
-  useEffect(() => {
+  const fetchWorkflowData = useCallback(async () => {
     if (!workflowId) return;
     setMarkDirtyEnabled(false);
-    (async () => {
-      const wfRes = await call(() => workflowService.getWorkflow(workflowId), {
+    setCanvasLoading(true);
+    
+    const wfRes = await call(() => workflowService.getWorkflow(workflowId), {
+      showError: false,
+    });
+    if (!wfRes) {
+      setCanvasLoading(false);
+      return;
+    }
+    if (wfRes) {
+      const body = wfRes as { name?: string; workflow?: { name?: string } };
+      setWorkflowName(body?.workflow?.name ?? body?.name ?? "Workflow");
+    }
+
+    if (versionId) {
+      const vRes = await call(() => workflowService.getVersion(versionId), {
         showError: false,
       });
-      if (!wfRes) {
-        goBack();
+      if (!vRes) {
+        setCanvasLoading(false);
         return;
       }
-      if (wfRes) {
-        const body = wfRes as { name?: string; workflow?: { name?: string } };
-        setWorkflowName(body?.workflow?.name ?? body?.name ?? "Workflow");
-      }
-
-      if (versionId) {
-        const vRes = await call(() => workflowService.getVersion(versionId), {
-          showError: false,
-        });
-        if (!vRes) {
-          goBack();
-          return;
-        }
-        if (vRes) {
-          const vRaw = vRes as Record<string, unknown>;
-          const vData: Record<string, unknown> =
-            vRaw.version && typeof vRaw.version === "object"
-              ? (vRaw.version as Record<string, unknown>)
-              : vRaw;
-          if (vData) {
-            const { nodes: n, edges: e, inputs: i } = definitionToCanvas(vData);
-            hydrateCanvas(n.length > 0 ? n : [buildStartNode()], e, i);
-            const vn =
-              (vData.versionNumber as number | string | null | undefined) ??
-              (vData.version as number | string | null | undefined) ??
-              loadedVersionNumber;
-            if (typeof vn === "number" || typeof vn === "string") {
-              setLoadedVersionNumber(vn);
-              setSavedVersionNumber(vn);
-            }
-            setSavedVersionId((vData.id as string) ?? versionId);
-            setVersionStatus(
-              (vData.status as string)?.toLowerCase?.() || "draft",
-            );
+      if (vRes) {
+        const vRaw = vRes as Record<string, unknown>;
+        const vData: Record<string, unknown> =
+          vRaw.version && typeof vRaw.version === "object"
+            ? (vRaw.version as Record<string, unknown>)
+            : vRaw;
+        if (vData) {
+          const { nodes: n, edges: e, inputs: i } = definitionToCanvas(vData);
+          hydrateCanvas(n.length > 0 ? n : [buildStartNode()], e, i);
+          const vn =
+            (vData.versionNumber as number | string | null | undefined) ??
+            (vData.version as number | string | null | undefined) ??
+            loadedVersionNumber;
+          if (typeof vn === "number" || typeof vn === "string") {
+            setLoadedVersionNumber(vn);
+            setSavedVersionNumber(vn);
           }
+          setSavedVersionId((vData.id as string) ?? versionId);
+          setVersionStatus(
+            (vData.status as string)?.toLowerCase?.() || "draft",
+          );
         }
       }
+    }
 
-      setMarkDirtyEnabled(true);
-      setCanvasLoading(false);
-    })();
+    setMarkDirtyEnabled(true);
+    setCanvasLoading(false);
   }, [
     workflowId,
     versionId,
     call,
-    navigate,
-    goBack,
     setMarkDirtyEnabled,
     setWorkflowName,
     hydrateCanvas,
@@ -304,6 +307,10 @@ export default function WorkflowBuilder() {
     setVersionStatus,
     loadedVersionNumber,
   ]);
+
+  useEffect(() => {
+    fetchWorkflowData();
+  }, [fetchWorkflowData]);
 
   useEffect(() => {
     const fetchSecrets = async () => {
@@ -463,6 +470,18 @@ export default function WorkflowBuilder() {
     ) ?? null;
 
   const codeEditorOpen = codeEditorOpenState && !!selectedScriptNode;
+
+  if (notFound) return <NotFoundState message={error || "Workflow or version not found"} />;
+  if (forbidden) return <ForbiddenState message={error || "You do not have access to this workflow"} />;
+  if (error && !workflowName) return <ErrorState message={error} onRetry={fetchWorkflowData} />;
+
+  if (canvasLoading) {
+    return (
+      <Box sx={{ display: 'flex', height: '100vh', alignItems: 'center', justifyContent: 'center' }}>
+        <LoadingState text="Loading workflow builder..." />
+      </Box>
+    );
+  }
 
   return (
     <Box

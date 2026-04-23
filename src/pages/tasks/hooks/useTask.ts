@@ -4,7 +4,7 @@ import { taskService } from "../../../api/services/task";
 import type { TaskDetail } from "../../../api/schemas/task";
 
 export function useTask() {
-  const { loading, error, call } = useApiCall();
+  const { loading, error, notFound, forbidden, unauthorized, call } = useApiCall();
   const [task, setTask] = useState<TaskDetail | null>(null);
   const currentRequestRef = useRef<string | null>(null);
 
@@ -38,5 +38,6 @@ export function useTask() {
     [call],
   );
 
-  return { task, loading, error, fetch, complete };
+  return { task, loading, error, notFound, forbidden, unauthorized, fetch, complete };
 }
+

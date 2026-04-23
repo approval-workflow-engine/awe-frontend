@@ -31,8 +31,12 @@ import { secretService } from "../../api/services/secrets";
 import { useApiCall } from "../../hooks/useApiCall";
 import { ENVIRONMENT_OPTIONS } from "../../constants/environment";
 import type { SecretProvider, SecretItem } from "../../api/schemas";
+import {
+  ForbiddenState,
+  ErrorState,
+  LoadingState,
+} from "../../components/common/states";
 
-// ─── Preconfigured provider presets ──────────────────────────────────────────
 const PROVIDER_PRESETS = [
   {
     id: "infisical",
@@ -42,7 +46,6 @@ const PROVIDER_PRESETS = [
   },
 ];
 
-// ─── Helper ───────────────────────────────────────────────────────────────────
 function ProviderCard({
   provider,
   onAddSecret,
@@ -274,7 +277,7 @@ function ProviderCard({
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function SecretsPage() {
-  const { call } = useApiCall();
+  const { call, error, forbidden } = useApiCall();
   const [providers, setProviders] = useState<SecretProvider[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -484,10 +487,12 @@ export default function SecretsPage() {
       </Alert> */}
 
       {/* Body */}
-      {loading ? (
-        <Box display="flex" justifyContent="center" alignItems="center" py={8}>
-          <CircularProgress />
-        </Box>
+      {forbidden ? (
+        <ForbiddenState message={error || "You do not have access to secrets"} />
+      ) : error && !providers.length ? (
+        <ErrorState message={error} onRetry={loadProviders} />
+      ) : loading ? (
+        <LoadingState text="Loading secret providers..." />
       ) : providers.length === 0 ? (
         <Paper
           elevation={0}

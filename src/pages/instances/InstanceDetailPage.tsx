@@ -1,6 +1,6 @@
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { useState } from "react";
-import { Box, Typography, Chip, Skeleton } from "@mui/material";
+import { Box, Typography, Chip } from "@mui/material";
 import PageHeader from "../../components/common/PageHeader";
 import DetailInfoSection from "./components/DetailInfoSection";
 import {
@@ -44,6 +44,13 @@ function toInstanceFromListItem(item: InstanceListItem): Instance {
   };
 }
 
+import {
+  NotFoundState,
+  ForbiddenState,
+  ErrorState,
+  LoadingState,
+} from "../../components/common/states";
+
 export default function InstanceDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -52,6 +59,9 @@ export default function InstanceDetailPage() {
   const {
     instance,
     loading,
+    error,
+    notFound,
+    forbidden,
     fetch,
     silentFetch,
     resume,
@@ -147,6 +157,10 @@ export default function InstanceDetailPage() {
     setRetryDialogOpen(true);
   };
 
+  if (notFound) return <NotFoundState message={error || "Instance not found"} />;
+  if (forbidden) return <ForbiddenState message={error || "You do not have access to this instance"} />;
+  if (error && !displayInstance) return <ErrorState message={error} onRetry={handleReload} />;
+
   return (
     <Box>
       <PageHeader
@@ -167,16 +181,7 @@ export default function InstanceDetailPage() {
       />
 
       {loading && !displayInstance && (
-        <Box display="flex" flexDirection="column" gap={2}>
-          <Skeleton variant="rounded" height={200} />
-          <Skeleton variant="rounded" height={160} />
-        </Box>
-      )}
-
-      {!loading && !displayInstance && (
-        <Box sx={{ py: 8, textAlign: "center" }}>
-          <Typography color="text.secondary">Instance not found.</Typography>
-        </Box>
+        <LoadingState text="Loading instance details..." />
       )}
 
       {displayInstance && (

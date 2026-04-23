@@ -44,6 +44,11 @@ import {
   getActiveEnvironmentType,
   type EnvironmentType,
 } from "../../constants/environment";
+import {
+  NotFoundState,
+  ForbiddenState,
+  ErrorState,
+} from "../../components/common/states";
 
 type LifecycleAction = "commit" | "activate" | "deactivate" | "clone";
 
@@ -134,7 +139,7 @@ const getNextPromotionTargetEnvironment = (
 export default function WorkflowVersionsPage() {
   const { workflowId } = useParams<{ workflowId: string }>();
   const navigate = useNavigate();
-  const { call } = useApiCall();
+  const { call, error, notFound, forbidden } = useApiCall();
   const { goBack } = useBackNavigation("/workflows");
 
   const [workflow, setWorkflow] = useState<Workflow | null>(null);
@@ -377,6 +382,10 @@ export default function WorkflowVersionsPage() {
   });
 
   const cfg = actionTarget ? ACTION_CONFIG[actionTarget.action] : null;
+
+  if (notFound) return <NotFoundState message={error || "Workflow not found"} />;
+  if (forbidden) return <ForbiddenState message={error || "You do not have access to this workflow"} />;
+  if (error && !workflow) return <ErrorState message={error} onRetry={() => fetchData(page + 1, limit)} />;
 
   return (
     <Box>
