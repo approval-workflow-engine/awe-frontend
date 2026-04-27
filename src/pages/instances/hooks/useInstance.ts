@@ -74,19 +74,6 @@ export function useInstance() {
     [runAction],
   );
 
-  const retry = useCallback(
-    async (id: string, constants?: Record<string, unknown>) =>
-      runAction(
-        (targetId) =>
-          instanceService.retryInstance(targetId, {
-            constants: constants ?? {},
-          }),
-        "Instance retried successfully",
-        id,
-      ),
-    [runAction],
-  );
-
   const isTerminal = useCallback(
     (status: string | undefined) =>
       status ? TERMINAL_STATUSES.has(status) : false,
@@ -105,7 +92,6 @@ export function useInstance() {
     resume,
     pause,
     terminate,
-    retry,
     isTerminal,
   };
 }

@@ -121,27 +121,24 @@ export default function CreateInstanceDialog({
     if (instance) {
       const selectedWorkflow = workflows.find((w) => w.id === workflowId);
       const timestamp = instance.startedAt ?? new Date().toISOString();
-      // Convert create response to InstanceListItem for consistency with list
       const enriched: InstanceListItem = {
         id: instance.id,
-        environment: instance.environment,
-        auto_advance: instance.autoAdvance,
-        created_by: "current_user", // This should come from auth context
-        created_on: timestamp,
-        current_node_id: null,
-        current_variables: null,
-        ended_on: null,
-        input_variables: instance.inputVariables,
-        is_deleted: false,
-        output_variables: null,
-        started_on: timestamp,
         status: instance.status,
-        control_signal: null,
-        workflow_version_id: instance.workflow.id,
-        version_number: instance.workflow.version,
-        workflow_name: selectedWorkflow?.name || "Unknown",
+        controlSignal: instance.controlSignal ?? null,
+        autoAdvance: instance.autoAdvance,
+        startedAt: timestamp,
+        endedAt: instance.endedAt ?? null,
+        workflow: {
+          id: instance.workflow.id,
+          name: selectedWorkflow?.name || instance.workflow.name || "Unknown",
+          versionId: instance.workflow.versionId || instance.workflow.id || "",
+          version: instance.workflow.version,
+        },
+        environment: (selectedWorkflow?.environment as any) || "development",
+        createdBy: "current_user",
       };
       onCreated(enriched);
+
       handleClose();
     }
   };

@@ -613,13 +613,13 @@ export default function WorkflowVersionsPage() {
                           justifyContent="flex-end"
                           gap={0.75}
                         >
-                          {(isCommitted || isActive) && (v.environment !== "production") && (
+                          {(isCommitted || isActive) && (v.environment === "development" || v.environment === "staging") && (
                             <Tooltip title={promoteTooltip}>
                               <span>
                                 <IconButton
                                   size="small"
                                   disabled={!canPromote || promoteLoading}
-                                  onClick={() => setPromoteTarget(v)}
+                                  onClick={(e) => { e.stopPropagation(); setPromoteTarget(v); }}
                                   sx={{
                                     color: "text.disabled",
                                     "&:hover": {
@@ -644,7 +644,7 @@ export default function WorkflowVersionsPage() {
                             <Tooltip title="Commit (lock for activation)">
                               <IconButton
                                 size="small"
-                                onClick={() => openAction(v, "commit")}
+                                onClick={(e) => { e.stopPropagation(); openAction(v, "commit"); }}
                                 sx={{
                                   color: "text.disabled",
                                   "&:hover": { color: "#f59e0b" },
@@ -659,7 +659,7 @@ export default function WorkflowVersionsPage() {
                             <Tooltip title="Activate (make live)">
                               <IconButton
                                 size="small"
-                                onClick={() => openAction(v, "activate")}
+                                onClick={(e) => { e.stopPropagation(); openAction(v, "activate"); }}
                                 sx={{
                                   color: "text.disabled",
                                   "&:hover": { color: "#22c55e" },
@@ -674,7 +674,7 @@ export default function WorkflowVersionsPage() {
                             <Tooltip title="Deactivate (move back to Committed)">
                               <IconButton
                                 size="small"
-                                onClick={() => openAction(v, "deactivate")}
+                                onClick={(e) => { e.stopPropagation(); openAction(v, "deactivate"); }}
                                 sx={{
                                   color: "text.disabled",
                                   "&:hover": { color: "#ef4444" },
@@ -689,7 +689,7 @@ export default function WorkflowVersionsPage() {
                             <Tooltip title="Clone as new draft">
                               <IconButton
                                 size="small"
-                                onClick={() => openAction(v, "clone")}
+                                onClick={(e) => { e.stopPropagation(); openAction(v, "clone"); }}
                                 sx={{
                                   color: "text.disabled",
                                   "&:hover": { color: "#3b82f6" },

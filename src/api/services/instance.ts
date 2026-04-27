@@ -7,7 +7,6 @@ import {
   InstanceActionResponseSchema,
   ExecutionSequenceResponseSchema,
   TaskExecutionDetailResponseSchema,
-  RetryConstantsResponseSchema,
   RetryInstanceRequestSchema,
   PaginationParamsSchema,
   type InstancesResponse,
@@ -17,10 +16,10 @@ import {
   type InstanceActionResponse,
   type ExecutionSequenceResponse,
   type TaskExecutionDetailResponse,
-  type RetryConstantsResponse,
   type RetryInstanceRequest,
   type PaginationParams,
 } from '../schemas';
+
 
 export class InstanceService {
   async getInstances(params?: PaginationParams): Promise<InstancesResponse> {
@@ -55,22 +54,6 @@ export class InstanceService {
     return apiClient.post(`/instances/${id}/terminate`, {}, InstanceActionResponseSchema);
   }
 
-  async getRetryConstants(id: string): Promise<RetryConstantsResponse> {
-    return apiClient.get(`/instances/${id}/constants`, RetryConstantsResponseSchema);
-  }
-
-  async retryInstance(
-    id: string,
-    data: RetryInstanceRequest = { constants: {} },
-  ): Promise<InstanceActionResponse> {
-    return apiClient.post(
-      `/instances/${id}/retry`,
-      data,
-      InstanceActionResponseSchema,
-      RetryInstanceRequestSchema,
-    );
-  }
-
   async getExecutionSequence(id: string): Promise<ExecutionSequenceResponse> {
     return apiClient.get(
       `/instances/${id}/execution-sequence`,
@@ -78,9 +61,22 @@ export class InstanceService {
     );
   }
 
-  async getTaskDetail(id: string, taskId: string): Promise<TaskExecutionDetailResponse> {
+  async retryTask(
+    taskId: string,
+    data: Omit<RetryInstanceRequest, "taskId"> = { context: {} },
+  ): Promise<InstanceActionResponse> {
+    return apiClient.post(
+      `/tasks/${taskId}/retry`,
+      { ...data, taskId },
+      InstanceActionResponseSchema,
+      RetryInstanceRequestSchema,
+    );
+  }
+
+
+  async getTaskDetail(taskId: string): Promise<TaskExecutionDetailResponse> {
     return apiClient.get(
-      `/instances/${id}/tasks/${taskId}`,
+      `/tasks/${taskId}`,
       TaskExecutionDetailResponseSchema,
     );
   }

@@ -92,8 +92,9 @@ class ApiClient {
               (method === "PATCH" && /^\/workflows\/versions\/[^/]+$/.test(path)) ||
               (method === "DELETE" && /^\/workflows\/[^/]+$/.test(path)) ||
               (method === "POST" && /^\/instances$/.test(path)) ||
-              (method === "POST" && /^\/instances\/[^/]+\/(resume|pause|terminate|retry)$/.test(path)) ||
-              (method === "POST" && /^\/tasks\/[^/]+\/(complete|retry)$/.test(path))
+              (method === "POST" && /^\/instances\/[^/]+\/(resume|pause|terminate)$/.test(path)) ||
+              (method === "POST" && /^\/tasks\/[^/]+\/(complete|retry)$/.test(path)) ||
+              (method === "POST" && /^\/user-tasks\/[^/]+\/complete$/.test(path))
             ) {
               return true;
             }
@@ -106,12 +107,12 @@ class ApiClient {
               /^\/workflows\/[^/]+$/.test(path) ||
               /^\/instances\/[^/]+$/.test(path) ||
               /^\/instances\/[^/]+\/execution-sequence$/.test(path) ||
-              /^\/instances\/[^/]+\/tasks\/[^/]+$/.test(path) ||
-              /^\/instances\/[^/]+\/constants$/.test(path) ||
               /^\/tasks\/[^/]+$/.test(path) ||
+              /^\/user-tasks\/[^/]+$/.test(path) ||
               /^\/audit\/[^/]+$/.test(path)
             );
           }
+
 
           return false;
         })();

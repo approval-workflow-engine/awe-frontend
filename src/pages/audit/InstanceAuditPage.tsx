@@ -490,7 +490,7 @@ export default function InstanceAuditPage() {
                 label="Started"
                 value={
                   <Typography fontSize={13}>
-                    {safeDate(inst.startedAt)}
+                    {safeDate(inst.createdOn)}
                   </Typography>
                 }
               />

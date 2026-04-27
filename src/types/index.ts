@@ -183,18 +183,23 @@ export type InstanceStatus =
 
 export interface Instance {
   id: string;
-  workflowId: string;
-  workflowName?: string;
-  workflow?: { name: string };
+  inputVariables: Record<string, unknown> | null;
+  currentVariables: Record<string, unknown> | null;
+  outputVariables: Record<string, unknown> | null;
   status: InstanceStatus;
-  currentNodeId?: string;
-  currentNode?: string;
-  externalId?: string;
-  context?: Record<string, unknown>;
-  createdAt?: string;
-  startedAt?: string;
-  completedAt?: string;
-  failedAt?: string;
+  startedAt: string | null;
+  endedAt: string | null;
+  autoAdvance: boolean;
+  workflow: {
+    name: string | null;
+    id: string | null;
+    version: number | string | null;
+  };
+  currentTask?: {
+    id: string | null;
+    status: string | null;
+    startedAt?: string | null;
+  } | null;
 }
 
 export interface ExecutionLog {

@@ -28,17 +28,17 @@ const isUserTaskType = (nodeType: string) => {
 function toInstanceFromListItem(item: InstanceListItem): Instance {
   return {
     id: item.id,
-    inputVariables: item.input_variables,
-    currentVariables: item.current_variables,
-    outputVariables: item.output_variables,
+    inputVariables: (item as any).inputVariables ?? null,
+    currentVariables: (item as any).currentVariables ?? null,
+    outputVariables: (item as any).outputVariables ?? null,
     status: item.status,
-    startedAt: item.started_on,
-    endedAt: item.ended_on,
-    autoAdvance: item.auto_advance,
+    startedAt: item.startedAt,
+    endedAt: item.endedAt,
+    autoAdvance: item.autoAdvance,
     workflow: {
-      name: item.workflow_name,
-      id: undefined, // need fix
-      version: item.version_number ?? null,
+      name: item.workflow.name,
+      id: item.workflow.id,
+      version: item.workflow.version,
     },
     currentTask: null,
   };
@@ -75,10 +75,10 @@ export default function InstanceDetailPage() {
     (location.state as { instance?: Instance | InstanceListItem } | null)
       ?.instance ?? null;
 
-  const navInstance = stateInstance
-    ? "workflow" in stateInstance
-      ? stateInstance
-      : toInstanceFromListItem(stateInstance)
+  const navInstance: Instance | null = stateInstance
+    ? "inputVariables" in stateInstance
+      ? (stateInstance as Instance)
+      : toInstanceFromListItem(stateInstance as InstanceListItem)
     : null;
 
   const displayInstance: Instance | null = instance ? instance : navInstance;
@@ -255,14 +255,15 @@ export default function InstanceDetailPage() {
             />
           </Box>
 
-          {id && (
+          {displayInstance && (
             <RetryInstanceDialog
               open={retryDialogOpen}
-              instanceId={id}
+              instance={displayInstance}
               onClose={() => setRetryDialogOpen(false)}
               onRetried={refreshInstanceAndLogs}
             />
           )}
+
         </Box>
       )}
     </Box>

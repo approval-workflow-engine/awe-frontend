@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Alert,
   Dialog,
@@ -13,21 +13,21 @@ import {
 } from "@mui/material";
 import { useApiCall } from "../../../hooks/useApiCall";
 import { instanceService } from "../../../api/services/instance";
-import type { RetryConstantsResponse } from "../../../api/schemas/instance";
+import type { Instance } from "../../../api/schemas/instance";
 import { extractApiError } from "../../../utils/apiError";
 
 const DEFAULT_JSON = "{}";
 
 interface Props {
   open: boolean;
-  instanceId: string;
+  instance: Instance | null;
   onClose: () => void;
   onRetried: () => Promise<void> | void;
 }
 
 export default function RetryInstanceDialog({
   open,
-  instanceId,
+  instance,
   onClose,
   onRetried,
 }: Props) {
@@ -35,44 +35,22 @@ export default function RetryInstanceDialog({
   const [constantsJson, setConstantsJson] = useState(DEFAULT_JSON);
   const [jsonError, setJsonError] = useState("");
   const [submitError, setSubmitError] = useState("");
-  const [initialLoading, setInitialLoading] = useState(false);
-
-  const loadConstants = useCallback(async () => {
-    setInitialLoading(true);
-    setSubmitError("");
-    setJsonError("");
-
-    const res = await call<RetryConstantsResponse>(
-      () => instanceService.getRetryConstants(instanceId),
-      {
-        silent: true,
-        showError: false,
-        onError: (err) => {
-          setSubmitError(extractApiError(err, "Failed to load retry constants"));
-        },
-      },
-    );
-
-    if (res) {
-      setConstantsJson(JSON.stringify(res.constants ?? {}, null, 2));
-    }
-
-    setInitialLoading(false);
-  }, [call, instanceId]);
 
   useEffect(() => {
-    if (!open || !instanceId) {
+    if (!open || !instance) {
       return;
     }
 
-    void loadConstants();
-  }, [open, instanceId, loadConstants]);
+    const constants = instance.currentVariables?.constants ?? {};
+    setConstantsJson(JSON.stringify(constants, null, 2));
+    setSubmitError("");
+    setJsonError("");
+  }, [open, instance]);
 
   const handleClose = () => {
     setConstantsJson(DEFAULT_JSON);
     setJsonError("");
     setSubmitError("");
-    setInitialLoading(false);
     onClose();
   };
 
@@ -88,6 +66,11 @@ export default function RetryInstanceDialog({
   };
 
   const handleRetry = async () => {
+    if (!instance?.currentTask?.id) {
+      setSubmitError("No task found to retry");
+      return;
+    }
+
     if (!validateJson(constantsJson)) {
       return;
     }
@@ -97,8 +80,8 @@ export default function RetryInstanceDialog({
     const parsed = JSON.parse(constantsJson) as Record<string, unknown>;
     const res = await call(
       () =>
-        instanceService.retryInstance(instanceId, {
-          constants: parsed,
+        instanceService.retryTask(instance.currentTask!.id!, {
+          context: parsed,
         }),
       {
         successMsg: "Task retried successfully",
@@ -114,6 +97,7 @@ export default function RetryInstanceDialog({
       handleClose();
     }
   };
+
 
   return (
     <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
@@ -171,11 +155,12 @@ export default function RetryInstanceDialog({
           variant="contained"
           size="small"
           onClick={handleRetry}
-          disabled={loading || initialLoading || !!jsonError}
-          startIcon={loading || initialLoading ? <CircularProgress size={13} /> : undefined}
+          disabled={loading || !!jsonError}
+          startIcon={loading ? <CircularProgress size={13} /> : undefined}
         >
           Retry Task
         </Button>
+
       </DialogActions>
     </Dialog>
   );

@@ -1,6 +1,8 @@
 import { z } from "zod";
-import { dateTransform, optionalDateTransform } from "./common";
+import { optionalDateTransform } from "./common";
 import { PaginationSchema, EnvironmentTypeSchema } from "./common";
+
+
 
 const VersionValueSchema = z.union([z.string(), z.number()]).nullable();
 
@@ -12,32 +14,37 @@ export const InstanceStatusSchema = z.enum([
   "terminated",
 ]);
 
+export const ContextSchema = z.object({
+  constants: z.record(z.string(), z.unknown()).default({}),
+  fetchables: z.record(z.string(), z.any()).default({}),
+  urls: z.record(z.string(), z.any()).default({}),
+  secrets: z.record(z.string(), z.string()).default({}),
+});
+
 export const CurrentTaskSchema = z.object({
-  id: z.string().nullable().optional(),
-  nodeId: z.string().nullable().optional(),
-  taskExecutionId: z.string().nullable().optional(),
-  userTaskExecutionId: z.string().nullable().optional(),
-  latestTaskExecution: z.string().nullable().optional(),
-  latestUserTaskExecution: z.string().nullable().optional(),
-  type: z.string().nullable().optional(),
-  name: z.string().nullable().optional(),
-  status: z.string().nullable().optional(),
-  startedAt: optionalDateTransform.optional(),
+  id: z.string(),
+  status: z.string(),
+  startedAt: optionalDateTransform,
+  executionId: z.string().nullable(),
+  nodeId: z.string(),
+  name: z.string().nullable(),
+  type: z.string(),
 });
 
 export const InstanceSchema = z.object({
   id: z.string(),
-  inputVariables: z.unknown().nullable(),
-  currentVariables: z.unknown().nullable(),
-  outputVariables: z.unknown().nullable(),
+  inputVariables: z.record(z.string(), z.unknown()).nullable(),
+  currentVariables: ContextSchema.nullable(),
+  outputVariables: z.record(z.string(), z.unknown()).nullable(),
   status: InstanceStatusSchema,
   startedAt: optionalDateTransform,
   endedAt: optionalDateTransform,
   autoAdvance: z.boolean(),
-  // control_signal: z.string().nullable(),
+  controlSignal: z.string().nullable().optional(),
   workflow: z.object({
-    name: z.string().nullable().optional(),
-    id: z.string().nullable().optional(),
+    id: z.string(),
+    name: z.string(),
+    versionId: z.string().optional(),
     version: VersionValueSchema,
   }),
   currentTask: CurrentTaskSchema.nullable().optional(),
@@ -45,22 +52,19 @@ export const InstanceSchema = z.object({
 
 export const InstanceListItemSchema = z.object({
   id: z.string(),
-  environment: EnvironmentTypeSchema,
-  auto_advance: z.boolean(),
-  created_by: z.string(),
-  created_on: dateTransform,
-  current_node_id: z.string().nullable(),
-  current_variables: z.unknown().nullable(),
-  ended_on: optionalDateTransform,
-  input_variables: z.unknown().nullable(),
-  is_deleted: z.boolean(),
-  output_variables: z.unknown().nullable(),
-  started_on: optionalDateTransform,
   status: InstanceStatusSchema,
-  control_signal: z.string().nullable(),
-  workflow_version_id: z.string(),
-  version_number: VersionValueSchema,
-  workflow_name: z.string(),
+  controlSignal: z.string().nullable().optional(),
+  autoAdvance: z.boolean(),
+  startedAt: optionalDateTransform,
+  endedAt: optionalDateTransform,
+  workflow: z.object({
+    id: z.string(),
+    name: z.string(),
+    versionId: z.string(),
+    version: VersionValueSchema,
+  }),
+  environment: EnvironmentTypeSchema,
+  createdBy: z.string(),
 });
 
 export const CreateInstanceRequestSchema = z.object({
@@ -69,18 +73,7 @@ export const CreateInstanceRequestSchema = z.object({
   autoAdvance: z.boolean().default(true),
 });
 
-export const CreateInstanceResponseSchema = z.object({
-  id: z.string(),
-  inputVariables: z.unknown().nullable(),
-  status: InstanceStatusSchema,
-  startedAt: dateTransform,
-  autoAdvance: z.boolean(),
-  environment: EnvironmentTypeSchema,
-  workflow: z.object({
-    id: z.string(),
-    version: VersionValueSchema,
-  }),
-});
+export const CreateInstanceResponseSchema = InstanceSchema;
 
 export const InstanceResponseSchema = InstanceSchema;
 
@@ -89,19 +82,13 @@ export const InstancesResponseSchema = z.object({
   pagination: PaginationSchema.optional(),
 });
 
-
-
-export const InstanceActionResponseSchema = z.object({
-  instance: z.unknown(),
-});
-
-export const RetryConstantsResponseSchema = z.object({
-  constants: z.record(z.string(), z.unknown()),
-});
+export const InstanceActionResponseSchema = InstanceSchema;
 
 export const RetryInstanceRequestSchema = z.object({
-  constants: z.record(z.string(), z.unknown()).default({}),
+  taskId: z.string(),
+  context: z.record(z.string(), z.unknown()).default({}),
 });
+
 
 export const ExecutionConnectionSchema = z.object({
   destinationNodeClientId: z.string().nullable().optional().default(null),
@@ -135,21 +122,32 @@ export const ExecutionSequenceResponseSchema = z.object({
   executionSequence: z.array(ExecutionNodeSchema),
 });
 
-const TaskExecutionDetailItemSchema = z.object({
-  inputVariables: z.unknown().nullable().optional(),
-  outputVariables: z.unknown().nullable().optional(),
-});
-
-const TaskDetailItemSchema = z.object({
+const TaskDetailExecutionSchema = z.object({
   id: z.string(),
   status: z.string(),
-  createdAt: optionalDateTransform.optional().default(null),
-  nodeId: z.string().nullable().optional(),
+  startedAt: optionalDateTransform.optional().default(null),
+  endedAt: optionalDateTransform.optional().default(null),
+  inputVariables: z.unknown().nullable().optional(),
+  outputVariables: z.unknown().nullable().optional(),
+  title: z.string().nullable().optional(),
+  assignee: z.string().nullable().optional(),
+});
+
+const TaskDetailNodeSchema = z.object({
+  id: z.string(),
+  type: z.string(),
+  configuration: z.unknown().nullable().optional(),
 });
 
 export const TaskExecutionDetailResponseSchema = z.object({
-  task: TaskDetailItemSchema.nullable().optional(),
-  taskExecution: TaskExecutionDetailItemSchema.nullable().optional(),
+  id: z.string(),
+  instanceId: z.string().optional(),
+  status: z.string(),
+  createdAt: optionalDateTransform.optional().default(null),
+  node: TaskDetailNodeSchema.nullable().optional(),
+  executions: z.array(TaskDetailExecutionSchema).optional().default([]),
+  task: z.unknown().nullable().optional(),
+  taskExecution: z.unknown().nullable().optional(),
   nodeConfiguration: z.unknown().nullable().optional(),
 });
 
@@ -168,9 +166,6 @@ export type InstancesResponse = z.infer<typeof InstancesResponseSchema>;
 
 export type InstanceActionResponse = z.infer<
   typeof InstanceActionResponseSchema
->;
-export type RetryConstantsResponse = z.infer<
-  typeof RetryConstantsResponseSchema
 >;
 export type RetryInstanceRequest = z.infer<typeof RetryInstanceRequestSchema>;
 export type ExecutionConnection = z.infer<typeof ExecutionConnectionSchema>;

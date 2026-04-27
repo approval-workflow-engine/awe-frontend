@@ -42,7 +42,7 @@ export default function TaskTable({ tasks, loading }: Props) {
           >
             <TableCell>Task Title</TableCell>
             <TableCell>Workflow</TableCell>
-            <TableCell>Version</TableCell>
+            {/* <TableCell>Version</TableCell> */}
             <TableCell>Assignee</TableCell>
             <TableCell>Created</TableCell>
           </TableRow>
@@ -51,7 +51,7 @@ export default function TaskTable({ tasks, loading }: Props) {
           {loading ? (
             [0, 1, 2, 3].map((i) => (
               <TableRow key={i}>
-                <TableCell colSpan={5}>
+                <TableCell colSpan={4}>
                   <Skeleton variant="rounded" height={36} />
                 </TableCell>
               </TableRow>
@@ -81,13 +81,13 @@ export default function TaskTable({ tasks, loading }: Props) {
                   </Typography>
                 </TableCell>
                 <TableCell>
-                  <Typography fontSize={13}>{task.workflow.name}</Typography>
+                  <Typography fontSize={13}>{task.workflow.name ?? '—'}</Typography>
                 </TableCell>
-                <TableCell>
-                  <Typography fontSize={12} color="text.secondary">
-                    {task.workflow.version}
+                {/* <TableCell>
+                  <Typography fontSize={12} color="text.secondary" sx={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                    {task.workflow.versionId ? task.workflow.versionId.slice(-8) : '-'}
                   </Typography>
-                </TableCell>
+                </TableCell> */}
                 <TableCell>
                   <Typography
                     fontSize={13}
