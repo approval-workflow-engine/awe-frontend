@@ -6,7 +6,6 @@ import axios, {
 } from "axios";
 import { z } from "zod";
 import { TOKEN_KEYS } from "../constants/tokens";
-import { ApiErrorSchema } from "./schemas";
 import { API_BASE_URL } from "./baseUrl";
 import {
   DEFAULT_ENVIRONMENT,
@@ -37,6 +36,22 @@ export class ApiClientError extends Error {
     this.name = "ApiClientError";
     this.status = status;
     this.response = response;
+  }
+
+  get isNotFound() {
+    return this.status === 404;
+  }
+  get isUnauthorized() {
+    return this.status === 401;
+  }
+  get isForbidden() {
+    return this.status === 403;
+  }
+  get isServerError() {
+    return this.status ? this.status >= 500 : false;
+  }
+  get isNetworkError() {
+    return !this.status && !this.response;
   }
 }
 
@@ -77,8 +92,9 @@ class ApiClient {
               (method === "PATCH" && /^\/workflows\/versions\/[^/]+$/.test(path)) ||
               (method === "DELETE" && /^\/workflows\/[^/]+$/.test(path)) ||
               (method === "POST" && /^\/instances$/.test(path)) ||
-              (method === "POST" && /^\/instances\/[^/]+\/(resume|pause|terminate|retry)$/.test(path)) ||
-              (method === "POST" && /^\/tasks\/[^/]+\/(complete|retry)$/.test(path))
+              (method === "POST" && /^\/instances\/[^/]+\/(resume|pause|terminate)$/.test(path)) ||
+              (method === "POST" && /^\/tasks\/[^/]+\/(complete|retry)$/.test(path)) ||
+              (method === "POST" && /^\/user-tasks\/[^/]+\/complete$/.test(path))
             ) {
               return true;
             }
@@ -91,12 +107,12 @@ class ApiClient {
               /^\/workflows\/[^/]+$/.test(path) ||
               /^\/instances\/[^/]+$/.test(path) ||
               /^\/instances\/[^/]+\/execution-sequence$/.test(path) ||
-              /^\/instances\/[^/]+\/tasks\/[^/]+$/.test(path) ||
-              /^\/instances\/[^/]+\/constants$/.test(path) ||
               /^\/tasks\/[^/]+$/.test(path) ||
+              /^\/user-tasks\/[^/]+$/.test(path) ||
               /^\/audit\/[^/]+$/.test(path)
             );
           }
+
 
           return false;
         })();
@@ -275,23 +291,40 @@ class ApiClient {
       const status = error.response?.status;
       const data = error.response?.data;
 
-      let message = "An error occurred";
+      let message = "Request failed";
 
-      if (data) {
-        const validatedError = ApiErrorSchema.safeParse(data);
-        if (validatedError.success) {
-          message = validatedError.data.message;
-        } else if (typeof data === "string") {
-          message = data;
-        } else if (data.message) {
-          message = data.message;
+      if (data && typeof data === "object") {
+        if ("message" in data && typeof (data as any).message === "string" && (data as any).message.trim() !== "") {
+          message = (data as any).message;
+        } else if ("error" in data && typeof (data as any).error === "string" && (data as any).error.trim() !== "") {
+          message = (data as any).error;
+        } else if ("detail" in data && typeof (data as any).detail === "string" && (data as any).detail.trim() !== "") {
+          message = (data as any).detail;
+        } else {
+          try {
+            message = JSON.stringify(data);
+          } catch {
+            // ignore stringify error
+          }
+        }
+      } else if (typeof data === "string" && data.trim() !== "") {
+        message = data;
+      } else if (error.message) {
+        if (error.code === 'ERR_NETWORK') {
+          message = "Network Error";
+        } else {
+          message = error.message;
         }
       }
 
       throw new ApiClientError(message, status, error.response);
     }
 
-    throw error;
+    let message = "Request failed";
+    if (error instanceof Error) {
+      message = error.message;
+    }
+    throw new ApiClientError(message, undefined, undefined);
   }
 
   async get<T>(

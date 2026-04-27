@@ -1,9 +1,8 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Box, Button, IconButton, Paper, Tooltip } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import RefreshIcon from "@mui/icons-material/Refresh";
-import { useState } from "react";
 import PageHeader from "../../components/common/PageHeader";
 import AppPagination from "../../components/common/AppPagination";
 import InstanceTable from "./components/InstanceTable";
@@ -11,7 +10,6 @@ import CreateInstanceDialog from "./components/CreateInstanceDialog";
 import { useInstances } from "./hooks/useInstances";
 import type { InstanceListItem } from "../../api/schemas/instance";
 import type { Pagination } from "../../api/schemas/common";
-
 export default function InstancesPage() {
   const navigate = useNavigate();
   const { instances, loading, fetch } = useInstances();

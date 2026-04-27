@@ -15,6 +15,7 @@ import TaskReviewPage from "../pages/tasks/TaskReviewPage";
 import AuditPage from "../pages/audit/AuditPage";
 import InstanceAuditPage from "../pages/audit/InstanceAuditPage";
 import SecretsPage from "../pages/secrets/SecretsPage";
+import PageNotFound from "../pages/PageNotFound.tsx";
 
 function ProtectedLayout() {
   const { isAuthenticated } = useApp();
@@ -66,6 +67,7 @@ const router = createBrowserRouter([
     ],
   },
   { path: "/", element: <Navigate to="/dashboard" replace /> },
+  { path: "*", element: <PageNotFound /> },
 ]);
 
 export default function AppRoutes() {

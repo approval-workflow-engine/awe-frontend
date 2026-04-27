@@ -60,7 +60,7 @@ export const WorkflowVersionDetailResponseSchema = z.object({
   status: WorkflowVersionStatusSchema,
   publishedAt: z.string().datetime().nullable().optional(),
   createdAt: z.string().datetime(),
-  modifiedAt: z.string().datetime(),
+  updatedAt: z.string().datetime(),
   environment: EnvironmentTypeSchema.optional(),
   nodes: z.array(WorkflowVersionDetailNodeSchema),
   edges: z.array(WorkflowVersionDetailEdgeSchema),
@@ -140,8 +140,8 @@ export const WorkflowSchema = z.object({
   name: z.string(),
   description: z.string().nullable().optional(),
   environment: EnvironmentTypeSchema.optional(),
-  createdAt: z.iso.datetime({ message: "Invalid ISO datetime" }),
-  updatedAt: z.iso.datetime({ message: "Invalid ISO datetime" }).optional(),
+  createdAt: z.string().datetime({ message: "Invalid ISO datetime" }),
+  updatedAt: z.string().datetime({ message: "Invalid ISO datetime" }).optional(),
   latestVersion: WorkflowLatestVersionSchema.optional(),
   versions: z
     .array(
@@ -150,9 +150,9 @@ export const WorkflowSchema = z.object({
         version: VersionValueSchema,
         status: WorkflowVersionStatusSchema,
         description: z.string().nullable().optional(),
-        publishedAt: z.iso.datetime({ message: "Invalid ISO datetime" }).nullable().optional(),
-        createdAt: z.iso.datetime({ message: "Invalid ISO datetime" }),
-        updatedAt: z.iso.datetime({ message: "Invalid ISO datetime" }),
+        publishedAt: z.string().datetime({ message: "Invalid ISO datetime" }).nullable().optional(),
+        createdAt: z.string().datetime({ message: "Invalid ISO datetime" }),
+        updatedAt: z.string().datetime({ message: "Invalid ISO datetime" }),
       }),
     )
     .optional(),
@@ -175,7 +175,7 @@ export const UpdateWorkflowResponseSchema = z.object({
   name: z.string(),
   description: z.string().nullable().optional(),
   environment: EnvironmentTypeSchema.optional(),
-  updatedAt: z.iso.datetime(),
+  updatedAt: z.string().datetime(),
 });
 
 export const WorkflowResponseSchema = z.object({
@@ -193,10 +193,10 @@ export const WorkflowVersionListItemSchema = z.object({
   versionNumber: VersionValueSchema.optional(),
   status: WorkflowVersionStatusSchema,
   description: z.string().nullable().optional(),
-  publishedAt: z.iso.datetime().nullable().optional(),
+  publishedAt: z.string().datetime().nullable().optional(),
   environment: EnvironmentTypeSchema.optional(),
-  createdAt: z.iso.datetime(),
-  updatedAt: z.iso.datetime(),
+  createdAt: z.string().datetime(),
+  updatedAt: z.string().datetime(),
 });
 
 export const WorkflowVersionsResponseSchema = z.object({

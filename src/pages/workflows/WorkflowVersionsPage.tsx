@@ -44,6 +44,11 @@ import {
   getActiveEnvironmentType,
   type EnvironmentType,
 } from "../../constants/environment";
+import {
+  NotFoundState,
+  ForbiddenState,
+  ErrorState,
+} from "../../components/common/states";
 
 type LifecycleAction = "commit" | "activate" | "deactivate" | "clone";
 
@@ -134,7 +139,7 @@ const getNextPromotionTargetEnvironment = (
 export default function WorkflowVersionsPage() {
   const { workflowId } = useParams<{ workflowId: string }>();
   const navigate = useNavigate();
-  const { call } = useApiCall();
+  const { call, error, notFound, forbidden } = useApiCall();
   const { goBack } = useBackNavigation("/workflows");
 
   const [workflow, setWorkflow] = useState<Workflow | null>(null);
@@ -378,6 +383,10 @@ export default function WorkflowVersionsPage() {
 
   const cfg = actionTarget ? ACTION_CONFIG[actionTarget.action] : null;
 
+  if (notFound) return <NotFoundState message={error || "Workflow not found"} />;
+  if (forbidden) return <ForbiddenState message={error || "You do not have access to this workflow"} />;
+  if (error && !workflow) return <ErrorState message={error} onRetry={() => fetchData(page + 1, limit)} />;
+
   return (
     <Box>
       <PageHeader
@@ -604,13 +613,13 @@ export default function WorkflowVersionsPage() {
                           justifyContent="flex-end"
                           gap={0.75}
                         >
-                          {(isCommitted || isActive) && (v.environment !== "production") && (
+                          {(isCommitted || isActive) && (v.environment === "development" || v.environment === "staging") && (
                             <Tooltip title={promoteTooltip}>
                               <span>
                                 <IconButton
                                   size="small"
                                   disabled={!canPromote || promoteLoading}
-                                  onClick={() => setPromoteTarget(v)}
+                                  onClick={(e) => { e.stopPropagation(); setPromoteTarget(v); }}
                                   sx={{
                                     color: "text.disabled",
                                     "&:hover": {
@@ -635,7 +644,7 @@ export default function WorkflowVersionsPage() {
                             <Tooltip title="Commit (lock for activation)">
                               <IconButton
                                 size="small"
-                                onClick={() => openAction(v, "commit")}
+                                onClick={(e) => { e.stopPropagation(); openAction(v, "commit"); }}
                                 sx={{
                                   color: "text.disabled",
                                   "&:hover": { color: "#f59e0b" },
@@ -650,7 +659,7 @@ export default function WorkflowVersionsPage() {
                             <Tooltip title="Activate (make live)">
                               <IconButton
                                 size="small"
-                                onClick={() => openAction(v, "activate")}
+                                onClick={(e) => { e.stopPropagation(); openAction(v, "activate"); }}
                                 sx={{
                                   color: "text.disabled",
                                   "&:hover": { color: "#22c55e" },
@@ -665,7 +674,7 @@ export default function WorkflowVersionsPage() {
                             <Tooltip title="Deactivate (move back to Committed)">
                               <IconButton
                                 size="small"
-                                onClick={() => openAction(v, "deactivate")}
+                                onClick={(e) => { e.stopPropagation(); openAction(v, "deactivate"); }}
                                 sx={{
                                   color: "text.disabled",
                                   "&:hover": { color: "#ef4444" },
@@ -680,7 +689,7 @@ export default function WorkflowVersionsPage() {
                             <Tooltip title="Clone as new draft">
                               <IconButton
                                 size="small"
-                                onClick={() => openAction(v, "clone")}
+                                onClick={(e) => { e.stopPropagation(); openAction(v, "clone"); }}
                                 sx={{
                                   color: "text.disabled",
                                   "&:hover": { color: "#3b82f6" },

@@ -17,13 +17,13 @@ import {
 export class TaskService {
   async getPendingTasks(params?: PendingTasksQueryParams): Promise<PendingTasksResponse> {
     const validatedParams = params ? PendingTasksQueryParamsSchema.parse(params) : undefined;
-    return apiClient.get('/tasks', PendingTasksResponseSchema, {
+    return apiClient.get('/user-tasks', PendingTasksResponseSchema, {
       params: validatedParams,
     });
   }
 
   async getTaskDetail(id: string): Promise<TaskDetailResponse> {
-    return apiClient.get(`/tasks/${id}`, TaskDetailResponseSchema);
+    return apiClient.get(`/user-tasks/${id}`, TaskDetailResponseSchema);
   }
 
   async completeTask(
@@ -31,7 +31,7 @@ export class TaskService {
     data: CompleteTaskRequest
   ): Promise<CompleteTaskResponse> {
     return apiClient.post(
-      `/tasks/${id}/complete`,
+      `/user-tasks/${id}/complete`,
       data,
       CompleteTaskResponseSchema,
       CompleteTaskRequestSchema

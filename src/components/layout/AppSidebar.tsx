@@ -108,7 +108,24 @@ export default function AppSidebar({
             </Box>
           </Box>
         )}
-        {collapsed && <Logo />}
+        {collapsed && (
+          <Box display="flex" flexDirection="column" alignItems="center" gap={1}>
+            <Logo />
+            <Box>
+              <Typography
+                sx={{
+                  fontFamily: "'Syne', sans-serif",
+                  fontWeight: 700,
+                  fontSize: 12,
+                  color: "text.primary",
+                  lineHeight: 1,
+                }}
+              >
+                AWE
+              </Typography>
+            </Box>
+          </Box>
+        )}
 
         {!collapsed && (
           <IconButton

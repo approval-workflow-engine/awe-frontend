@@ -91,8 +91,8 @@ export default function InstanceTable({ instances, loading }: Props) {
                   </Typography>
                 </TableCell>
                 <TableCell>
-                  {inst.workflow_name ? (
-                    <Typography fontSize={13}>{inst.workflow_name}</Typography>
+                  {inst.workflow.name ? (
+                    <Typography fontSize={13}>{inst.workflow.name}</Typography>
                   ) : (
                     <Typography
                       sx={{
@@ -101,14 +101,14 @@ export default function InstanceTable({ instances, loading }: Props) {
                         color: "text.secondary",
                       }}
                     >
-                      {truncate(inst.workflow_version_id, 12)}
+                      {truncate(inst.workflow.versionId, 12)}
                     </Typography>
                   )}
                 </TableCell>
                 <TableCell>
                   <Typography fontSize={13}>
-                    {inst.version_number != null
-                      ? `v${inst.version_number}`
+                    {inst.workflow.version != null
+                      ? `v${inst.workflow.version}`
                       : "-"}
                   </Typography>
                 </TableCell>
@@ -116,9 +116,9 @@ export default function InstanceTable({ instances, loading }: Props) {
                 <TableCell>
                   <StatusChip
                     status={
-                      inst.control_signal === "pause"
+                      inst.controlSignal === "pause"
                         ? "pausing"
-                        : inst.control_signal === "terminate"
+                        : inst.controlSignal === "terminate"
                           ? "terminating"
                           : inst.status
                     }
@@ -127,7 +127,7 @@ export default function InstanceTable({ instances, loading }: Props) {
 
                 <TableCell>
                   <Typography fontSize={12} color="text.secondary">
-                    {formatSafeDate(inst.started_on)}
+                    {formatSafeDate(inst.startedAt)}
                   </Typography>
                 </TableCell>
                 <TableCell align="right">

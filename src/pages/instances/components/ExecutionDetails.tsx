@@ -474,9 +474,11 @@ export function NodeExecutionDetailsCard({
   };
 
   const selectedNode = nodes.find((node) => node.nodeClientId === selectedNodeId) ?? null;
-  const selectedTask = selectedTaskDetail?.task ?? null;
-  const selectedTaskExecution = selectedTaskDetail?.taskExecution ?? null;
-  const selectedNodeConfiguration = selectedTaskDetail?.nodeConfiguration ?? null;
+  const selectedTaskMeta = selectedTaskDetail ?? null;
+  const selectedTaskExecution = selectedTaskDetail?.executions?.length
+    ? selectedTaskDetail.executions[selectedTaskDetail.executions.length - 1]
+    : null;
+  const selectedNodeConfiguration = (selectedTaskDetail?.node as any)?.configuration ?? selectedTaskDetail?.nodeConfiguration ?? null;
 
   const nodeStatusById = useMemo(() => new Map(nodes.map((node) => [node.nodeClientId, node.status])), [nodes]);
   const selectedNodeConnections = useMemo(() => selectedNode?.outgoingConnections ?? [], [selectedNode]);
@@ -535,11 +537,11 @@ export function NodeExecutionDetailsCard({
               </Box>
               <Box>
                 <Typography fontSize={11} color="text.secondary" fontWeight={600} mb={0.25}>TASK STATUS</Typography>
-                <Typography fontSize={12} sx={{ fontFamily: MONO }}>{selectedTask?.status ?? '-'}</Typography>
+                <Typography fontSize={12} sx={{ fontFamily: MONO }}>{selectedTaskMeta?.status ?? '-'}</Typography>
               </Box>
               <Box>
                 <Typography fontSize={11} color="text.secondary" fontWeight={600} mb={0.25}>TASK ID</Typography>
-                <Typography fontSize={12} sx={{ fontFamily: MONO }}>{selectedTask?.id ?? '-'}</Typography>
+                <Typography fontSize={12} sx={{ fontFamily: MONO }}>{selectedTaskMeta?.id ?? '-'}</Typography>
               </Box>
               <Box>
                 <Typography fontSize={11} color="text.secondary" fontWeight={600} mb={0.25}>STARTED</Typography>
@@ -555,7 +557,7 @@ export function NodeExecutionDetailsCard({
               </Box>
               <Box>
                 <Typography fontSize={11} color="text.secondary" fontWeight={600} mb={0.25}>TASK CREATED</Typography>
-                <Typography fontSize={12}>{formatTimestamp(selectedTask?.createdAt ?? null)}</Typography>
+                <Typography fontSize={12}>{formatTimestamp(selectedTaskMeta?.createdAt ?? null)}</Typography>
               </Box>
             </Box>
 

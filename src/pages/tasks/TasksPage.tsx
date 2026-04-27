@@ -6,7 +6,6 @@ import AppPagination from '../../components/common/AppPagination';
 import TaskTable from './components/TaskTable';
 import { useTasks } from './hooks/useTasks';
 import type { Pagination } from '../../api/schemas/common';
-
 export default function TasksPage() {
   const { tasks, loading, fetch } = useTasks();
   const [page, setPage] = useState(0);

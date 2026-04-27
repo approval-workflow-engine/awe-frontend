@@ -10,7 +10,7 @@ import PageHeader from "../../components/common/PageHeader";
 import { dashboardService } from "../../api/services/dashboard";
 import type {
   DashboardStats,
-  InstanceListItem,
+  DashboardInstance,
   PendingUserTask,
 } from "../../api/schemas";
 
@@ -123,7 +123,7 @@ export default function Dashboard() {
   const navigate = useNavigate();
 
   const [stats, setStats] = useState<DashboardStats | null>(null);
-  const [instances, setInstances] = useState<InstanceListItem[] | null>(null);
+  const [instances, setInstances] = useState<DashboardInstance[] | null>(null);
   const [tasks, setTasks] = useState<PendingUserTask[] | null>(null);
 
   useEffect(() => {
@@ -270,7 +270,7 @@ export default function Dashboard() {
                           textOverflow: "ellipsis",
                         }}
                       >
-                        {inst.workflow_name || "Unnamed"}
+                        {inst.workflow?.name || "Unnamed"}
                       </Typography>
                       <Typography
                         sx={{
@@ -279,7 +279,7 @@ export default function Dashboard() {
                           color: "text.disabled",
                         }}
                       >
-                        {formatDate(inst.started_on || inst.created_on)}
+                        {formatDate(inst.startedAt)}
                       </Typography>
                     </Box>
                     <StatusChip status={inst.status} />
@@ -383,7 +383,7 @@ export default function Dashboard() {
                           textOverflow: "ellipsis",
                         }}
                       >
-                        {task.title || task.workflow.name || "Untitled Task"}
+                        {task.title || task.workflow?.name || "Untitled Task"}
                       </Typography>
                       <Typography
                         sx={{

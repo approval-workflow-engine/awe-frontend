@@ -4,7 +4,6 @@ import {
   Box,
   Paper,
   Typography,
-  Skeleton,
   IconButton,
   Tooltip,
   Collapse,
@@ -283,10 +282,17 @@ function TaskRow({ task, index }: { task: AuditTask; index: number }) {
   );
 }
 
+import {
+  NotFoundState,
+  ForbiddenState,
+  ErrorState,
+  LoadingState,
+} from "../../components/common/states";
+
 export default function InstanceAuditPage() {
   const { instanceId } = useParams<{ instanceId: string }>();
   const { goBack } = useBackNavigation("/audit");
-  const { loading, call } = useApiCall();
+  const { loading, error, notFound, forbidden, call } = useApiCall();
   const [audit, setAudit] = useState<InstanceAuditResponse | null>(null);
   const [search, setSearch] = useState("");
 
@@ -317,6 +323,10 @@ export default function InstanceAuditPage() {
       );
     }) ?? [];
 
+  if (notFound) return <NotFoundState message={error || "Instance audit not found"} />;
+  if (forbidden) return <ForbiddenState message={error || "You do not have access to this instance's audit logs"} />;
+  if (error && !audit) return <ErrorState message={error} onRetry={fetchAudit} />;
+
   return (
     <Box>
       <PageHeader
@@ -345,13 +355,10 @@ export default function InstanceAuditPage() {
       />
 
       {loading && !audit && (
-        <Box display="flex" flexDirection="column" gap={2}>
-          <Skeleton variant="rounded" height={220} />
-          <Skeleton variant="rounded" height={300} />
-        </Box>
+        <LoadingState text="Loading audit logs..." />
       )}
 
-      {!loading && !audit && (
+      {!loading && !audit && !error && (
         <Paper sx={{ py: 8, textAlign: "center" }}>
           <Typography color="text.secondary" fontSize={13}>
             Instance not found or audit unavailable.
@@ -483,7 +490,7 @@ export default function InstanceAuditPage() {
                 label="Started"
                 value={
                   <Typography fontSize={13}>
-                    {safeDate(inst.startedAt)}
+                    {safeDate(inst.createdOn)}
                   </Typography>
                 }
               />

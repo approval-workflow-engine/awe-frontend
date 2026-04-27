@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Box, Typography, Skeleton, Paper, CircularProgress } from '@mui/material';
+import { Box, Typography, Paper, CircularProgress } from '@mui/material';
 import PageHeader from '../../components/common/PageHeader';
 import StatusChip from '../../components/common/StatusChip';
 import TaskInfoSection from './components/TaskInfoSection';
@@ -8,15 +8,20 @@ import TaskInputForm from './components/TaskInputForm';
 import { useTask } from './hooks/useTask';
 import { TASK_STATUS, UI_TEXT } from '../../constants/status';
 import { useBackNavigation } from '../../hooks/useBackNavigation';
+import {
+  NotFoundState,
+  ForbiddenState,
+  ErrorState,
+  LoadingState,
+} from '../../components/common/states';
 
 const RETRY_INTERVAL_MS = 1000;
 const MAX_RETRIES = 5;
 
-
 export default function TaskReviewPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { task, loading, error, fetch, complete } = useTask();
+  const { task, loading, error, notFound, forbidden, fetch, complete } = useTask();
   const { goBack } = useBackNavigation('/tasks');
   const [retryCount, setRetryCount] = useState(0);
 
@@ -26,6 +31,7 @@ export default function TaskReviewPage() {
 
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout>;
+    // Only retry if it is an explicit 404/NotFound during polling or general unknown error
     if (!loading && !task && !error && retryCount < MAX_RETRIES) {
       timer = setTimeout(() => {
         setRetryCount(prev => prev + 1);
@@ -44,6 +50,18 @@ export default function TaskReviewPage() {
   const title = task?.title || UI_TEXT.TASK_REVIEW;
   const responseFields = task?.responseData ?? [];
 
+  if (forbidden) return <ForbiddenState message={error || "You do not have access to this task"} />;
+  
+  // If not found and we exhausted retries, show NotFoundState
+  if ((notFound || (!task && !loading && !error)) && retryCount >= MAX_RETRIES) {
+    return <NotFoundState message={error || "Task not found. It may have been completed or archived."} />;
+  }
+
+  // General error (500)
+  if (error && !task && !notFound && !forbidden) {
+    return <ErrorState message={error} onRetry={() => id && fetch(id)} />;
+  }
+
   return (
     <Box>
       <PageHeader
@@ -54,29 +72,7 @@ export default function TaskReviewPage() {
       />
 
       {loading && !task && (
-        <Box display="flex" flexDirection="column" gap={2}>
-          <Skeleton variant="rounded" height={220} />
-          <Skeleton variant="rounded" height={280} />
-        </Box>
-      )}
-
-      {!loading && !task && error && (
-        <Box sx={{ py: 8, textAlign: 'center' }}>
-          <Typography color="error.main" fontSize={14}>
-            Failed to load task. Please try again.
-          </Typography>
-        </Box>
-      )}
-
-      {!loading && !task && !error && retryCount >= MAX_RETRIES && (
-        <Box sx={{ py: 8, textAlign: 'center' }}>
-          <Typography color="text.secondary" fontSize={14}>
-            Task not found. It may have been completed or archived. <br />
-            <Typography component="span" fontSize={12} color="text.disabled" sx={{ mt: 1, display: 'block' }}>
-              ID: {id}
-            </Typography>
-          </Typography>
-        </Box>
+        <LoadingState text="Loading task details..." />
       )}
 
       {!loading && !task && !error && retryCount < MAX_RETRIES && (

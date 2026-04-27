@@ -388,7 +388,7 @@ export default function WorkflowsPage() {
                             color: "text.primary",
                           }}
                         >
-                          {wf.name}
+                          {wf.name} 
                         </Typography>
                       </TableCell>
                       <TableCell sx={{ maxWidth: 0, py: 1.25 }}>
@@ -436,9 +436,10 @@ export default function WorkflowsPage() {
                           <Tooltip title="Create New Draft">
                             <IconButton
                               size="small"
-                              onClick={() =>
-                                navigate(`/workflows/${wf.id}/builder`)
-                              }
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                navigate(`/workflows/${wf.id}/builder`);
+                              }}
                               disabled={
                                 latestStatus === "valid" ||
                                 latestStatus === "draft"
@@ -455,7 +456,8 @@ export default function WorkflowsPage() {
                           <Tooltip title="Open Latest Version">
                             <IconButton
                               size="small"
-                              onClick={() => {
+                              onClick={(e) => {
+                                e.stopPropagation();
                                 if (latestVersionId) {
                                   navigate(
                                     `/workflows/${wf.id}/builder/${latestVersionId}`,
@@ -475,7 +477,10 @@ export default function WorkflowsPage() {
                           <Tooltip title="Edit">
                             <IconButton
                               size="small"
-                              onClick={() => openEdit(wf)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openEdit(wf);
+                              }}
                               sx={{
                                 color: "text.disabled",
                                 "&:hover": { color: "primary.main" },
@@ -487,7 +492,10 @@ export default function WorkflowsPage() {
                           <Tooltip title="Delete">
                             <IconButton
                               size="small"
-                              onClick={() => openDelete(wf)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openDelete(wf);
+                              }}
                               sx={{
                                 color: "text.disabled",
                                 "&:hover": { color: "#ef4444" },

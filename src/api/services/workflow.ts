@@ -1,4 +1,4 @@
-import { ApiClientError, apiClient } from "../client";
+import { apiClient } from "../client";
 import {
   WorkflowsResponseSchema,
   WorkflowResponseSchema,
@@ -90,29 +90,12 @@ export class WorkflowService {
     workflowId: string,
     data: CreateVersionRequest,
   ): Promise<WorkflowVersionCreateResponse> {
-    try {
-      return await apiClient.post(
-        `/workflows/${workflowId}/draft`,
-        data,
-        WorkflowVersionCreateResponseSchema,
-        CreateVersionRequestSchema,
-      );
-    } catch (error) {
-      // Keep backward compatibility with backends that still expose /versions.
-      if (
-        error instanceof ApiClientError &&
-        (error.status === 404 || error.status === 405)
-      ) {
-        return apiClient.post(
-          `/workflows/${workflowId}/versions`,
-          data,
-          WorkflowVersionCreateResponseSchema,
-          CreateVersionRequestSchema,
-        );
-      }
-
-      throw error;
-    }
+    return apiClient.post(
+      `/workflows/${workflowId}/versions`,
+      data,
+      WorkflowVersionCreateResponseSchema,
+      CreateVersionRequestSchema,
+    );
   }
 
   async getVersion(versionId: string): Promise<WorkflowVersionDetailResponse> {

@@ -33,7 +33,6 @@ export const AuditInstanceSchema = z.object({
   versionNumber: z.union([z.string(), z.number()]).nullable(),
   workflowVersionId: z.string().nullable().optional(),
   currentStatus: z.string(),
-  startedAt: optionalDateTransform,
   completedAt: optionalDateTransform,
   failedAt: optionalDateTransform,
   terminatedAt: optionalDateTransform,
