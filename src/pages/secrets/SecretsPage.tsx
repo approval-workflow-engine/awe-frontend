@@ -1,41 +1,44 @@
-import { useState, useEffect, useCallback } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { format } from "date-fns";
 import {
+  Alert,
   Box,
-  Typography,
-  Paper,
   Button,
-  TextField,
-  CircularProgress,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  MenuItem,
-  Stack,
   Chip,
+  CircularProgress,
+  Collapse,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
   Divider,
   IconButton,
+  MenuItem,
+  Paper,
+  Stack,
+  TextField,
   Tooltip,
-  Collapse,
+  Typography,
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
-import LockIcon from "@mui/icons-material/Lock";
-import KeyIcon from "@mui/icons-material/Key";
-import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
-import ExpandLessIcon from "@mui/icons-material/ExpandLess";
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
+import CloseIcon from "@mui/icons-material/Close";
+import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import DeleteIcon from "@mui/icons-material/Delete";
+import HelpOutlineIcon from "@mui/icons-material/HelpOutline";
+import KeyIcon from "@mui/icons-material/Key";
+import LockIcon from "@mui/icons-material/Lock";
 import { secretProviderService } from "../../api/services/secretProviders";
 import { secretService } from "../../api/services/secrets";
+import { ENVIRONMENT_OPTIONS, ENVIRONMENT_CHANGE_EVENT, getActiveEnvironmentType } from "../../constants/environment";
 import { useApiCall } from "../../hooks/useApiCall";
-import { ENVIRONMENT_OPTIONS } from "../../constants/environment";
-import type { SecretProvider, SecretItem } from "../../api/schemas";
+import PageHeader from "../../components/common/PageHeader";
 import {
-  ForbiddenState,
   ErrorState,
+  ForbiddenState,
   LoadingState,
 } from "../../components/common/states";
+import type { SecretItem, SecretProvider } from "../../api/schemas";
 
 const PROVIDER_PRESETS = [
   {
@@ -46,245 +49,284 @@ const PROVIDER_PRESETS = [
   },
 ];
 
+const AWS_IAM_ROLE_ARN = "arn:aws:iam::125869386640:role/awe-engine-role";
+
+function getProviderConfig(provider: SecretProvider) {
+  return provider.configuration && typeof provider.configuration === "object"
+    ? (provider.configuration as Record<string, unknown>)
+    : {};
+}
+
+function getConfigText(config: Record<string, unknown>, key: string) {
+  const value = config[key];
+  return typeof value === "string" && value.trim() ? value : "-";
+}
+
+function formatSecretDate(value: SecretItem["createdAt"]) {
+  if (!value) return "N/A";
+  const date = value instanceof Date ? value : new Date(value);
+  return Number.isNaN(date.getTime()) ? "N/A" : format(date, "MMM d, yyyy");
+}
+
 function ProviderCard({
   provider,
-  onAddSecret,
-  onDeleteSecret,
+  selected,
+  onSelect,
+  onSetup,
 }: {
   provider: SecretProvider;
-  onAddSecret: (p: SecretProvider) => void;
-  onDeleteSecret: (id: string | undefined) => Promise<void>;
+  selected: boolean;
+  onSelect: (provider: SecretProvider) => void;
+  onSetup: (provider: SecretProvider) => void;
 }) {
-  const { call } = useApiCall();
-  const [open, setOpen] = useState(false);
-  const [secrets, setSecrets] = useState<SecretItem[]>([]);
-  const [loadingSecrets, setLoadingSecrets] = useState(false);
-
-  const providerConfig =
-    provider.configuration && typeof provider.configuration === "object"
-      ? (provider.configuration as Record<string, unknown>)
-      : null;
-  const providerHost =
-    typeof providerConfig?.host === "string" ? providerConfig.host : "-";
-  const providerProjectId =
-    typeof providerConfig?.projectId === "string"
-      ? providerConfig.projectId
-      : "-";
-
-  const fetchSecrets = useCallback(async () => {
-    if (!provider.id) return;
-    setLoadingSecrets(true);
-    const data = await call(() => secretService.listByProvider(provider.id!), {
-      showError: true,
-    });
-    if (data?.secrets) setSecrets(data.secrets);
-    setLoadingSecrets(false);
-  }, [call, provider.id]);
-
-  const handleToggle = () => {
-    if (!open) fetchSecrets();
-    setOpen((v) => !v);
-  };
+  const config = getProviderConfig(provider);
+  const providerName = provider.label ?? provider.type ?? "Secret Provider";
 
   return (
     <Paper
+      role="button"
+      tabIndex={0}
       elevation={0}
+      onClick={() => onSelect(provider)}
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          onSelect(provider);
+        }
+      }}
       sx={{
-        borderRadius: "14px",
+        p: 2,
+        borderRadius: "12px",
         border: "1px solid",
-        borderColor: "divider",
-        overflow: "hidden",
-        transition: "box-shadow 0.2s",
-        "&:hover": { boxShadow: "0 2px 16px 0 rgba(0,0,0,0.08)" },
+        borderColor: selected ? "primary.main" : "divider",
+        // backgroundColor: selected ? "action.selected" : "background.paper",
+        cursor: "pointer",
+        transition: "border-color 0.15s ease, box-shadow 0.15s ease",
+        "&:hover": {
+          borderColor: "primary.main",
+          boxShadow: "0 10px 24px rgba(15,23,42,0.06)",
+        },
       }}
     >
-      {/* Provider header */}
-      <Box
-        display="flex"
-        alignItems="center"
-        justifyContent="space-between"
-        px={2.5}
-        py={1.75}
-        sx={{ cursor: "pointer" }}
-        onClick={handleToggle}
-      >
-        <Box display="flex" alignItems="center" gap={1.5}>
+      <Box display="flex" justifyContent="space-between" alignItems="flex-start" gap={2}>
+        <Box display="flex" alignItems="center" gap={1.25} minWidth={0}>
           <Box
             sx={{
-              width: 36,
-              height: 36,
+              width: 40,
+              height: 40,
               borderRadius: "10px",
-              backgroundColor: "primary.main",
+              backgroundColor: "action.hover",
+              border: "1px solid",
+              borderColor: "divider",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
+              flexShrink: 0,
             }}
           >
-            <LockIcon sx={{ fontSize: 18, color: "#fff" }} />
+            <LockIcon sx={{ fontSize: 18, color: "primary.main" }} />
           </Box>
-          <Box>
-            <Typography sx={{ fontWeight: 700, fontSize: "0.95rem" }}>
-              {provider.label ?? provider.type}
+          <Box minWidth={0}>
+            <Typography sx={{ fontWeight: 700, fontSize: 14.5 }} noWrap>
+              {providerName}
             </Typography>
-            <Typography variant="caption" color="text.secondary">
-              {providerHost} · {providerProjectId}
+            <Typography variant="body2" color="text.secondary" noWrap>
+              {provider.type}
             </Typography>
           </Box>
         </Box>
-        <Box display="flex" alignItems="center" gap={1}>
-          <Chip
-            label={provider.type}
+        <Tooltip title="How to Setup">
+          <IconButton
             size="small"
-            color="primary"
-            variant="outlined"
-            sx={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", height: 22 }}
-          />
-          <Tooltip title="Add Secret">
-            <IconButton
-              size="small"
-              onClick={(e) => {
-                e.stopPropagation();
-                onAddSecret(provider);
-              }}
-              sx={{
-                color: "primary.main",
-                backgroundColor: "primary.main",
-                bgcolor: "rgba(79,110,247,0.08)",
-                borderRadius: "8px",
-                "&:hover": { bgcolor: "primary.main", color: "#fff" },
-                transition: "all 0.2s",
-              }}
-            >
-              <AddIcon fontSize="small" />
-            </IconButton>
-          </Tooltip>
-          {open ? (
-            <ExpandLessIcon sx={{ color: "text.secondary", fontSize: 20 }} />
-          ) : (
-            <ExpandMoreIcon sx={{ color: "text.secondary", fontSize: 20 }} />
-          )}
+            onClick={(event) => {
+              event.stopPropagation();
+              onSetup(provider);
+            }}
+            sx={{ color: "text.secondary", flexShrink: 0 }}
+          >
+            <HelpOutlineIcon sx={{ fontSize: 18 }} />
+          </IconButton>
+        </Tooltip>
+      </Box>
+
+      <Box sx={{ mt: 2, display: "grid", gap: 1 }}>
+        <Box display="grid" gap={0.5} sx={{ gridTemplateColumns: { sm: "1fr 1fr" } }}>
+          <Box>
+            <Typography variant="caption" color="text.secondary">
+              Host
+            </Typography>
+            <Typography sx={{ fontSize: 13, fontWeight: 600 }} noWrap>
+              {getConfigText(config, "host")}
+            </Typography>
+          </Box>
+          <Box>
+            <Typography variant="caption" color="text.secondary">
+              Project ID
+            </Typography>
+            <Typography sx={{ fontSize: 13, fontWeight: 600 }} noWrap>
+              {getConfigText(config, "projectId")}
+            </Typography>
+          </Box>
+        </Box>
+        <Box display="grid" gap={0.5} sx={{ gridTemplateColumns: { sm: "1fr 1fr" } }}>
+          <Box>
+            <Typography variant="caption" color="text.secondary">
+              Environment
+            </Typography>
+            <Typography sx={{ fontSize: 13, fontWeight: 600 }} noWrap>
+              {getConfigText(config, "environment")}
+            </Typography>
+          </Box>
+          <Box>
+            <Typography variant="caption" color="text.secondary">
+              Machine Identity
+            </Typography>
+            <Typography sx={{ fontSize: 13, fontWeight: 600 }} noWrap>
+              {getConfigText(config, "machineIdentityId")}
+            </Typography>
+          </Box>
         </Box>
       </Box>
 
-      {/* Secrets list */}
-      <Collapse in={open}>
-        <Divider />
-        <Box px={2.5} py={2}>
-          {loadingSecrets ? (
-            <Box display="flex" justifyContent="center" py={2}>
-              <CircularProgress size={24} />
-            </Box>
-          ) : secrets.length === 0 ? (
-            <Box
-              display="flex"
-              flexDirection="column"
-              alignItems="center"
-              py={3}
-              gap={1}
-            >
-              <KeyIcon sx={{ fontSize: 36, color: "text.disabled" }} />
-              <Typography variant="body2" color="text.secondary">
-                No secrets mapped for this provider yet.
-              </Typography>
-              <Button
-                size="small"
-                variant="outlined"
-                startIcon={<AddIcon />}
-                onClick={() => onAddSecret(provider)}
-                sx={{ mt: 0.5, borderRadius: "8px", fontWeight: 600 }}
-              >
-                Map Secret
-              </Button>
-            </Box>
-          ) : (
-            <Stack spacing={1}>
-              {secrets.map((s) => (
-                <Box
-                  key={s.id}
-                  display="flex"
-                  alignItems="center"
-                  justifyContent="space-between"
-                  px={1.5}
-                  py={1}
-                  sx={{
-                    borderRadius: "10px",
-                    border: "1px solid",
-                    borderColor: "divider",
-                    backgroundColor: "action.hover",
-                    transition: "all 0.2s",
-                    "&:hover": { borderColor: "primary.main", boxShadow: "0 2px 8px rgba(0,0,0,0.1)" },
-                  }}
-                >
-                  <Box display="flex" alignItems="center" gap={1.25}>
-                    <CheckCircleOutlineIcon
-                      sx={{ fontSize: 16, color: "success.main" }}
-                    />
-                    <Box>
-                      <Typography sx={{ fontWeight: 600, fontSize: "0.875rem" }}>
-                        {s.label || s.key}
-                      </Typography>
-                      <Typography
-                        variant="caption"
-                        color="text.secondary"
-                        sx={{ fontFamily: "monospace" }}
-                      >
-                        key: {s.key}
-                      </Typography>
-                      <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.25 }}>
-                        Created: {s.createdAt ? format(new Date(s.createdAt), "MMM d, yyyy") : "N/A"}
-                      </Typography>
-                    </Box>
-                  </Box>
-                  <Box display="flex" alignItems="center" gap={0.75}>
-                    {s.environment && (
-                      <Chip
-                        label={s.environment || "unknown"}
-                        size="small"
-                        variant="outlined"
-                        sx={{ fontSize: 9, height: 18, fontWeight: 700 }}
-                      />
-                    )}
-                    <Chip
-                      label="Secure"
-                      size="small"
-                      color="success"
-                      variant="outlined"
-                      sx={{ fontSize: 9, height: 18, fontWeight: 700 }}
-                    />
-                    <Tooltip title="Delete Secret">
-                      <IconButton
-                        size="small"
-                        onClick={() => onDeleteSecret(s.id)}
-                        sx={{
-                          color: "error.main",
-                          "&:hover": { backgroundColor: "error.light", color: "#fff" },
-                          transition: "all 0.2s",
-                        }}
-                      >
-                        <DeleteIcon fontSize="small" />
-                      </IconButton>
-                    </Tooltip>
-                  </Box>
-                </Box>
-              ))}
-            </Stack>
-          )}
-        </Box>
-      </Collapse>
+      <Box sx={{ mt: 2, pt: 1.5, borderTop: "1px solid", borderColor: "divider" }}>
+        <Typography variant="body2" color="text.secondary">
+          Click to manage mapped secrets
+        </Typography>
+      </Box>
     </Paper>
   );
 }
 
-// ─── Main Page ────────────────────────────────────────────────────────────────
+function SetupPanel({
+  provider,
+  copied,
+  onCopy,
+}: {
+  provider: SecretProvider;
+  copied: boolean;
+  onCopy: () => void;
+}) {
+  const providerName = provider.label ?? provider.type ?? "this provider";
+
+  return (
+    <Paper variant="outlined" sx={{ p: 2, borderRadius: "12px" }}>
+      <Box display="flex" alignItems="flex-start" justifyContent="space-between" gap={2}>
+        <Box>
+          <Typography sx={{ fontWeight: 700, fontSize: 14.5 }}>How to Setup</Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 0.25 }}>
+            AWS IAM role-based access for {providerName}
+          </Typography>
+        </Box>
+        <Tooltip title={copied ? "Copied" : "Copy ARN"}>
+          <IconButton onClick={onCopy} size="small">
+            <ContentCopyIcon sx={{ fontSize: 18 }} />
+          </IconButton>
+        </Tooltip>
+      </Box>
+
+      <Alert severity="info" sx={{ mt: 2, borderRadius: "10px" }}>
+        This configuration allows your application running on AWS to securely access secrets from the provider using IAM role-based authentication. No static credentials are required.
+      </Alert>
+
+      <Stack spacing={1.5} sx={{ mt: 2 }}>
+        <Box>
+          <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700 }}>
+            1. Navigate to Machine Identities ? AWS Authentication
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+            Open the AWS authentication section and use the machine identity that will be used by AWE.
+          </Typography>
+        </Box>
+        <Box>
+          <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700 }}>
+            2. Add this AWS IAM Role ARN
+          </Typography>
+          <Paper variant="outlined" sx={{ mt: 0.75, p: 1.25, borderRadius: "10px" }}>
+            <Box display="flex" alignItems="center" justifyContent="space-between" gap={1.5}>
+              <Typography
+                sx={{
+                  fontFamily: "'JetBrains Mono', monospace",
+                  fontSize: 12,
+                  overflowWrap: "anywhere",
+                }}
+              >
+                {AWS_IAM_ROLE_ARN}
+              </Typography>
+              <Button
+                size="small"
+                startIcon={<ContentCopyIcon sx={{ fontSize: 14 }} />}
+                onClick={onCopy}
+                sx={{ borderRadius: "8px", fontWeight: 700, flexShrink: 0 }}
+              >
+                {copied ? "Copied" : "Copy"}
+              </Button>
+            </Box>
+          </Paper>
+        </Box>
+        <Box>
+          <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700 }}>
+            3. Assign permissions
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+            Allow the role to read the project secrets needed by your application.
+          </Typography>
+        </Box>
+      </Stack>
+    </Paper>
+  );
+}
+
+function SecretRow({
+  secret,
+  onDelete,
+}: {
+  secret: SecretItem;
+  onDelete: (id: string | undefined) => void;
+}) {
+  return (
+    <Paper variant="outlined" sx={{ p: 1.5, borderRadius: "10px" }}>
+      <Box display="flex" justifyContent="space-between" alignItems="flex-start" gap={2}>
+        <Box display="flex" alignItems="flex-start" gap={1.25} minWidth={0}>
+          <CheckCircleOutlineIcon sx={{ fontSize: 18, color: "success.main", mt: 0.25 }} />
+          <Box minWidth={0}>
+            <Typography sx={{ fontWeight: 700, fontSize: 13.5 }} noWrap>
+              {secret.label || secret.key}
+            </Typography>
+            <Typography variant="caption" color="text.secondary" sx={{ display: "block", fontFamily: "'JetBrains Mono', monospace" }} noWrap>
+              key: {secret.key}
+            </Typography>
+            <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.5 }}>
+              Created: {formatSecretDate(secret.createdAt)}
+            </Typography>
+          </Box>
+        </Box>
+        <Box display="flex" alignItems="center" gap={0.5} flexShrink={0}>
+          {secret.environment ? (
+            <Chip
+              label={secret.environment}
+              size="small"
+              variant="outlined"
+              sx={{ height: 20, fontSize: 10, fontWeight: 700, textTransform: "uppercase" }}
+            />
+          ) : null}
+          <Tooltip title="Delete Secret">
+            <IconButton size="small" onClick={() => onDelete(secret.id)}>
+              <DeleteIcon sx={{ fontSize: 18, color: "error.main" }} />
+            </IconButton>
+          </Tooltip>
+        </Box>
+      </Box>
+    </Paper>
+  );
+}
+
 export default function SecretsPage() {
   const { call, error, forbidden } = useApiCall();
   const [providers, setProviders] = useState<SecretProvider[]>([]);
   const [loading, setLoading] = useState(true);
-
-  // Provider form
   const [providerOpen, setProviderOpen] = useState(false);
   const [providerSaving, setProviderSaving] = useState(false);
-  const [selectedPreset, setSelectedPreset] = useState<string>(PROVIDER_PRESETS[0].id);
+  const [selectedPreset, setSelectedPreset] = useState(PROVIDER_PRESETS[0].id);
   const [providerForm, setProviderForm] = useState({
     label: "",
     host: PROVIDER_PRESETS[0].host,
@@ -292,68 +334,106 @@ export default function SecretsPage() {
     environment: "",
     machineIdentityId: "",
   });
-
-  // Secret form
+  const [selectedProvider, setSelectedProvider] = useState<SecretProvider | null>(null);
+  const [selectedProviderSecrets, setSelectedProviderSecrets] = useState<SecretItem[]>([]);
+  const [selectedProviderSecretsLoading, setSelectedProviderSecretsLoading] = useState(false);
+  const selectedProviderIdRef = useRef<string | null>(null);
+  const [setupExpanded, setSetupExpanded] = useState(true);
+  const [arnCopied, setArnCopied] = useState(false);
   const [secretOpen, setSecretOpen] = useState(false);
   const [secretSaving, setSecretSaving] = useState(false);
   const [loadingAvailableSecrets, setLoadingAvailableSecrets] = useState(false);
   const [availableProviderSecrets, setAvailableProviderSecrets] = useState<string[]>([]);
-  const [activeProvider, setActiveProvider] = useState<SecretProvider | null>(
-    null,
-  );
-  const [secretForm, setSecretForm] = useState<{
-    providerId: string;
-    environment: string;
-    key: string;
-  }>({
+  const [activeProvider, setActiveProvider] = useState<SecretProvider | null>(null);
+  const [secretForm, setSecretForm] = useState<{ providerId: string; environment: string; key: string }>({
     providerId: "",
     environment: ENVIRONMENT_OPTIONS[0] || "production",
     key: "",
   });
-  // Ref to refresh the specific provider card
-  const [secretRefreshKey, setSecretRefreshKey] = useState(0);
 
-  const loadAvailableProviderSecrets = async (
-    providerId: string,
-    environment: string,
-  ) => {
-    setLoadingAvailableSecrets(true);
-    const data = await call(
-      () => secretService.listAvailableByProvider(providerId, environment),
-      { showError: true },
-    );
-    const availableKeys = data?.secrets ?? [];
-    setAvailableProviderSecrets(availableKeys);
-    setSecretForm((current) =>
-      availableKeys.includes(current.key) ? current : { ...current, key: "" },
-    );
-    setLoadingAvailableSecrets(false);
-  };
+  const loadSelectedProviderSecrets = useCallback(
+    async (providerId: string) => {
+      setSelectedProviderSecretsLoading(true);
+      const data = await call(() => secretService.listByProvider(providerId), {
+        showError: true,
+      });
+      setSelectedProviderSecrets(data?.secrets ?? []);
+      setSelectedProviderSecretsLoading(false);
+    },
+    [call],
+  );
 
   const loadProviders = useCallback(async () => {
     setLoading(true);
-    const data = await call(() => secretProviderService.list(), {
-      showError: true,
-    });
-    if (data?.secretProviders) setProviders(data.secretProviders);
+    const data = await call(() => secretProviderService.list(), { showError: true });
+    const nextProviders = data?.secretProviders ?? [];
+    setProviders(nextProviders);
     setLoading(false);
-  }, [call]);
+
+    if (!selectedProviderIdRef.current && nextProviders.length > 0) {
+      setSelectedProvider(nextProviders[0]);
+      if (nextProviders[0].id) {
+        void loadSelectedProviderSecrets(nextProviders[0].id);
+      }
+    }
+  }, [call, loadSelectedProviderSecrets]);
+
+  const loadAvailableProviderSecrets = useCallback(
+    async (providerId: string, environment: string) => {
+      setLoadingAvailableSecrets(true);
+      const data = await call(() => secretService.listAvailableByProvider(providerId, environment), {
+        showError: true,
+      });
+      const availableKeys = data?.secrets ?? [];
+      setAvailableProviderSecrets(availableKeys);
+      setSecretForm((current) =>
+        availableKeys.includes(current.key) ? current : { ...current, key: "" },
+      );
+      setLoadingAvailableSecrets(false);
+    },
+    [call],
+  );
 
   useEffect(() => {
-    const timeoutId = setTimeout(() => {
+    selectedProviderIdRef.current = selectedProvider?.id ?? null;
+  }, [selectedProvider]);
+
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
       void loadProviders();
     }, 0);
 
-    return () => clearTimeout(timeoutId);
+    return () => window.clearTimeout(timeoutId);
   }, [loadProviders]);
 
-  // When preset changes, update host
+  useEffect(() => {
+    const handleEnvironmentChange = () => {
+      const newEnv = getActiveEnvironmentType();
+
+      // keep the secret form in-sync with the global environment
+      setSecretForm((current) => ({ ...current, environment: newEnv }));
+
+      // refresh providers and selected-provider secrets (table data)
+      void loadProviders();
+      if (selectedProviderIdRef.current) {
+        void loadSelectedProviderSecrets(selectedProviderIdRef.current);
+      }
+
+      // refresh available keys for the mapping dialog using the new environment
+      if (secretOpen && activeProvider?.id) {
+        void loadAvailableProviderSecrets(activeProvider.id, newEnv);
+      }
+    };
+
+    window.addEventListener(ENVIRONMENT_CHANGE_EVENT, handleEnvironmentChange);
+    return () => window.removeEventListener(ENVIRONMENT_CHANGE_EVENT, handleEnvironmentChange);
+  }, [activeProvider?.id, loadAvailableProviderSecrets, loadProviders, loadSelectedProviderSecrets, secretOpen]);
+
   const handlePresetChange = (presetId: string) => {
-    const preset = PROVIDER_PRESETS.find((p) => p.id === presetId);
-    if (preset) {
-      setSelectedPreset(presetId);
-      setProviderForm((f) => ({ ...f, host: preset.host }));
-    }
+    const preset = PROVIDER_PRESETS.find((item) => item.id === presetId);
+    if (!preset) return;
+    setSelectedPreset(presetId);
+    setProviderForm((current) => ({ ...current, host: preset.host }));
   };
 
   const handleProviderSave = async () => {
@@ -384,13 +464,29 @@ export default function SecretsPage() {
         machineIdentityId: "",
       });
       setSelectedPreset(PROVIDER_PRESETS[0].id);
-      loadProviders();
+      void loadProviders();
     }
+  };
+
+  const openProvider = (provider: SecretProvider, showSetup = false) => {
+    setSelectedProvider(provider);
+    setSelectedProviderSecrets([]);
+    setSetupExpanded(showSetup);
+    setArnCopied(false);
+    if (provider.id) {
+      void loadSelectedProviderSecrets(provider.id);
+    }
+  };
+
+  const handleSetupCopy = () => {
+    navigator.clipboard.writeText(AWS_IAM_ROLE_ARN).then(() => {
+      setArnCopied(true);
+      window.setTimeout(() => setArnCopied(false), 1800);
+    });
   };
 
   const openAddSecret = (provider: SecretProvider) => {
     const defaultEnvironment = ENVIRONMENT_OPTIONS[0] || "production";
-
     setActiveProvider(provider);
     setAvailableProviderSecrets([]);
     setSecretForm({
@@ -399,7 +495,6 @@ export default function SecretsPage() {
       key: "",
     });
     setSecretOpen(true);
-
     if (provider.id) {
       void loadAvailableProviderSecrets(provider.id, defaultEnvironment);
     }
@@ -422,8 +517,9 @@ export default function SecretsPage() {
       setSecretOpen(false);
       setActiveProvider(null);
       setAvailableProviderSecrets([]);
-      // Trigger refresh of provider cards
-      setSecretRefreshKey((k) => k + 1);
+      if (selectedProvider?.id) {
+        void loadSelectedProviderSecrets(selectedProvider.id);
+      }
     }
   };
 
@@ -433,60 +529,45 @@ export default function SecretsPage() {
     setAvailableProviderSecrets([]);
   };
 
-    const handleDeleteSecret = async (secretId: string | undefined) => {
-      if (!secretId) return;
-    
-      const confirmed = window.confirm(
-        "Are you sure you want to delete this secret? This action cannot be undone."
-      );
-      if (!confirmed) return;
+  const handleDeleteSecret = async (secretId: string | undefined) => {
+    if (!secretId) return;
 
-      const success = await call(
-        () => secretService.delete(secretId),
-        { successMsg: "Secret deleted successfully." },
-      );
+    const confirmed = window.confirm(
+      "Are you sure you want to delete this secret? This action cannot be undone.",
+    );
+    if (!confirmed) return;
 
-      if (success) {
-        // Trigger refresh of provider cards
-        setSecretRefreshKey((k) => k + 1);
-      }
-    };
+    const success = await call(() => secretService.delete(secretId), {
+      successMsg: "Secret deleted successfully.",
+    });
+
+    if (success && selectedProvider?.id) {
+      void loadSelectedProviderSecrets(selectedProvider.id);
+    }
+  };
+
+  const selectedProviderName = selectedProvider?.label ?? selectedProvider?.type ?? "Secret Provider";
+  const selectedProviderConfig = selectedProvider ? getProviderConfig(selectedProvider) : {};
 
   return (
     <Box>
-      {/* Page header */}
-      <Box
-        display="flex"
-        justifyContent="space-between"
-        alignItems="flex-start"
-        mb={3}
-      >
-        <Box>
-          <Typography variant="h5" sx={{ fontWeight: 700 }}>
-            Secret Management
-          </Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-            Connect external secret providers and map secrets for use in
-            workflows.
-          </Typography>
-        </Box>
-        <Button
-          variant="contained"
-          startIcon={<AddIcon />}
-          onClick={() => setProviderOpen(true)}
-          sx={{ fontWeight: 600, borderRadius: "10px", px: 2.5 }}
-        >
-          Add Provider
-        </Button>
-      </Box>
+      <PageHeader
+        title="Secret Management"
+        subtitle="Simple provider setup, secret mapping, and setup guidance in one place."
+        action={
+          <Button
+            variant="contained"
+            startIcon={<AddIcon />}
+            onClick={() => setProviderOpen(true)}
+            sx={{ fontWeight: 700, borderRadius: "8px", px: 2.25 }}
+          >
+            Add Provider
+          </Button>
+        }
+      />
 
-      {/* Info banner */}
-      {/* <Alert severity="info" sx={{ mb: 3, borderRadius: "12px" }}>
-        Reference secrets in workflow nodes using{" "}
-        <strong>secret.YOUR_LABEL</strong> notation in expression inputs.
-      </Alert> */}
+      
 
-      {/* Body */}
       {forbidden ? (
         <ForbiddenState message={error || "You do not have access to secrets"} />
       ) : error && !providers.length ? (
@@ -495,74 +576,210 @@ export default function SecretsPage() {
         <LoadingState text="Loading secret providers..." />
       ) : providers.length === 0 ? (
         <Paper
-          elevation={0}
+          variant="outlined"
           sx={{
-            p: 7,
+            p: { xs: 3, sm: 5 },
+            borderRadius: "14px",
+            borderStyle: "dashed",
             textAlign: "center",
-            borderRadius: "16px",
-            border: "1.5px dashed",
-            borderColor: "divider",
-            backgroundColor: "background.default",
           }}
         >
-          <LockIcon sx={{ fontSize: 52, color: "text.disabled", mb: 2 }} />
-          <Typography variant="h6" sx={{ fontWeight: 700, mb: 1 }}>
-            No Secret Providers Configured
+          <LockIcon sx={{ fontSize: 48, color: "text.disabled", mb: 1.5 }} />
+          <Typography sx={{ fontWeight: 700, fontSize: 18 }}>
+            No secret providers configured
           </Typography>
-          <Typography
-            variant="body2"
-            color="text.secondary"
-            sx={{ mb: 3, maxWidth: 400, mx: "auto" }}
-          >
-            Connect to an external secret management service like Infisical to
-            securely inject secrets into your workflow executions.
+          <Typography color="text.secondary" sx={{ mt: 1, maxWidth: 560, mx: "auto" }}>
+            Add a provider to begin mapping secrets. The page will stay consistent with the rest of the app and keep the workflow simple.
           </Typography>
           <Button
             variant="contained"
-            startIcon={<LockIcon />}
+            startIcon={<AddIcon />}
             onClick={() => setProviderOpen(true)}
-            sx={{ borderRadius: "10px", fontWeight: 600, px: 3 }}
+            sx={{ mt: 3, borderRadius: "8px", fontWeight: 700, px: 3 }}
           >
             Connect Provider
           </Button>
         </Paper>
       ) : (
-        <Stack spacing={2} key={secretRefreshKey}>
-          {providers.map((p) => (
-            <ProviderCard
-              key={p.id}
-              provider={p}
-              onAddSecret={openAddSecret}
-              onDeleteSecret={handleDeleteSecret}
-            />
-          ))}
-        </Stack>
+        <Box
+          sx={{
+            display: "grid",
+            gap: 2.5,
+            gridTemplateColumns: { xs: "1fr", xl: "minmax(0, 1fr) 360px" },
+            alignItems: "start",
+          }}
+        >
+          <Box>
+            <Box
+              sx={{
+                display: "grid",
+                gap: 2,
+                gridTemplateColumns: { xs: "1fr", md: "repeat(2, minmax(0, 1fr))" },
+              }}
+            >
+              {providers.map((provider) => (
+                <ProviderCard
+                  key={provider.id ?? provider.label ?? provider.type}
+                  provider={provider}
+                  selected={selectedProvider?.id === provider.id}
+                  onSelect={(item) => openProvider(item, false)}
+                  onSetup={(item) => openProvider(item, true)}
+                />
+              ))}
+            </Box>
+          </Box>
+
+          {selectedProvider ? (
+            <Paper
+              variant="outlined"
+              sx={{
+                borderRadius: "14px",
+                position: "sticky",
+                top: 24,
+                overflow: "hidden",
+              }}
+            >
+              <Box sx={{ px: 2, py: 1.75, borderBottom: "1px solid", borderColor: "divider" }}>
+                <Box display="flex" alignItems="flex-start" justifyContent="space-between" gap={2}>
+                  <Box>
+                    <Typography sx={{ fontWeight: 700, fontSize: 15 }}>
+                      Provider Details
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      {selectedProviderName}
+                    </Typography>
+                  </Box>
+                  <IconButton onClick={() => setSelectedProvider(null)} size="small">
+                    <CloseIcon sx={{ fontSize: 18 }} />
+                  </IconButton>
+                </Box>
+              </Box>
+
+              <Box sx={{ p: 2 }}>
+                <Stack direction="row" spacing={1} sx={{ mb: 2 }}>
+                  <Button
+                    variant={setupExpanded ? "contained" : "outlined"}
+                    startIcon={<HelpOutlineIcon />}
+                    onClick={() => setSetupExpanded((current) => !current)}
+                    sx={{ borderRadius: "8px", fontWeight: 700 }}
+                  >
+                    Setup
+                  </Button>
+                  <Button
+                    variant="contained"
+                    startIcon={<AddIcon />}
+                    onClick={() => openAddSecret(selectedProvider)}
+                    sx={{ borderRadius: "8px", fontWeight: 700 }}
+                  >
+                    Add Secret
+                  </Button>
+                </Stack>
+
+                <Box
+                  sx={{
+                    mb: 2,
+                    display: "grid",
+                    gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+                    gap: 1,
+                  }}
+                >
+                  <Paper variant="outlined" sx={{ p: 1.25, borderRadius: "10px" }}>
+                    <Typography variant="caption" color="text.secondary">
+                      Host
+                    </Typography>
+                    <Typography sx={{ fontWeight: 700, fontSize: 13 }} noWrap>
+                      {getConfigText(selectedProviderConfig, "host")}
+                    </Typography>
+                  </Paper>
+                  <Paper variant="outlined" sx={{ p: 1.25, borderRadius: "10px" }}>
+                    <Typography variant="caption" color="text.secondary">
+                      Environment
+                    </Typography>
+                    <Typography sx={{ fontWeight: 700, fontSize: 13 }} noWrap>
+                      {getConfigText(selectedProviderConfig, "environment")}
+                    </Typography>
+                  </Paper>
+                </Box>
+
+                <Collapse in={setupExpanded} timeout="auto">
+                  <SetupPanel
+                    provider={selectedProvider}
+                    copied={arnCopied}
+                    onCopy={handleSetupCopy}
+                  />
+                </Collapse>
+
+                <Box sx={{ mt: 2 }}>
+                  <Box display="flex" alignItems="center" justifyContent="space-between" sx={{ mb: 1 }}>
+                    <Typography sx={{ fontWeight: 700, fontSize: 14.5 }}>
+                      Configured Secrets
+                    </Typography>
+                    <Chip
+                      label={selectedProviderSecretsLoading ? "Loading" : `${selectedProviderSecrets.length} total`}
+                      size="small"
+                      variant="outlined"
+                      sx={{ height: 22, fontSize: 10, fontWeight: 700 }}
+                    />
+                  </Box>
+
+                  {selectedProviderSecretsLoading ? (
+                    <Box sx={{ py: 3, display: "flex", justifyContent: "center" }}>
+                      <CircularProgress size={22} />
+                    </Box>
+                  ) : selectedProviderSecrets.length === 0 ? (
+                    <Paper variant="outlined" sx={{ p: 2, borderRadius: "10px", textAlign: "center" }}>
+                      <KeyIcon sx={{ fontSize: 34, color: "text.disabled" }} />
+                      <Typography sx={{ fontWeight: 700, fontSize: 14, mt: 1 }}>
+                        No secrets configured yet
+                      </Typography>
+                      <Typography color="text.secondary" sx={{ mt: 0.5, fontSize: 13 }}>
+                        Use Add Secret to map a provider key to an AWE environment.
+                      </Typography>
+                      <Button
+                        fullWidth
+                        variant="contained"
+                        startIcon={<AddIcon />}
+                        onClick={() => openAddSecret(selectedProvider)}
+                        sx={{ mt: 2, borderRadius: "8px", fontWeight: 700 }}
+                      >
+                        Add Secret
+                      </Button>
+                    </Paper>
+                  ) : (
+                    <Stack spacing={1.15}>
+                      {selectedProviderSecrets.map((secret) => (
+                        <SecretRow
+                          key={secret.id ?? `${secret.key}-${secret.environment ?? "default"}`}
+                          secret={secret}
+                          onDelete={handleDeleteSecret}
+                        />
+                      ))}
+                    </Stack>
+                  )}
+                </Box>
+              </Box>
+            </Paper>
+          ) : null}
+        </Box>
       )}
 
-      {/* ── Add Provider Dialog ─────────────────────────────────────────── */}
       <Dialog
         open={providerOpen}
         onClose={() => !providerSaving && setProviderOpen(false)}
         maxWidth="sm"
         fullWidth
-        PaperProps={{ sx: { borderRadius: "16px" } }}
+        PaperProps={{ sx: { borderRadius: "12px" } }}
       >
         <DialogTitle sx={{ fontWeight: 700, pb: 0 }}>
           Connect Secret Provider
         </DialogTitle>
-
         <DialogContent dividers sx={{ pt: 2 }}>
           <Box display="flex" flexDirection="column" gap={2}>
-            {/* Preset selector */}
             <Box>
-              <Typography
-                variant="caption"
-                color="text.secondary"
-                sx={{ fontWeight: 600, mb: 0.75, display: "block" }}
-              >
+              <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, mb: 0.75, display: "block" }}>
                 SELECT PROVIDER TYPE
               </Typography>
-              <Stack direction="row" spacing={1.5}>
+              <Stack direction="row" spacing={1.25}>
                 {PROVIDER_PRESETS.map((preset) => (
                   <Paper
                     key={preset.id}
@@ -570,23 +787,16 @@ export default function SecretsPage() {
                     onClick={() => handlePresetChange(preset.id)}
                     sx={{
                       px: 2,
-                      py: 1.5,
-                      borderRadius: "12px",
-                      border: "2px solid",
-                      borderColor:
-                        selectedPreset === preset.id
-                          ? "primary.main"
-                          : "divider",
+                      py: 1.25,
+                      borderRadius: "10px",
+                      border: "1px solid",
+                      borderColor: selectedPreset === preset.id ? "primary.main" : "divider",
                       cursor: "pointer",
                       flex: 1,
-                      transition: "border-color 0.15s",
-                      backgroundColor:
-                        selectedPreset === preset.id
-                          ? "rgba(79,110,247,0.05)"
-                          : "transparent",
+                      backgroundColor: selectedPreset === preset.id ? "action.selected" : "background.paper",
                     }}
                   >
-                    <Typography sx={{ fontWeight: 700, fontSize: "0.875rem" }}>
+                    <Typography sx={{ fontWeight: 700, fontSize: 14 }}>
                       {preset.label}
                     </Typography>
                     <Typography variant="caption" color="text.secondary">
@@ -601,22 +811,18 @@ export default function SecretsPage() {
 
             <TextField
               label="Provider Label"
-              placeholder="e.g., Production Vault"
+              placeholder="e.g. Production Vault"
               fullWidth
               size="small"
               value={providerForm.label}
-              onChange={(e) =>
-                setProviderForm({ ...providerForm, label: e.target.value })
-              }
+              onChange={(event) => setProviderForm({ ...providerForm, label: event.target.value })}
             />
             <TextField
               label="Host URL"
               fullWidth
               size="small"
               value={providerForm.host}
-              onChange={(e) =>
-                setProviderForm({ ...providerForm, host: e.target.value })
-              }
+              onChange={(event) => setProviderForm({ ...providerForm, host: event.target.value })}
             />
             <TextField
               label="Project ID"
@@ -624,22 +830,15 @@ export default function SecretsPage() {
               fullWidth
               size="small"
               value={providerForm.projectId}
-              onChange={(e) =>
-                setProviderForm({ ...providerForm, projectId: e.target.value })
-              }
+              onChange={(event) => setProviderForm({ ...providerForm, projectId: event.target.value })}
             />
             <TextField
               label="Environment"
-              placeholder="e.g., dev, staging, prod"
+              placeholder="e.g. dev, staging, prod"
               fullWidth
               size="small"
               value={providerForm.environment}
-              onChange={(e) =>
-                setProviderForm({
-                  ...providerForm,
-                  environment: e.target.value,
-                })
-              }
+              onChange={(event) => setProviderForm({ ...providerForm, environment: event.target.value })}
             />
             <TextField
               label="Machine Identity ID"
@@ -647,22 +846,12 @@ export default function SecretsPage() {
               fullWidth
               size="small"
               value={providerForm.machineIdentityId}
-              onChange={(e) =>
-                setProviderForm({
-                  ...providerForm,
-                  machineIdentityId: e.target.value,
-                })
-              }
+              onChange={(event) => setProviderForm({ ...providerForm, machineIdentityId: event.target.value })}
             />
           </Box>
         </DialogContent>
-
         <DialogActions sx={{ p: 2, gap: 1 }}>
-          <Button
-            onClick={() => setProviderOpen(false)}
-            color="inherit"
-            disabled={providerSaving}
-          >
+          <Button onClick={() => setProviderOpen(false)} color="inherit" disabled={providerSaving}>
             Cancel
           </Button>
           <Button
@@ -675,39 +864,29 @@ export default function SecretsPage() {
               !providerForm.projectId ||
               !providerForm.machineIdentityId
             }
-            startIcon={
-              providerSaving ? (
-                <CircularProgress size={16} color="inherit" />
-              ) : undefined
-            }
-            sx={{ fontWeight: 600, borderRadius: "8px", minWidth: 140 }}
+            startIcon={providerSaving ? <CircularProgress size={16} color="inherit" /> : undefined}
+            sx={{ fontWeight: 700, borderRadius: "8px", minWidth: 140 }}
           >
-            {providerSaving ? "Connecting…" : "Connect Provider"}
+            {providerSaving ? "Connecting..." : "Connect Provider"}
           </Button>
         </DialogActions>
       </Dialog>
 
-      {/* ── Map Secret Dialog ───────────────────────────────────────────── */}
       <Dialog
         open={secretOpen}
         onClose={() => !secretSaving && closeSecretDialog()}
         maxWidth="sm"
         fullWidth
-        PaperProps={{ sx: { borderRadius: "16px" } }}
+        PaperProps={{ sx: { borderRadius: "12px" } }}
       >
         <DialogTitle sx={{ fontWeight: 700, pb: 0 }}>
           Map Secret
-          {activeProvider && (
-            <Typography
-              variant="caption"
-              color="text.secondary"
-              display="block"
-            >
-              Adding to provider: <strong>{activeProvider.label}</strong>
+          {activeProvider ? (
+            <Typography variant="caption" color="text.secondary" display="block">
+              Adding to provider: <strong>{activeProvider.label ?? activeProvider.type}</strong>
             </Typography>
-          )}
+          ) : null}
         </DialogTitle>
-
         <DialogContent dividers sx={{ pt: 2 }}>
           <Box display="flex" flexDirection="column" gap={2}>
             <TextField
@@ -716,13 +895,13 @@ export default function SecretsPage() {
               fullWidth
               size="small"
               value={secretForm.environment}
-              onChange={(e) => {
-                const nextEnvironment = e.target.value;
+              onChange={(event) => {
+                const nextEnvironment = event.target.value;
                 const providerId = secretForm.providerId;
 
                 setSecretForm((current) => ({
                   ...current,
-                  environment: nextEnvironment,
+                  environment: nextEnvironment as string,
                   key: "",
                 }));
 
@@ -743,9 +922,7 @@ export default function SecretsPage() {
               fullWidth
               size="small"
               value={secretForm.key}
-              onChange={(e) =>
-                setSecretForm({ ...secretForm, key: e.target.value })
-              }
+              onChange={(event) => setSecretForm({ ...secretForm, key: event.target.value })}
               disabled={loadingAvailableSecrets || availableProviderSecrets.length === 0}
               helperText={
                 loadingAvailableSecrets
@@ -770,32 +947,23 @@ export default function SecretsPage() {
             </TextField>
           </Box>
         </DialogContent>
-
         <DialogActions sx={{ p: 2, gap: 1 }}>
-          <Button
-            onClick={closeSecretDialog}
-            color="inherit"
-            disabled={secretSaving}
-          >
+          <Button onClick={closeSecretDialog} color="inherit" disabled={secretSaving}>
             Cancel
           </Button>
           <Button
             variant="contained"
             onClick={handleSecretSave}
-            disabled={
-              secretSaving || !secretForm.key
-            }
-            startIcon={
-              secretSaving ? (
-                <CircularProgress size={16} color="inherit" />
-              ) : undefined
-            }
-            sx={{ fontWeight: 600, borderRadius: "8px", minWidth: 120 }}
+            disabled={secretSaving || !secretForm.key}
+            startIcon={secretSaving ? <CircularProgress size={16} color="inherit" /> : undefined}
+            sx={{ fontWeight: 700, borderRadius: "8px", minWidth: 120 }}
           >
-            {secretSaving ? "Mapping…" : "Map Secret"}
+            {secretSaving ? "Mapping..." : "Map Secret"}
           </Button>
         </DialogActions>
       </Dialog>
     </Box>
   );
 }
+
+

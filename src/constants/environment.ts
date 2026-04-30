@@ -1,6 +1,7 @@
 export type EnvironmentType = "development" | "staging" | "production";
 
 export const ENVIRONMENT_STORAGE_KEY = "activeEnvironmentType";
+export const ENVIRONMENT_CHANGE_EVENT = "awe-environment-changed";
 
 export const ENVIRONMENT_OPTIONS: EnvironmentType[] = [
   "development",
@@ -31,7 +32,14 @@ export function getActiveEnvironmentTypes(): EnvironmentType[] {
 }
 
 export function setActiveEnvironmentType(environmentType: EnvironmentType): void {
+  const previous = localStorage.getItem(ENVIRONMENT_STORAGE_KEY);
   localStorage.setItem(ENVIRONMENT_STORAGE_KEY, environmentType);
+
+  if (previous !== environmentType && typeof window !== "undefined") {
+    window.dispatchEvent(
+      new CustomEvent(ENVIRONMENT_CHANGE_EVENT, { detail: { environmentType } }),
+    );
+  }
 }
 
 export function setActiveEnvironmentTypes(environmentTypes: EnvironmentType[]): void {
