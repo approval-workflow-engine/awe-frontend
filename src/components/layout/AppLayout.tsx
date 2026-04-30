@@ -28,7 +28,8 @@ function isEnvironmentSwitchEnabled(pathname: string): boolean {
     pathname === "/instances" ||
     pathname === "/tasks" ||
     pathname === "/audit" ||
-    pathname === "/dashboard"
+    pathname === "/dashboard"||
+    pathname === "/secrets"
   );
 }
 
@@ -44,6 +45,7 @@ export default function AppLayout() {
   const { user, logout } = useApp();
   const { mode, toggleTheme } = useThemeMode();
   const canSwitchEnvironment = isEnvironmentSwitchEnabled(location.pathname);
+  const routeRenderKey = `${location.pathname}:${selectedEnvironmentType}`;
 
   const toggleCollapse = (value: boolean) => {
     setCollapsed(value);
@@ -54,7 +56,6 @@ export default function AppLayout() {
     if (!canSwitchEnvironment) return;
     setActiveEnvironmentType(environmentType);
     setSelectedEnvironmentType(environmentType);
-    window.location.reload();
   };
 
   return (
@@ -218,7 +219,7 @@ export default function AppLayout() {
         </Box>
 
         <Box sx={{ p: { xs: 1.5, md: 2.5 } }}>
-          <Outlet />
+          <Outlet key={routeRenderKey} />
         </Box>
       </Box>
     </Box>

@@ -14,7 +14,7 @@ import TasksPage from "../pages/tasks/TasksPage";
 import TaskReviewPage from "../pages/tasks/TaskReviewPage";
 import AuditPage from "../pages/audit/AuditPage";
 import InstanceAuditPage from "../pages/audit/InstanceAuditPage";
-import SecretsPage from "../pages/secrets/SecretsPage";
+import SecretsPage from "../pages/secrets/SecretsPage.tsx";
 import PageNotFound from "../pages/PageNotFound.tsx";
 
 function ProtectedLayout() {
