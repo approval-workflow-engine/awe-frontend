@@ -28,14 +28,17 @@ export const ApiErrorSchema = z.object({
   details: z.record(z.string(), z.any()).optional(),
 });
 
+export const ActorTypeSchema = z.enum(["api_key_client", "organization_account"]);
+export type ActorType = z.infer<typeof ActorTypeSchema>;
+
 export const PaginationParamsSchema = z.object({
   page: z.number().min(1).optional(),
   limit: z.number().min(1).max(100).optional(),
   status: z.string().optional(),
   search: z.string().optional(),
   createdSort: z.enum(["asc", "desc"]).optional(),
+  environment: z.array(EnvironmentTypeSchema).optional(),
 });
-
 
 export const dateTransform = z.union([z.string(), z.date()]).transform((val) =>
   typeof val === 'string' ? val : val.toISOString()

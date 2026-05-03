@@ -21,7 +21,7 @@ import {
 import { useApiCall } from "../../../hooks/useApiCall";
 import { workflowService } from "../../../api/services/workflow";
 import { instanceService } from "../../../api/services/instance";
-import type { Workflow } from "../../../types";
+import type { WorkflowListItem } from "../../../api/schemas/workflow";
 import type { InstanceListItem } from "../../../api/schemas/instance";
 import { extractApiError } from "../../../utils/apiError";
 
@@ -40,7 +40,7 @@ export default function CreateInstanceDialog({
 }: Props) {
   const { call, loading } = useApiCall();
 
-  const [workflows, setWorkflows] = useState<Workflow[]>([]);
+  const [workflows, setWorkflows] = useState<WorkflowListItem[]>([]);
   const [workflowId, setWorkflowId] = useState("");
   const [contextJson, setContextJson] = useState(DEFAULT_JSON);
   const [autoAdvance, setAutoAdvance] = useState(true);
@@ -51,7 +51,7 @@ export default function CreateInstanceDialog({
     const pageSize = 100;
     let page = 1;
     let totalPages = 1;
-    const aggregated: Workflow[] = [];
+    const aggregated: WorkflowListItem[] = [];
 
     do {
       const res = await call(
@@ -59,7 +59,7 @@ export default function CreateInstanceDialog({
         { showError: false },
       );
       const body = res as {
-        workflows?: Workflow[];
+        workflows?: WorkflowListItem[];
         pagination?: { totalPages?: number };
       } | null;
 

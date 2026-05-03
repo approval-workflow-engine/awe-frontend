@@ -33,7 +33,7 @@ import { extractApiError } from "../../utils/apiError";
 import DialogErrorAlert from "../../components/common/DialogErrorAlert";
 import PageHeader from "../../components/common/PageHeader";
 import AppPagination from "../../components/common/AppPagination";
-import type { Workflow } from "../../types";
+import type { WorkflowListItem as Workflow } from "../../api/schemas/workflow";
 import type { Pagination } from "../../api/schemas/common";
 
 export default function WorkflowsPage() {
@@ -298,11 +298,8 @@ export default function WorkflowsPage() {
                     onClick={toggleCreatedSort}
                     sx={{ "& .MuiTableSortLabel-icon": { opacity: 1 } }}
                   >
-                    Date Created
+                    Modified At
                   </TableSortLabel>
-                </TableCell>
-                <TableCell sx={{ fontWeight: 600, fontSize: 12 }}>
-                  Last Modified
                 </TableCell>
                 <TableCell align="right" sx={{ fontWeight: 600, fontSize: 12 }}>
                   Actions
@@ -313,14 +310,14 @@ export default function WorkflowsPage() {
               {listLoading ? (
                 [0, 1, 2, 3].map((i) => (
                   <TableRow key={i}>
-                    <TableCell colSpan={5}>
+                    <TableCell colSpan={4}>
                       <Skeleton variant="rounded" height={36} />
                     </TableCell>
                   </TableRow>
                 ))
               ) : filteredWorkflows.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={5}>
+                  <TableCell colSpan={4}>
                     <Box sx={{ py: 6, textAlign: "center" }}>
                       <Typography
                         sx={{ fontSize: 13, color: "text.secondary" }}
@@ -368,7 +365,7 @@ export default function WorkflowsPage() {
                 filteredWorkflows.map((wf) => {
                   const latestStatus = wf.latestVersion?.status ?? null;
                   const latestVersionId =
-                    wf.latestVersion?.latestVersionId ?? null;
+                    wf.latestVersion?.id ?? null;
 
                   return (
                     <TableRow
@@ -388,7 +385,7 @@ export default function WorkflowsPage() {
                             color: "text.primary",
                           }}
                         >
-                          {wf.name} 
+                          {wf.name}
                         </Typography>
                       </TableCell>
                       <TableCell sx={{ maxWidth: 0, py: 1.25 }}>
@@ -404,6 +401,7 @@ export default function WorkflowsPage() {
                           {wf.description || "-"}
                         </Typography>
                       </TableCell>
+
                       <TableCell>
                         <Typography
                           sx={{
@@ -412,20 +410,10 @@ export default function WorkflowsPage() {
                             color: "text.disabled",
                           }}
                         >
-                          {formatDate(wf.createdAt)}
+                          {formatDate(wf.modifiedAt)}
                         </Typography>
                       </TableCell>
-                      <TableCell>
-                        <Typography
-                          sx={{
-                            fontFamily: "'JetBrains Mono', monospace",
-                            fontSize: 11,
-                            color: "text.disabled",
-                          }}
-                        >
-                          {formatDate(wf.updatedAt)}
-                        </Typography>
-                      </TableCell>
+
                       <TableCell align="right">
                         <Box
                           display="flex"

@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { PaginationSchema, EnvironmentTypeSchema } from "./common";
+import { PaginationSchema, EnvironmentTypeSchema, ActorTypeSchema } from "./common";
 
 export const WorkflowVersionStatusSchema = z.enum([
   "draft",
@@ -182,8 +182,24 @@ export const WorkflowResponseSchema = z.object({
   workflow: WorkflowSchema,
 });
 
+export const WorkflowListLatestVersionSchema = z.object({
+  id: z.string(),
+  version: VersionValueSchema.optional().nullable(),
+  status: WorkflowVersionStatusSchema,
+});
+
+export const WorkflowListItemSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  description: z.string().nullable().optional(),
+  environment: EnvironmentTypeSchema,
+  modifiedAt: z.string().datetime({ message: "Invalid ISO datetime" }),
+  modifiedBy: ActorTypeSchema,
+  latestVersion: WorkflowListLatestVersionSchema.nullable().optional(),
+});
+
 export const WorkflowsResponseSchema = z.object({
-  workflows: z.array(WorkflowSchema),
+  workflows: z.array(WorkflowListItemSchema),
   pagination: PaginationSchema,
 });
 
@@ -248,6 +264,7 @@ export type WorkflowUpdateResponse = z.infer<
   typeof UpdateWorkflowResponseSchema
 >;
 export type WorkflowsResponse = z.infer<typeof WorkflowsResponseSchema>;
+export type WorkflowListItem = z.infer<typeof WorkflowListItemSchema>;
 export type WorkflowVersionListItem = z.infer<
   typeof WorkflowVersionListItemSchema
 >;
