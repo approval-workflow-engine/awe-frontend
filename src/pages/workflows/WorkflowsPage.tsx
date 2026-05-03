@@ -35,6 +35,7 @@ import PageHeader from "../../components/common/PageHeader";
 import AppPagination from "../../components/common/AppPagination";
 import type { WorkflowListItem as Workflow } from "../../api/schemas/workflow";
 import type { Pagination } from "../../api/schemas/common";
+import { getActiveEnvironmentType } from "../../constants/environment";
 
 export default function WorkflowsPage() {
   const navigate = useNavigate();
@@ -138,6 +139,7 @@ export default function WorkflowsPage() {
         workflowService.createWorkflow({
           name: newForm.name.trim(),
           description: newForm.description.trim() || undefined,
+          environment: getActiveEnvironmentType(),
         }),
       {
         showError: false,

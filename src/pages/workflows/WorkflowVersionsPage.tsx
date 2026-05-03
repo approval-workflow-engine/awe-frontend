@@ -37,7 +37,7 @@ import { useApiCall } from "../../hooks/useApiCall";
 import PageHeader from "../../components/common/PageHeader";
 import AppPagination from "../../components/common/AppPagination";
 import { useBackNavigation } from "../../hooks/useBackNavigation";
-import type { Workflow, WorkflowVersion } from "../../types";
+import type { Workflow, WorkflowVersionListItem } from "../../api/schemas/workflow";
 import type { Pagination } from "../../api/schemas/common";
 import type { VersionIncrementType } from "../../api/schemas";
 import {
@@ -143,7 +143,7 @@ export default function WorkflowVersionsPage() {
   const { goBack } = useBackNavigation("/workflows");
 
   const [workflow, setWorkflow] = useState<Workflow | null>(null);
-  const [versions, setVersions] = useState<WorkflowVersion[]>([]);
+  const [versions, setVersions] = useState<WorkflowVersionListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [page, setPage] = useState(0);
@@ -152,28 +152,23 @@ export default function WorkflowVersionsPage() {
   const [hasDraftInWorkflow, setHasDraftInWorkflow] = useState(false);
 
   const [actionTarget, setActionTarget] = useState<{
-    version: WorkflowVersion;
+    version: WorkflowVersionListItem;
     action: LifecycleAction;
   } | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
   const [publishIncrementType, setPublishIncrementType] =
     useState<VersionIncrementType>("major");
-  const [promoteTarget, setPromoteTarget] = useState<WorkflowVersion | null>(
+  const [promoteTarget, setPromoteTarget] = useState<WorkflowVersionListItem | null>(
     null,
   );
   const [promoteLoading, setPromoteLoading] = useState(false);
 
   const activeEnvironmentType = getActiveEnvironmentType();
 
-  const promoteSourceEnvironment = promoteTarget
-    ? getPromotionSourceEnvironment(
-        promoteTarget.environment,
-        activeEnvironmentType,
-      )
-    : null;
-  const promoteDestinationEnvironment = promoteSourceEnvironment
-    ? getNextPromotionTargetEnvironment(promoteSourceEnvironment)
-    : null;
+  // Versions don't carry an environment field; use the parent workflow's environment
+  const workflowEnvironment = (workflow?.environment ?? activeEnvironmentType) as EnvironmentType;
+  const promoteSourceEnvironment = workflowEnvironment;
+  const promoteDestinationEnvironment = getNextPromotionTargetEnvironment(workflowEnvironment);
 
   const fetchData = useCallback(
     async (pageNum = 1, pageSize = 20) => {
@@ -182,44 +177,16 @@ export default function WorkflowVersionsPage() {
       setLoading(true);
 
       try {
-        const workflowRes = await call(
-          () => workflowService.getWorkflow(workflowId),
-          {
-            showError: false,
-          },
-        );
-        const versionsRes = await call(
-          () =>
-            workflowService.getWorkflowVersions(workflowId, {
-              page: pageNum,
-              limit: pageSize,
-            }),
-          { showError: false },
-        );
+        const [workflowRes, versionsRes] = await Promise.all([
+          call(() => workflowService.getWorkflow(workflowId), { showError: false }),
+          call(
+            () => workflowService.getWorkflowVersions(workflowId, { page: pageNum, limit: pageSize }),
+            { showError: false },
+          ),
+        ]);
 
         if (workflowRes) {
-          const wfBody = workflowRes as { workflow?: Workflow } | Workflow;
-          const wf =
-            (wfBody as { workflow?: Workflow }).workflow ??
-            (wfBody as Workflow);
-          setWorkflow(wf || null);
-
-          const workflowVersions =
-            (
-              wf as {
-                versions?: Array<{
-                  status?: string;
-                  version?: number | string;
-                  versionNumber?: number | string;
-                }>;
-              }
-            )?.versions ?? [];
-          setHasDraftInWorkflow(
-            workflowVersions.some((v) => {
-              const status = v.status?.toLowerCase?.() ?? "";
-              return status === "draft" || status === "valid";
-            }),
-          );
+          setWorkflow(workflowRes as Workflow);
         } else {
           goBack();
           return;
@@ -227,11 +194,18 @@ export default function WorkflowVersionsPage() {
 
         if (versionsRes) {
           const body = versionsRes as {
-            versions?: WorkflowVersion[];
+            versions?: WorkflowVersionListItem[];
             pagination?: Pagination;
           };
-          setVersions(body.versions ?? []);
+          const list = body.versions ?? [];
+          setVersions(list);
           setPagination(body.pagination ?? null);
+          setHasDraftInWorkflow(
+            list.some((v) => {
+              const st = v.status?.toLowerCase?.() ?? "";
+              return st === "draft" || st === "valid";
+            }),
+          );
         }
       } finally {
         setLoading(false);
@@ -244,7 +218,7 @@ export default function WorkflowVersionsPage() {
     fetchData(page + 1, limit);
   }, [fetchData, page, limit]);
 
-  const normalizeStatus = (v: WorkflowVersion) =>
+  const normalizeStatus = (v: WorkflowVersionListItem) =>
     v.status?.toLowerCase?.() || "draft";
 
   const hasDraft = hasDraftInWorkflow;
@@ -261,24 +235,18 @@ export default function WorkflowVersionsPage() {
     setPage(0);
   };
 
-  const openAction = (version: WorkflowVersion, action: LifecycleAction) => {
+  const openAction = (version: WorkflowVersionListItem, action: LifecycleAction) => {
     setActionTarget({ version, action });
   };
 
   const handlePromote = async () => {
-    if (
-      !promoteTarget ||
-      !promoteSourceEnvironment ||
-      !promoteDestinationEnvironment
-    ) {
-      return;
-    }
+    if (!promoteTarget || !promoteDestinationEnvironment) return;
 
     setPromoteLoading(true);
     const promoted = await call(
       () => workflowService.promoteWorkflowVersion(promoteTarget.id),
       {
-        successMsg: `v${promoteTarget.versionNumber} promoted from ${ENV_DISPLAY[promoteSourceEnvironment]} to ${ENV_DISPLAY[promoteDestinationEnvironment]}.`,
+        successMsg: `v${promoteTarget.version ?? "-"} promoted from ${ENV_DISPLAY[promoteSourceEnvironment]} to ${ENV_DISPLAY[promoteDestinationEnvironment]}.`,
       },
     );
     setPromoteLoading(false);
@@ -306,7 +274,7 @@ export default function WorkflowVersionsPage() {
               publishIncrementType,
             ),
           {
-            successMsg: `v${version.versionNumber} committed (${publishIncrementType} release).`,
+            successMsg: `v${version.version ?? "-"} committed (${publishIncrementType} release).`,
           },
         );
         setActionTarget(null);
@@ -314,7 +282,7 @@ export default function WorkflowVersionsPage() {
       } else if (action === "activate") {
         await call(
           () => workflowService.updateVersionStatus(version.id, "active"),
-          { successMsg: `v${version.versionNumber} is now active.` },
+          { successMsg: `v${version.version ?? "-"} is now active.` },
         );
         setActionTarget(null);
         fetchData();
@@ -322,7 +290,7 @@ export default function WorkflowVersionsPage() {
         await call(
           () => workflowService.updateVersionStatus(version.id, "published"),
           {
-            successMsg: `v${version.versionNumber} deactivated and moved back to Committed.`,
+            successMsg: `v${version.version ?? "-"} deactivated and moved back to Committed.`,
           },
         );
         setActionTarget(null);
@@ -330,7 +298,7 @@ export default function WorkflowVersionsPage() {
       } else if (action === "clone") {
         const cloned = await call(
           () => workflowService.cloneWorkflowVersion(version.id),
-          { successMsg: `v${version.versionNumber} cloned as a new draft.` },
+          { successMsg: `v${version.version ?? "-"} cloned as a new draft.` },
         );
 
         const clonedBody = (cloned ?? {}) as {
@@ -374,10 +342,10 @@ export default function WorkflowVersionsPage() {
     const q = searchQuery.toLowerCase();
     const st = normalizeStatus(v);
     return (
-      `v${v.versionNumber}`.includes(q) ||
+      `v${v.version}`.includes(q) ||
       st.includes(q) ||
       (STATUS_LABELS[st] ?? st).toLowerCase().includes(q) ||
-      formatDate(v.createdAt).toLowerCase().includes(q)
+      formatDate(v.modifiedAt).toLowerCase().includes(q)
     );
   });
 
@@ -523,9 +491,11 @@ export default function WorkflowVersionsPage() {
                   const isCommitted = st === "published";
                   const isActive = st === "active";
                   const canClone = isCommitted || isActive;
+                  // All versions in a workflow share the same environment as the parent workflow
+                  const versionEnvironment = workflowEnvironment;
                   const promotionSourceEnvironment =
                     getPromotionSourceEnvironment(
-                      v.environment,
+                      versionEnvironment,
                       activeEnvironmentType,
                     );
                   const promotionTargetEnvironment =
@@ -561,7 +531,7 @@ export default function WorkflowVersionsPage() {
                             color: "text.primary",
                           }}
                         >
-                          {v.versionNumber? "v" : ""}{v.versionNumber ?? "-"}
+                         {v.version ? "v" : ""}{v.version ?? "-"}
                         </Typography>
                       </TableCell>
 
@@ -589,7 +559,7 @@ export default function WorkflowVersionsPage() {
                             color: "text.disabled",
                           }}
                         >
-                          {formatDate(v.createdAt)}
+                          {formatDate(v.modifiedAt)}
                         </Typography>
                       </TableCell>
                       
@@ -613,7 +583,7 @@ export default function WorkflowVersionsPage() {
                           justifyContent="flex-end"
                           gap={0.75}
                         >
-                          {(isCommitted || isActive) && (v.environment === "development" || v.environment === "staging") && (
+                          {(isCommitted || isActive) && (versionEnvironment === "development" || versionEnvironment === "staging") && (
                             <Tooltip title={promoteTooltip}>
                               <span>
                                 <IconButton
@@ -755,7 +725,7 @@ export default function WorkflowVersionsPage() {
                 fontSize: 16,
               }}
             >
-              {cfg.title(actionTarget.version.versionNumber ?? "-")}
+              {cfg.title(actionTarget.version.version ?? "-")}
             </DialogTitle>
             <DialogContent sx={{ pt: "8px !important" }}>
               <Typography sx={{ fontSize: 13, color: "text.secondary" }}>
@@ -826,7 +796,7 @@ export default function WorkflowVersionsPage() {
         maxWidth="xs"
         fullWidth
       >
-        {promoteTarget && promoteSourceEnvironment && (
+        {promoteTarget && (
           <>
             <DialogTitle
               sx={{
@@ -835,7 +805,7 @@ export default function WorkflowVersionsPage() {
                 fontSize: 16,
               }}
             >
-              Promote v{promoteTarget.versionNumber}?
+              Promote v{promoteTarget.version ?? "-"}?
             </DialogTitle>
             <DialogContent sx={{ pt: "8px !important" }}>
               <Typography sx={{ fontSize: 13, color: "text.secondary" }}>

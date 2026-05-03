@@ -398,6 +398,10 @@ class ApiClient {
   ): Promise<T> {
     try {
       const response = await this.client.delete(endpoint, config);
+      // 204 No Content — skip validation, return empty object
+      if (response.status === 204 || response.data == null) {
+        return {} as T;
+      }
       return this.validateResponse(response.data, responseSchema);
     } catch (error) {
       this.handleApiError(error);

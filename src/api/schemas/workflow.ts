@@ -129,33 +129,21 @@ export const WorkflowVersionCloneResponseSchema = z
   })
   .passthrough();
 
-const WorkflowLatestVersionSchema = z.object({
-  latestVersionId: z.uuid().nullable(),
-  status: WorkflowVersionStatusSchema.nullable(),
-  latestVersionNumber: VersionValueSchema.optional(),
-});
+// Shared single-workflow response shape (GET /workflows/:id, POST /workflows, PATCH /workflows/:id)
+export const WorkflowDetailLatestVersionSchema = z.object({
+  id: z.string(),
+  version: VersionValueSchema.optional().nullable(),
+  status: WorkflowVersionStatusSchema,
+}).nullable();
 
 export const WorkflowSchema = z.object({
   id: z.string(),
   name: z.string(),
-  description: z.string().nullable().optional(),
-  environment: EnvironmentTypeSchema.optional(),
-  createdAt: z.string().datetime({ message: "Invalid ISO datetime" }),
-  updatedAt: z.string().datetime({ message: "Invalid ISO datetime" }).optional(),
-  latestVersion: WorkflowLatestVersionSchema.optional(),
-  versions: z
-    .array(
-      z.object({
-        id: z.string(),
-        version: VersionValueSchema,
-        status: WorkflowVersionStatusSchema,
-        description: z.string().nullable().optional(),
-        publishedAt: z.string().datetime({ message: "Invalid ISO datetime" }).nullable().optional(),
-        createdAt: z.string().datetime({ message: "Invalid ISO datetime" }),
-        updatedAt: z.string().datetime({ message: "Invalid ISO datetime" }),
-      }),
-    )
-    .optional(),
+  description: z.string().nullable(),
+  environment: EnvironmentTypeSchema,
+  modifiedAt: z.string().datetime({ message: "Invalid ISO datetime" }),
+  modifiedBy: ActorTypeSchema,
+  latestVersion: WorkflowDetailLatestVersionSchema,
 });
 
 export const WorkflowVersionSchema = WorkflowVersionDetailResponseSchema;
@@ -163,24 +151,17 @@ export const WorkflowVersionSchema = WorkflowVersionDetailResponseSchema;
 export const CreateWorkflowRequestSchema = z.object({
   name: z.string().max(255),
   description: z.string().optional(),
+  environment: EnvironmentTypeSchema,
 });
 
 export const UpdateWorkflowRequestSchema = z.object({
   name: z.string().max(255).optional(),
-  description: z.string().optional(),
-});
-
-export const UpdateWorkflowResponseSchema = z.object({
-  id: z.string(),
-  name: z.string(),
   description: z.string().nullable().optional(),
-  environment: EnvironmentTypeSchema.optional(),
-  updatedAt: z.string().datetime(),
 });
 
-export const WorkflowResponseSchema = z.object({
-  workflow: WorkflowSchema,
-});
+// Single workflow response — same shape for GET, POST, PATCH
+export const UpdateWorkflowResponseSchema = WorkflowSchema;
+export const WorkflowResponseSchema = WorkflowSchema;
 
 export const WorkflowListLatestVersionSchema = z.object({
   id: z.string(),
@@ -205,14 +186,12 @@ export const WorkflowsResponseSchema = z.object({
 
 export const WorkflowVersionListItemSchema = z.object({
   id: z.string(),
-  workflowId: z.string(),
-  versionNumber: VersionValueSchema.optional(),
+  version: VersionValueSchema,
+  description: z.string().nullable(),
   status: WorkflowVersionStatusSchema,
-  description: z.string().nullable().optional(),
-  publishedAt: z.string().datetime().nullable().optional(),
-  environment: EnvironmentTypeSchema.optional(),
-  createdAt: z.string().datetime(),
-  updatedAt: z.string().datetime(),
+  publishedAt: z.string().datetime().nullable(),
+  modifiedAt: z.string().datetime(),
+  modifiedBy: ActorTypeSchema,
 });
 
 export const WorkflowVersionsResponseSchema = z.object({
@@ -260,9 +239,7 @@ export type WorkflowVersion = z.infer<typeof WorkflowVersionSchema>;
 export type CreateWorkflowRequest = z.infer<typeof CreateWorkflowRequestSchema>;
 export type UpdateWorkflowRequest = z.infer<typeof UpdateWorkflowRequestSchema>;
 export type WorkflowResponse = z.infer<typeof WorkflowResponseSchema>;
-export type WorkflowUpdateResponse = z.infer<
-  typeof UpdateWorkflowResponseSchema
->;
+export type WorkflowUpdateResponse = z.infer<typeof UpdateWorkflowResponseSchema>;
 export type WorkflowsResponse = z.infer<typeof WorkflowsResponseSchema>;
 export type WorkflowListItem = z.infer<typeof WorkflowListItemSchema>;
 export type WorkflowVersionListItem = z.infer<
