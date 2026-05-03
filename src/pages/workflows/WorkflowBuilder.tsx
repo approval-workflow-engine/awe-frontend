@@ -35,6 +35,7 @@ import VisibilityIcon from "@mui/icons-material/Visibility";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import ArrowDropDownIcon from "@mui/icons-material/ArrowDropDown";
 import { secretService } from "../../api/services/secrets";
+import type { SecretItem } from "../../api/schemas/secrets";
 
 import { workflowService } from "../../api/services/workflow";
 import type { VersionIncrementType } from "../../api/schemas";
@@ -50,11 +51,24 @@ import { useBuilderCanvas } from "./builder/hooks/useBuilderCanvas";
 import { useBuilderActions } from "./builder/hooks/useBuilderActions";
 import { definitionToCanvas } from "./builder/utils/serialization";
 import { buildStartNode } from "./builder/utils/nodeHelpers";
-import { useBackNavigation } from "../../hooks/useBackNavigation";
+
 import {
   VERSION_STATUS_COLOR,
   VERSION_STATUS_BG,
 } from "./builder/config/constants";
+import type { AvailableCtxVar } from "./builder/config/context";
+import {
+  NotFoundState,
+  ForbiddenState,
+  ErrorState,
+  LoadingState,
+} from "../../components/common/states";
+
+type ContextPanelVar = {
+  name: string;
+  type: string;
+  source: string;
+};
 
 const VERSION_STATUS_LABELS: Record<string, string> = {
   draft: "Draft",
@@ -69,9 +83,8 @@ export default function WorkflowBuilder() {
     versionId?: string;
   }>();
   const navigate = useNavigate();
-  const { call } = useApiCall();
+  const { call, error, notFound, forbidden } = useApiCall();
   const { mode, toggleTheme } = useThemeMode();
-  const { goBack } = useBackNavigation("/workflows");
 
   const [workflowName, setWorkflowName] = useState("");
   const [loadedVersionNumber, setLoadedVersionNumber] = useState<
@@ -95,11 +108,13 @@ export default function WorkflowBuilder() {
   >("commit");
   const [releaseIncrementType, setReleaseIncrementType] =
     useState<VersionIncrementType>("major");
-  const [canvasLoading, setCanvasLoading] = useState(() => !!versionId);
+  const [canvasLoading, setCanvasLoading] = useState(() => !!versionId || !!workflowId);
   const [configPanelWidth, setConfigPanelWidth] = useState(320);
   const [isResizingConfig, setIsResizingConfig] = useState(false);
   const configResizeOriginRef = useRef({ x: 0, width: 320 });
-  const [allAvailableSecrets, setAllAvailableSecrets] = useState<any[]>([]);
+  const [allAvailableSecrets, setAllAvailableSecrets] = useState<
+    AvailableCtxVar[]
+  >([]);
 
   const {
     nodes,
@@ -170,7 +185,6 @@ export default function WorkflowBuilder() {
     setSavedVersionNumber,
     setLoadedVersionNumber,
     setVersionStatus,
-    isDirty,
     setIsDirty,
     nodes,
     edges,
@@ -228,64 +242,62 @@ export default function WorkflowBuilder() {
     };
   }, [isResizingConfig, handleConfigWidthChange]);
 
-  useEffect(() => {
+  const fetchWorkflowData = useCallback(async () => {
     if (!workflowId) return;
     setMarkDirtyEnabled(false);
-    (async () => {
-      const wfRes = await call(() => workflowService.getWorkflow(workflowId), {
+    setCanvasLoading(true);
+    
+    const wfRes = await call(() => workflowService.getWorkflow(workflowId), {
+      showError: false,
+    });
+    if (!wfRes) {
+      setCanvasLoading(false);
+      return;
+    }
+    if (wfRes) {
+      const body = wfRes as { name?: string; workflow?: { name?: string } };
+      setWorkflowName(body?.workflow?.name ?? body?.name ?? "Workflow");
+    }
+
+    if (versionId) {
+      const vRes = await call(() => workflowService.getVersion(versionId), {
         showError: false,
       });
-      if (!wfRes) {
-        goBack();
+      if (!vRes) {
+        setCanvasLoading(false);
         return;
       }
-      if (wfRes) {
-        const body = wfRes as { name?: string; workflow?: { name?: string } };
-        setWorkflowName(body?.workflow?.name ?? body?.name ?? "Workflow");
-      }
-
-      if (versionId) {
-        const vRes = await call(() => workflowService.getVersion(versionId), {
-          showError: false,
-        });
-        if (!vRes) {
-          goBack();
-          return;
-        }
-        if (vRes) {
-          const vRaw = vRes as Record<string, unknown>;
-          const vData: Record<string, unknown> =
-            vRaw.version && typeof vRaw.version === "object"
-              ? (vRaw.version as Record<string, unknown>)
-              : vRaw;
-          if (vData) {
-            const { nodes: n, edges: e, inputs: i } = definitionToCanvas(vData);
-            hydrateCanvas(n.length > 0 ? n : [buildStartNode()], e, i);
-            const vn =
-              (vData.versionNumber as number | string | null | undefined) ??
-              (vData.version as number | string | null | undefined) ??
-              loadedVersionNumber;
-            if (typeof vn === "number" || typeof vn === "string") {
-              setLoadedVersionNumber(vn);
-              setSavedVersionNumber(vn);
-            }
-            setSavedVersionId((vData.id as string) ?? versionId);
-            setVersionStatus(
-              (vData.status as string)?.toLowerCase?.() || "draft",
-            );
+      if (vRes) {
+        const vRaw = vRes as Record<string, unknown>;
+        const vData: Record<string, unknown> =
+          vRaw.version && typeof vRaw.version === "object"
+            ? (vRaw.version as Record<string, unknown>)
+            : vRaw;
+        if (vData) {
+          const { nodes: n, edges: e, inputs: i } = definitionToCanvas(vData);
+          hydrateCanvas(n.length > 0 ? n : [buildStartNode()], e, i);
+          const vn =
+            (vData.versionNumber as number | string | null | undefined) ??
+            (vData.version as number | string | null | undefined) ??
+            loadedVersionNumber;
+          if (typeof vn === "number" || typeof vn === "string") {
+            setLoadedVersionNumber(vn);
+            setSavedVersionNumber(vn);
           }
+          setSavedVersionId((vData.id as string) ?? versionId);
+          setVersionStatus(
+            (vData.status as string)?.toLowerCase?.() || "draft",
+          );
         }
       }
+    }
 
-      setMarkDirtyEnabled(true);
-      setCanvasLoading(false);
-    })();
+    setMarkDirtyEnabled(true);
+    setCanvasLoading(false);
   }, [
     workflowId,
     versionId,
     call,
-    navigate,
-    goBack,
     setMarkDirtyEnabled,
     setWorkflowName,
     hydrateCanvas,
@@ -297,16 +309,25 @@ export default function WorkflowBuilder() {
   ]);
 
   useEffect(() => {
+    fetchWorkflowData();
+  }, [fetchWorkflowData]);
+
+  useEffect(() => {
     const fetchSecrets = async () => {
       try {
         const response = await call(() => secretService.list(), { showError: false });
         if (response?.secrets) {
-          const transformed = response.secrets.map((s: any) => ({
-            id: s.id,
-            name: s.label,
-            type: "string",
-            sourceNode: "Secret Management",
-          }));
+          const transformed = response.secrets
+            .filter(
+              (secret): secret is SecretItem & { id: string } =>
+                typeof secret.id === "string",
+            )
+            .map((secret) => ({
+              id: secret.id,
+              name: secret.label,
+              type: "string",
+              sourceNode: "Secret Management",
+            }));
           setAllAvailableSecrets(transformed);
         }
       } catch (err) {
@@ -317,22 +338,39 @@ export default function WorkflowBuilder() {
   }, [call]);
 
   const mappedSecrets = useMemo(() => {
-    const startNode = nodes.find((n: any) => n.type === "start");
+    const startNode = nodes.find((n) => n.type === "start");
     if (!startNode?.config?.secretDataMap) return [];
-    
-    const sdm = startNode.config.secretDataMap as Array<{ secretKey: string; secretId: string }>;
-    return sdm
-      .map(row => {
-        const secret = allAvailableSecrets.find(s => s.id === row.secretId);
-        if (!secret) return null;
-        return {
+
+    const secretDataMap = (startNode.config.secretDataMap as Array<{
+      secretKey?: string;
+      secretId?: string;
+    }>) ?? [];
+
+    return secretDataMap.flatMap((row): AvailableCtxVar[] => {
+      if (!row.secretKey || !row.secretId) return [];
+
+      const secret = allAvailableSecrets.find((s) => s.id === row.secretId);
+      if (!secret) return [];
+
+      return [
+        {
           name: row.secretKey,
           type: "string",
           sourceNode: "Start Node (Mapped)",
-        };
-      })
-      .filter(Boolean) as any[];
+        },
+      ];
+    });
   }, [nodes, allAvailableSecrets]);
+
+  const mappedSecretsForContextPanel = useMemo<ContextPanelVar[]>(
+    () =>
+      mappedSecrets.map((secretVar) => ({
+        name: secretVar.name,
+        type: secretVar.type,
+        source: secretVar.sourceNode,
+      })),
+    [mappedSecrets],
+  );
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -432,6 +470,18 @@ export default function WorkflowBuilder() {
     ) ?? null;
 
   const codeEditorOpen = codeEditorOpenState && !!selectedScriptNode;
+
+  if (notFound) return <NotFoundState message={error || "Workflow or version not found"} />;
+  if (forbidden) return <ForbiddenState message={error || "You do not have access to this workflow"} />;
+  if (error && !workflowName) return <ErrorState message={error} onRetry={fetchWorkflowData} />;
+
+  if (canvasLoading) {
+    return (
+      <Box sx={{ display: 'flex', height: '100vh', alignItems: 'center', justifyContent: 'center' }}>
+        <LoadingState text="Loading workflow builder..." />
+      </Box>
+    );
+  }
 
   return (
     <Box
@@ -1044,7 +1094,7 @@ export default function WorkflowBuilder() {
             <ContextVarsPanel
               nodes={nodes}
               inputs={inputs}
-              availableSecrets={mappedSecrets}
+              availableSecrets={mappedSecretsForContextPanel}
             />
           </Box>
 

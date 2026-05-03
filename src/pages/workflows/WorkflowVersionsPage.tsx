@@ -25,8 +25,7 @@ import {
   Select,
   MenuItem,
 } from "@mui/material";
-import EditIcon from "@mui/icons-material/Edit";
-import VisibilityIcon from "@mui/icons-material/Visibility";
+
 import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
 import BoltIcon from "@mui/icons-material/Bolt";
 import PowerSettingsNewIcon from "@mui/icons-material/PowerSettingsNew";
@@ -45,6 +44,11 @@ import {
   getActiveEnvironmentType,
   type EnvironmentType,
 } from "../../constants/environment";
+import {
+  NotFoundState,
+  ForbiddenState,
+  ErrorState,
+} from "../../components/common/states";
 
 type LifecycleAction = "commit" | "activate" | "deactivate" | "clone";
 
@@ -110,7 +114,9 @@ const ENV_DISPLAY: Record<EnvironmentType, string> = {
 };
 
 const isEnvironmentType = (value: unknown): value is EnvironmentType => {
-  return value === "development" || value === "staging" || value === "production";
+  return (
+    value === "development" || value === "staging" || value === "production"
+  );
 };
 
 const getPromotionSourceEnvironment = (
@@ -133,7 +139,7 @@ const getNextPromotionTargetEnvironment = (
 export default function WorkflowVersionsPage() {
   const { workflowId } = useParams<{ workflowId: string }>();
   const navigate = useNavigate();
-  const { call } = useApiCall();
+  const { call, error, notFound, forbidden } = useApiCall();
   const { goBack } = useBackNavigation("/workflows");
 
   const [workflow, setWorkflow] = useState<Workflow | null>(null);
@@ -260,7 +266,11 @@ export default function WorkflowVersionsPage() {
   };
 
   const handlePromote = async () => {
-    if (!promoteTarget || !promoteSourceEnvironment || !promoteDestinationEnvironment) {
+    if (
+      !promoteTarget ||
+      !promoteSourceEnvironment ||
+      !promoteDestinationEnvironment
+    ) {
       return;
     }
 
@@ -373,6 +383,10 @@ export default function WorkflowVersionsPage() {
 
   const cfg = actionTarget ? ACTION_CONFIG[actionTarget.action] : null;
 
+  if (notFound) return <NotFoundState message={error || "Workflow not found"} />;
+  if (forbidden) return <ForbiddenState message={error || "You do not have access to this workflow"} />;
+  if (error && !workflow) return <ErrorState message={error} onRetry={() => fetchData(page + 1, limit)} />;
+
   return (
     <Box>
       <PageHeader
@@ -435,6 +449,7 @@ export default function WorkflowVersionsPage() {
                 <TableCell>Version</TableCell>
                 <TableCell>Status</TableCell>
                 <TableCell>Created</TableCell>
+                <TableCell>Published</TableCell>
                 <TableCell align="right" sx={{ width: 140 }}>
                   Actions
                 </TableCell>
@@ -445,7 +460,7 @@ export default function WorkflowVersionsPage() {
               {loading ? (
                 [0, 1, 2].map((i) => (
                   <TableRow key={i}>
-                    <TableCell colSpan={4}>
+                    <TableCell colSpan={5}>
                       <Skeleton height={36} />
                     </TableCell>
                   </TableRow>
@@ -504,18 +519,19 @@ export default function WorkflowVersionsPage() {
               ) : (
                 filteredVersions.map((v) => {
                   const st = normalizeStatus(v);
-                  const isDraft = st === "draft";
                   const isValid = st === "valid";
                   const isCommitted = st === "published";
                   const isActive = st === "active";
                   const canClone = isCommitted || isActive;
-                  const promotionSourceEnvironment = getPromotionSourceEnvironment(
-                    v.environment,
-                    activeEnvironmentType,
-                  );
-                  const promotionTargetEnvironment = getNextPromotionTargetEnvironment(
-                    promotionSourceEnvironment,
-                  );
+                  const promotionSourceEnvironment =
+                    getPromotionSourceEnvironment(
+                      v.environment,
+                      activeEnvironmentType,
+                    );
+                  const promotionTargetEnvironment =
+                    getNextPromotionTargetEnvironment(
+                      promotionSourceEnvironment,
+                    );
                   const canPromote =
                     (isCommitted || isActive) &&
                     Boolean(promotionTargetEnvironment);
@@ -528,7 +544,14 @@ export default function WorkflowVersionsPage() {
                   };
 
                   return (
-                    <TableRow key={v.id} hover>
+                    <TableRow
+                      key={v.id}
+                      hover
+                      onClick={() =>
+                        navigate(`/workflows/${workflowId}/builder/${v.id}`)
+                      }
+                      style={{ cursor: "pointer" }}
+                    >
                       <TableCell>
                         <Typography
                           sx={{
@@ -538,7 +561,7 @@ export default function WorkflowVersionsPage() {
                             color: "text.primary",
                           }}
                         >
-                          v{v.versionNumber}
+                          {v.versionNumber? "v" : ""}{v.versionNumber ?? "-"}
                         </Typography>
                       </TableCell>
 
@@ -569,6 +592,19 @@ export default function WorkflowVersionsPage() {
                           {formatDate(v.createdAt)}
                         </Typography>
                       </TableCell>
+                      
+                      <TableCell>
+                        <Typography
+                          sx={{
+                            fontFamily: "'JetBrains Mono', monospace",
+                            fontSize: 11,
+                            color: "text.disabled",
+                          }}
+                        >
+                          {formatDate(v.publishedAt)}
+                        </Typography>
+                      </TableCell>
+
 
                       <TableCell align="right">
                         <Box
@@ -577,21 +613,24 @@ export default function WorkflowVersionsPage() {
                           justifyContent="flex-end"
                           gap={0.75}
                         >
-                          {(isCommitted || isActive) && (
+                          {(isCommitted || isActive) && (v.environment === "development" || v.environment === "staging") && (
                             <Tooltip title={promoteTooltip}>
                               <span>
                                 <IconButton
                                   size="small"
                                   disabled={!canPromote || promoteLoading}
-                                  onClick={() => setPromoteTarget(v)}
+                                  onClick={(e) => { e.stopPropagation(); setPromoteTarget(v); }}
                                   sx={{
                                     color: "text.disabled",
                                     "&:hover": {
-                                      color: canPromote ? "#f59e0b" : "text.disabled",
+                                      color: canPromote
+                                        ? "#f59e0b"
+                                        : "text.disabled",
                                     },
                                   }}
                                 >
-                                  {promoteLoading && promoteTarget?.id === v.id ? (
+                                  {promoteLoading &&
+                                  promoteTarget?.id === v.id ? (
                                     <CircularProgress size={14} />
                                   ) : (
                                     <ArrowUpwardIcon fontSize="small" />
@@ -601,38 +640,11 @@ export default function WorkflowVersionsPage() {
                             </Tooltip>
                           )}
 
-                          <Tooltip
-                            title={
-                              isDraft || isValid
-                                ? "Edit in Builder"
-                                : "View in Builder"
-                            }
-                          >
-                            <IconButton
-                              size="small"
-                              onClick={() =>
-                                navigate(
-                                  `/workflows/${workflowId}/builder/${v.id}`,
-                                )
-                              }
-                              sx={{
-                                color: "text.disabled",
-                                "&:hover": { color: "primary.main" },
-                              }}
-                            >
-                              {isDraft || isValid ? (
-                                <EditIcon fontSize="small" />
-                              ) : (
-                                <VisibilityIcon fontSize="small" />
-                              )}
-                            </IconButton>
-                          </Tooltip>
-
                           {isValid && (
                             <Tooltip title="Commit (lock for activation)">
                               <IconButton
                                 size="small"
-                                onClick={() => openAction(v, "commit")}
+                                onClick={(e) => { e.stopPropagation(); openAction(v, "commit"); }}
                                 sx={{
                                   color: "text.disabled",
                                   "&:hover": { color: "#f59e0b" },
@@ -647,7 +659,7 @@ export default function WorkflowVersionsPage() {
                             <Tooltip title="Activate (make live)">
                               <IconButton
                                 size="small"
-                                onClick={() => openAction(v, "activate")}
+                                onClick={(e) => { e.stopPropagation(); openAction(v, "activate"); }}
                                 sx={{
                                   color: "text.disabled",
                                   "&:hover": { color: "#22c55e" },
@@ -662,7 +674,7 @@ export default function WorkflowVersionsPage() {
                             <Tooltip title="Deactivate (move back to Committed)">
                               <IconButton
                                 size="small"
-                                onClick={() => openAction(v, "deactivate")}
+                                onClick={(e) => { e.stopPropagation(); openAction(v, "deactivate"); }}
                                 sx={{
                                   color: "text.disabled",
                                   "&:hover": { color: "#ef4444" },
@@ -677,7 +689,7 @@ export default function WorkflowVersionsPage() {
                             <Tooltip title="Clone as new draft">
                               <IconButton
                                 size="small"
-                                onClick={() => openAction(v, "clone")}
+                                onClick={(e) => { e.stopPropagation(); openAction(v, "clone"); }}
                                 sx={{
                                   color: "text.disabled",
                                   "&:hover": { color: "#3b82f6" },

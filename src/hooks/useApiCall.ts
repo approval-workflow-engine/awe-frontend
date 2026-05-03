@@ -1,7 +1,7 @@
 import { useState, useCallback } from "react";
 import { useSnackbar } from "notistack";
 import type { AxiosResponse } from "axios";
-import { extractApiError } from "../utils/apiError";
+import { ApiClientError } from "../api/client";
 
 interface ApiCallOptions {
   onSuccess?: (data: unknown) => void;
@@ -15,6 +15,9 @@ interface ApiCallOptions {
 interface UseApiCallReturn {
   loading: boolean;
   error: string | null;
+  notFound: boolean;
+  forbidden: boolean;
+  unauthorized: boolean;
   call: <T = unknown>(
     apiFn: () => Promise<AxiosResponse<T>> | Promise<T>,
     options?: ApiCallOptions,
@@ -24,6 +27,9 @@ interface UseApiCallReturn {
 export function useApiCall(): UseApiCallReturn {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [notFound, setNotFound] = useState(false);
+  const [forbidden, setForbidden] = useState(false);
+  const [unauthorized, setUnauthorized] = useState(false);
   const { enqueueSnackbar } = useSnackbar();
 
   const call = useCallback(
@@ -39,9 +45,13 @@ export function useApiCall(): UseApiCallReturn {
         showError = true,
         silent = false,
       } = options;
+      
       if (!silent) {
         setLoading(true);
         setError(null);
+        setNotFound(false);
+        setForbidden(false);
+        setUnauthorized(false);
       }
       try {
         const response = await apiFn();
@@ -75,13 +85,33 @@ export function useApiCall(): UseApiCallReturn {
         if (onSuccess) onSuccess(payload);
         return payload;
       } catch (err: unknown) {
-        const message = extractApiError(err);
+        let message = "Request failed";
+        let isNotFound = false;
+        let isForbidden = false;
+        let isUnauthorized = false;
+
+        if (err instanceof ApiClientError) {
+          message = err.message;
+          isNotFound = err.isNotFound;
+          isForbidden = err.isForbidden;
+          isUnauthorized = err.isUnauthorized;
+        } else if (err instanceof Error) {
+          message = err.message;
+        }
+
         if (!silent) {
+          if (isNotFound) setNotFound(true);
+          if (isForbidden) setForbidden(true);
+          if (isUnauthorized) setUnauthorized(true);
+          
           setError(message);
-          if (showError) {
+          
+          // Don't show toast for 404 and 403 because they have dedicated UI states usually
+          if (showError && !isNotFound && !isForbidden && !isUnauthorized) {
             enqueueSnackbar(errorMsg || message, { variant: "error" });
           }
         }
+        
         if (onError) onError(err);
         return null;
       } finally {
@@ -91,5 +121,6 @@ export function useApiCall(): UseApiCallReturn {
     [enqueueSnackbar],
   );
 
-  return { loading, error, call };
+  return { loading, error, notFound, forbidden, unauthorized, call };
 }
+

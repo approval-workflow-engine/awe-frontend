@@ -9,8 +9,6 @@ import {
   ListItemText,
   Typography,
   IconButton,
-  Divider,
-  Avatar,
   Tooltip,
 } from "@mui/material";
 import DashboardIcon from "@mui/icons-material/Dashboard";
@@ -55,14 +53,10 @@ interface AppSidebarProps {
 export default function AppSidebar({
   collapsed,
   activePath,
-  userName,
-  userEmail,
   onNavigate,
   onToggleCollapse,
 }: AppSidebarProps) {
   const width = collapsed ? COLLAPSED_WIDTH : EXPANDED_WIDTH;
-  const avatarLabel = (userName || userEmail || "U")[0]?.toUpperCase() ?? "U";
-  const displayName = userName || "User";
 
   const isActive = (path: string) => activePath.startsWith(path);
 
@@ -104,27 +98,34 @@ export default function AppSidebar({
                 sx={{
                   fontFamily: "'Syne', sans-serif",
                   fontWeight: 700,
-                  fontSize: 16,
+                  fontSize: 18,
                   color: "text.primary",
                   lineHeight: 1,
                 }}
               >
                 AWE
               </Typography>
+            </Box>
+          </Box>
+        )}
+        {collapsed && (
+          <Box display="flex" flexDirection="column" alignItems="center" gap={1}>
+            <Logo />
+            <Box>
               <Typography
                 sx={{
-                  fontSize: "9px",
-                  color: "text.disabled",
-                  fontFamily: "'JetBrains Mono', monospace",
-                  lineHeight: 1.4,
+                  fontFamily: "'Syne', sans-serif",
+                  fontWeight: 700,
+                  fontSize: 12,
+                  color: "text.primary",
+                  lineHeight: 1,
                 }}
               >
-                v1.0.0
+                AWE
               </Typography>
             </Box>
           </Box>
         )}
-        {collapsed && <Logo />}
 
         {!collapsed && (
           <IconButton
@@ -149,7 +150,7 @@ export default function AppSidebar({
         </Box>
       )}
 
-      <Box sx={{ flex: 1, overflowY: "auto", py: 1 }}>
+      <Box sx={{ flex: 1, overflowY: "auto", pb: 1 }}>
         <List disablePadding>
           {NAV_ITEMS.map((item) => {
             const active = isActive(item.path);
@@ -207,67 +208,6 @@ export default function AppSidebar({
             );
           })}
         </List>
-      </Box>
-
-      <Divider />
-
-      <Box
-        sx={{
-          display: "flex",
-          alignItems: "center",
-          gap: 1.5,
-          px: collapsed ? 1 : 2,
-          py: 1.5,
-          justifyContent: collapsed ? "center" : "flex-start",
-          "&:hover": { backgroundColor: "action.hover" },
-        }}
-      >
-        <Tooltip title={collapsed ? displayName : ""} placement="right">
-          <Avatar
-            sx={{
-              width: 32,
-              height: 32,
-              backgroundColor: "rgba(79,110,247,0.2)",
-              fontSize: 13,
-              fontWeight: 700,
-              color: "primary.main",
-              flexShrink: 0,
-            }}
-          >
-            {avatarLabel}
-          </Avatar>
-        </Tooltip>
-
-        {!collapsed && (
-          <>
-            <Box flex={1} minWidth={0}>
-              <Typography
-                sx={{
-                  fontSize: 13,
-                  fontWeight: 600,
-                  color: "text.primary",
-                  lineHeight: 1.2,
-                  whiteSpace: "nowrap",
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                }}
-              >
-                {displayName}
-              </Typography>
-              <Typography
-                sx={{
-                  fontSize: 11,
-                  color: "text.secondary",
-                  whiteSpace: "nowrap",
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                }}
-              >
-                {userEmail || ""}
-              </Typography>
-            </Box>
-          </>
-        )}
       </Box>
     </Drawer>
   );

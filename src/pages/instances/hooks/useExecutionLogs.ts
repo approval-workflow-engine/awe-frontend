@@ -57,7 +57,7 @@ export function useExecutionLogs({
   );
 
   const fetchTaskDetail = useCallback(
-    async (targetInstanceId: string, taskId: string | null, silent = false) => {
+    async (taskId: string | null, silent = false) => {
       if (!taskId) {
         setSelectedTaskDetail(null);
         return;
@@ -69,7 +69,6 @@ export function useExecutionLogs({
 
       try {
         const response = await instanceService.getTaskDetail(
-          targetInstanceId,
           taskId,
         );
         setSelectedTaskDetail(response ?? null);
@@ -128,7 +127,7 @@ export function useExecutionLogs({
     }
 
     setSelectedTaskDetail(null);
-    fetchTaskDetail(instanceId, selectedExecutionNode.taskId ?? null);
+    fetchTaskDetail(selectedExecutionNode.taskId ?? null);
   }, [
     instanceId,
     selectedNodeId,
@@ -167,7 +166,7 @@ export function useExecutionLogs({
     }
 
     await fetchExecutionSequence(instanceId);
-    await fetchTaskDetail(instanceId, selectedExecutionNode?.taskId ?? null);
+    await fetchTaskDetail(selectedExecutionNode?.taskId ?? null);
   }, [instanceId, fetchExecutionSequence, fetchTaskDetail, selectedExecutionNode?.taskId]);
 
   const refreshInstanceAndLogs = useCallback(async () => {
@@ -177,8 +176,9 @@ export function useExecutionLogs({
 
     await fetchInstance(instanceId);
     await fetchExecutionSequence(instanceId);
-    await fetchTaskDetail(instanceId, selectedExecutionNode?.taskId ?? null, true);
+    await fetchTaskDetail(selectedExecutionNode?.taskId ?? null, true);
   }, [instanceId, fetchInstance, fetchExecutionSequence, fetchTaskDetail, selectedExecutionNode?.taskId]);
+
 
   return {
     sequenceLoading,

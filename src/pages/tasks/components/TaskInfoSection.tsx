@@ -71,8 +71,8 @@ export default function TaskInfoSection({ task }: Props) {
   , [task.requestData]);
 
   const formattedStartDate = useMemo(() =>
-    formatDate(task.startedAt)
-  , [task.startedAt]);
+    formatDate((task.startedAt ?? task.createdAt) as string | Date ?? '')
+  , [task.startedAt, task.createdAt]);
 
   const hasDisplayData = displayRows.length > 0;
 

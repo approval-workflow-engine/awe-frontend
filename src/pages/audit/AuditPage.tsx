@@ -29,7 +29,7 @@ function truncate(s: string, n = 12) {
 }
 
 function safeDate(val: string | null | undefined) {
-  return val ? formatDate(val) : '—';
+  return val ? formatDate(val) : '-';
 }
 
 export default function AuditPage() {
@@ -54,7 +54,7 @@ export default function AuditPage() {
     const q = search.toLowerCase().trim();
     if (!q) return instances;
     return instances.filter((inst) =>
-      (inst.workflow_name ?? '').toLowerCase().includes(q) ||
+      (inst.workflow.name ?? '').toLowerCase().includes(q) ||
       inst.id.toLowerCase().includes(q) ||
       inst.status.toLowerCase().includes(q)
     );
@@ -154,12 +154,12 @@ export default function AuditPage() {
                   </TableCell>
                   <TableCell>
                     <Typography fontSize={13}>
-                      {inst.workflow_name ?? '—'}
+                      {inst.workflow.name ?? '-'}
                     </Typography>
                   </TableCell>
                   <TableCell>
                     <Typography fontSize={13}>
-                      {inst.version_number != null ? `v${inst.version_number}` : '—'}
+                      {inst.workflow.version != null ? `v${inst.workflow.version}` : '-'}
                     </Typography>
                   </TableCell>
                   <TableCell>
@@ -167,12 +167,12 @@ export default function AuditPage() {
                   </TableCell>
                   <TableCell>
                     <Typography fontSize={12} color="text.secondary">
-                      {safeDate(inst.started_on)}
+                      {safeDate(inst.startedAt)}
                     </Typography>
                   </TableCell>
                   <TableCell>
                     <Typography fontSize={12} color="text.secondary">
-                      {safeDate(inst.ended_on)}
+                      {safeDate(inst.endedAt)}
                     </Typography>
                   </TableCell>
                 </TableRow>

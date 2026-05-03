@@ -1,6 +1,6 @@
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { useState } from "react";
-import { Box, Typography, Chip, Skeleton } from "@mui/material";
+import { Box, Typography, Chip } from "@mui/material";
 import PageHeader from "../../components/common/PageHeader";
 import DetailInfoSection from "./components/DetailInfoSection";
 import {
@@ -28,21 +28,28 @@ const isUserTaskType = (nodeType: string) => {
 function toInstanceFromListItem(item: InstanceListItem): Instance {
   return {
     id: item.id,
-    inputVariables: item.input_variables,
-    currentVariables: item.current_variables,
-    outputVariables: item.output_variables,
+    inputVariables: (item as any).inputVariables ?? null,
+    currentVariables: (item as any).currentVariables ?? null,
+    outputVariables: (item as any).outputVariables ?? null,
     status: item.status,
-    startedAt: item.started_on,
-    endedAt: item.ended_on,
-    autoAdvance: item.auto_advance,
+    startedAt: item.startedAt,
+    endedAt: item.endedAt,
+    autoAdvance: item.autoAdvance,
     workflow: {
-      name: item.workflow_name,
-      id: undefined, // need fix
-      version: item.version_number ?? null,
+      name: item.workflow.name,
+      id: item.workflow.id,
+      version: item.workflow.version,
     },
     currentTask: null,
   };
 }
+
+import {
+  NotFoundState,
+  ForbiddenState,
+  ErrorState,
+  LoadingState,
+} from "../../components/common/states";
 
 export default function InstanceDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -52,6 +59,9 @@ export default function InstanceDetailPage() {
   const {
     instance,
     loading,
+    error,
+    notFound,
+    forbidden,
     fetch,
     silentFetch,
     resume,
@@ -65,10 +75,10 @@ export default function InstanceDetailPage() {
     (location.state as { instance?: Instance | InstanceListItem } | null)
       ?.instance ?? null;
 
-  const navInstance = stateInstance
-    ? "workflow" in stateInstance
-      ? stateInstance
-      : toInstanceFromListItem(stateInstance)
+  const navInstance: Instance | null = stateInstance
+    ? "inputVariables" in stateInstance
+      ? (stateInstance as Instance)
+      : toInstanceFromListItem(stateInstance as InstanceListItem)
     : null;
 
   const displayInstance: Instance | null = instance ? instance : navInstance;
@@ -147,6 +157,10 @@ export default function InstanceDetailPage() {
     setRetryDialogOpen(true);
   };
 
+  if (notFound) return <NotFoundState message={error || "Instance not found"} />;
+  if (forbidden) return <ForbiddenState message={error || "You do not have access to this instance"} />;
+  if (error && !displayInstance) return <ErrorState message={error} onRetry={handleReload} />;
+
   return (
     <Box>
       <PageHeader
@@ -167,16 +181,7 @@ export default function InstanceDetailPage() {
       />
 
       {loading && !displayInstance && (
-        <Box display="flex" flexDirection="column" gap={2}>
-          <Skeleton variant="rounded" height={200} />
-          <Skeleton variant="rounded" height={160} />
-        </Box>
-      )}
-
-      {!loading && !displayInstance && (
-        <Box sx={{ py: 8, textAlign: "center" }}>
-          <Typography color="text.secondary">Instance not found.</Typography>
-        </Box>
+        <LoadingState text="Loading instance details..." />
       )}
 
       {displayInstance && (
@@ -250,14 +255,15 @@ export default function InstanceDetailPage() {
             />
           </Box>
 
-          {id && (
+          {displayInstance && (
             <RetryInstanceDialog
               open={retryDialogOpen}
-              instanceId={id}
+              instance={displayInstance}
               onClose={() => setRetryDialogOpen(false)}
               onRetried={refreshInstanceAndLogs}
             />
           )}
+
         </Box>
       )}
     </Box>

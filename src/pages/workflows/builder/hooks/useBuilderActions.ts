@@ -16,7 +16,6 @@ interface UseBuilderActionsProps {
   setSavedVersionNumber: (n: number | string | null) => void;
   setLoadedVersionNumber: (n: number | string | null) => void;
   setVersionStatus: (s: string) => void;
-  isDirty: boolean;
   setIsDirty: (b: boolean) => void;
   nodes: CanvasNode[];
   edges: CanvasEdge[];
@@ -63,7 +62,6 @@ export function useBuilderActions({
   setSavedVersionNumber,
   setLoadedVersionNumber,
   setVersionStatus,
-  isDirty,
   setIsDirty,
   nodes,
   edges,
@@ -218,19 +216,13 @@ export function useBuilderActions({
     setValidating(true);
 
     const payload = canvasToVersionPayload(nodes, edges);
-    const response = await call(
-      () => {
-        // For clean persisted drafts, fetch validation from /validate on the version.
-        if (savedVersionId && !isDirty) {
-          return workflowService.validateVersion(savedVersionId);
-        }
-
-        return workflowService.validateWorkflow({
+    const response = await call<ValidationResult>(
+      () =>
+        workflowService.validateWorkflow({
           description: payload.description ?? null,
           nodes: payload.nodes,
           edges: payload.edges,
-        });
-      },
+        }),
       { showError: true },
     );
 
@@ -351,7 +343,7 @@ export function useBuilderActions({
 
     setDeactivating(true);
     const res = await call(
-      () => workflowService.updateVersionStatus(savedVersionId, "published"),
+      () => workflowService.deactivateWorkflowVersion(savedVersionId),
       {
         successMsg: `v${savedVersionNumber ?? "-"} deactivated.`,
         showError: true,
