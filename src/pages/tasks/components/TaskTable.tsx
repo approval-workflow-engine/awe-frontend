@@ -41,8 +41,7 @@ export default function TaskTable({ tasks, loading }: Props) {
             }}
           >
             <TableCell>Task Title</TableCell>
-            <TableCell>Workflow</TableCell>
-            {/* <TableCell>Version</TableCell> */}
+            <TableCell>Instance ID</TableCell>
             <TableCell>Assignee</TableCell>
             <TableCell>Created</TableCell>
           </TableRow>
@@ -81,13 +80,10 @@ export default function TaskTable({ tasks, loading }: Props) {
                   </Typography>
                 </TableCell>
                 <TableCell>
-                  <Typography fontSize={13}>{task.workflow.name ?? '—'}</Typography>
-                </TableCell>
-                {/* <TableCell>
-                  <Typography fontSize={12} color="text.secondary" sx={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                    {task.workflow.versionId ? task.workflow.versionId.slice(-8) : '-'}
+                  <Typography fontSize={13} color="text.secondary" sx={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                    {task.instanceId.slice(0, 8)}
                   </Typography>
-                </TableCell> */}
+                </TableCell>
                 <TableCell>
                   <Typography
                     fontSize={13}

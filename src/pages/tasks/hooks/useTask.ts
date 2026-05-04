@@ -1,11 +1,11 @@
 import { useState, useCallback, useRef } from "react";
 import { useApiCall } from "../../../hooks/useApiCall";
 import { taskService } from "../../../api/services/task";
-import type { TaskDetail } from "../../../api/schemas/task";
+import type { UserTaskDetail } from "../../../api/schemas/task";
 
 export function useTask() {
   const { loading, error, notFound, forbidden, unauthorized, call } = useApiCall();
-  const [task, setTask] = useState<TaskDetail | null>(null);
+  const [task, setTask] = useState<UserTaskDetail | null>(null);
   const currentRequestRef = useRef<string | null>(null);
 
   const fetch = useCallback(
@@ -20,7 +20,7 @@ export function useTask() {
 
       // Only update state if this request is still current
       if (currentRequestRef.current === id && taskData) {
-        setTask(taskData as TaskDetail);
+        setTask(taskData as UserTaskDetail);
         return taskData;
       }
 

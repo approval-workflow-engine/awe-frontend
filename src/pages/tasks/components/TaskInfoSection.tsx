@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 import { Box, Typography, Paper } from '@mui/material';
 import { useMemo, memo } from 'react';
 import StatusChip from '../../../components/common/StatusChip';
-import type { TaskDetail } from '../../../api/schemas/task';
+import type { UserTaskDetail } from '../../../api/schemas/task';
 import { formatValue, formatDate } from '../../../utils/formatUtils';
 import { UI_TEXT } from '../../../constants/status';
 
@@ -60,7 +60,7 @@ const DisplayFieldRow = memo(function DisplayFieldRow({
 });
 
 interface Props {
-  task: TaskDetail;
+  task: UserTaskDetail;
 }
 
 export default function TaskInfoSection({ task }: Props) {
@@ -71,8 +71,8 @@ export default function TaskInfoSection({ task }: Props) {
   , [task.requestData]);
 
   const formattedStartDate = useMemo(() =>
-    formatDate((task.startedAt ?? task.createdAt) as string | Date ?? '')
-  , [task.startedAt, task.createdAt]);
+    formatDate((task.startedAt) as string | Date ?? '')
+  , [task.startedAt]);
 
   const hasDisplayData = displayRows.length > 0;
 
@@ -80,8 +80,8 @@ export default function TaskInfoSection({ task }: Props) {
     <Paper variant="outlined" sx={{ p: 2.5 }}>
       <Box>
         <InfoRow
-          label={UI_TEXT.WORKFLOW}
-          value={<Typography fontSize={13}>{typeof task.workflow === 'string' ? task.workflow : task.workflow?.name || UI_TEXT.UNKNOWN}</Typography>}
+          label="Instance ID"
+          value={<Typography fontSize={13} sx={{ fontFamily: MONO }}>{task.instanceId}</Typography>}
         />
         <InfoRow
           label={UI_TEXT.TASK_ID}

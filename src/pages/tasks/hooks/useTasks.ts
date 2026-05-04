@@ -19,7 +19,7 @@ export function useTasks() {
   const fetch = useCallback(
     async (params?: PendingTasksQueryParams): Promise<FetchResult | null> => {
       const res = await call(() => taskService.getPendingTasks(params));
-      const tasks_ = res?.tasks ?? [];
+      const tasks_ = res?.userTasks ?? [];
       setTasks(tasks_);
       return res as FetchResult | null;
     },
@@ -31,7 +31,7 @@ export function useTasks() {
       const res = await call(() => taskService.getPendingTasks(params), {
         silent: true,
       });
-      const tasks_ = res?.tasks ?? [];
+      const tasks_ = res?.userTasks ?? [];
       setTasks(tasks_);
       return res as FetchResult | null;
     },

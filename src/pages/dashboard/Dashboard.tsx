@@ -8,11 +8,13 @@ import AssignmentIcon from "@mui/icons-material/Assignment";
 import StatusChip from "../../components/common/StatusChip";
 import PageHeader from "../../components/common/PageHeader";
 import { dashboardService } from "../../api/services/dashboard";
+import { instanceService } from "../../api/services/instance";
+import { taskService } from "../../api/services/task";
 import type {
   DashboardStats,
-  DashboardInstance,
-  PendingUserTask,
 } from "../../api/schemas";
+import type { InstanceListItem } from "../../api/schemas/instance";
+import type { PendingUserTask } from "../../api/schemas/task";
 
 interface StatCardDef {
   key: keyof DashboardStats;
@@ -23,20 +25,20 @@ interface StatCardDef {
 
 const STAT_CARDS: StatCardDef[] = [
   {
-    key: "workflows",
+    key: "totalWorkflows",
     label: "Total Workflows",
     icon: AccountTreeIcon,
     color: "#4f6ef7",
   },
   {
-    key: "instances",
+    key: "totalInstances",
     label: "Total Instances",
     icon: PlayCircleIcon,
     color: "#a855f7",
   },
-  { key: "running", label: "Running Now", icon: SpeedIcon, color: "#06b6d4" },
+  { key: "totalRunningInstances", label: "Running Now", icon: SpeedIcon, color: "#06b6d4" },
   {
-    key: "pending",
+    key: "totalPendingUserTasks",
     label: "Pending Tasks",
     icon: AssignmentIcon,
     color: "#f59e0b",
@@ -123,7 +125,7 @@ export default function Dashboard() {
   const navigate = useNavigate();
 
   const [stats, setStats] = useState<DashboardStats | null>(null);
-  const [instances, setInstances] = useState<DashboardInstance[] | null>(null);
+  const [instances, setInstances] = useState<InstanceListItem[] | null>(null);
   const [tasks, setTasks] = useState<PendingUserTask[] | null>(null);
 
   useEffect(() => {
@@ -131,17 +133,21 @@ export default function Dashboard() {
 
     (async () => {
       try {
-        const response = await dashboardService.getDashboard();
+        const [statsRes, instancesRes, tasksRes] = await Promise.all([
+          dashboardService.getDashboard(),
+          instanceService.getInstances({ limit: 5 }),
+          taskService.getPendingTasks({ limit: 5 })
+        ]);
 
         if (cancelled) return;
 
-        setStats(response.stats);
-        setInstances(response.instances);
-        setTasks(response.tasks);
+        setStats(statsRes);
+        setInstances(instancesRes.instances);
+        setTasks(tasksRes.userTasks);
       } catch{
         if (cancelled) return;
 
-        setStats({ workflows: 0, instances: 0, running: 0, pending: 0 });
+        setStats({ totalWorkflows: 0, totalInstances: 0, totalRunningInstances: 0, totalPendingUserTasks: 0 });
         setInstances([]);
         setTasks([]);
       }
@@ -383,7 +389,7 @@ export default function Dashboard() {
                           textOverflow: "ellipsis",
                         }}
                       >
-                        {task.title || task.workflow?.name || "Untitled Task"}
+                        {task.title || "Untitled Task"}
                       </Typography>
                       <Typography
                         sx={{

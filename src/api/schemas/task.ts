@@ -44,50 +44,58 @@ export const UserTaskNodeConfigurationSchema = z.object({
 
 export const PendingUserTaskSchema = z.object({
   id: z.string(),
-  title: z.string().nullable(),
-  assignee: z.string().nullable(),
+  title: z.string().nullable().optional(),
+  assignee: z.string().nullable().optional(),
   createdAt: dateTransform,
-  workflow: z.object({
-    instanceId: z.string(),
-    versionId: z.string(),
-    name: z.string().nullable().optional(),
-  }),
+  instanceId: z.string(),
+  taskId: z.string(),
+  workflowVersionId: z.string(),
+  nodeId: z.string(),
+});
+
+export const TaskDetailNodeSchema = z.object({
+  id: z.string(),
+  type: z.string(),
+  configuration: z.unknown().nullable().optional(),
+});
+
+export const TaskDetailExecutionSchema = z.object({
+  id: z.string(),
+  status: z.string(),
+  startedAt: optionalDateTransform.optional().default(null),
+  endedAt: optionalDateTransform.optional().default(null),
+  inputVariables: z.unknown().nullable().optional(),
+  outputVariables: z.record(z.string(), z.unknown()).nullable().optional(),
+  title: z.string().nullable().optional(),
+  assignee: z.string().nullable().optional(),
 });
 
 export const TaskDetailSchema = z.object({
   id: z.string(),
+  instanceId: z.string(),
+  status: z.string(),
+  createdAt: optionalDateTransform.optional().default(null),
+  node: TaskDetailNodeSchema,
+  executions: z.array(TaskDetailExecutionSchema).optional().default([]),
+});
+
+export const UserTaskDetailSchema = z.object({
+  id: z.string(),
   title: z.string().nullable().optional(),
   assignee: z.string().nullable().optional(),
   startedAt: optionalDateTransform.optional().default(null),
+  endedAt: optionalDateTransform.optional().default(null),
   status: z.string(),
-  requestData: z.record(z.string(), z.any()).optional().nullable(),
-  responseData: z.array(UserTaskResponseFieldSchema).optional().nullable(),
-  workflow: z.object({
-    instanceId: z.string().optional(),
-    versionId: z.string().optional(),
-    name: z.string().nullable().optional(),
-  }).optional().nullable(),
-  instanceId: z.string().optional().nullable(),
-  createdAt: optionalDateTransform.optional().default(null),
-  node: z.object({
-    id: z.string(),
-    type: z.string(),
-    configuration: z.unknown().nullable().optional(),
-  }).nullable().optional(),
-  executions: z.array(z.object({
-    id: z.string(),
-    status: z.string(),
-    startedAt: optionalDateTransform.optional().default(null),
-    endedAt: optionalDateTransform.optional().default(null),
-    inputVariables: z.unknown().nullable().optional(),
-    outputVariables: z.unknown().nullable().optional(),
-    title: z.string().nullable().optional(),
-    assignee: z.string().nullable().optional(),
-  })).optional().default([]),
+  requestData: z.record(z.string(), z.any()).optional().default({}),
+  responseData: z.array(UserTaskResponseFieldSchema).optional().default([]),
+  instanceId: z.string(),
+  taskId: z.string(),
+  workflowVersionId: z.string(),
+  nodeId: z.string(),
 });
 
 export const PendingTasksResponseSchema = z.object({
-  tasks: z.array(PendingUserTaskSchema),
+  userTasks: z.array(PendingUserTaskSchema),
   pagination: PaginationSchema,
 });
 
@@ -95,18 +103,13 @@ export const PendingTasksQueryParamsSchema = PaginationParamsSchema.extend({
   assignee: z.string().optional(),
 });
 
-export const TaskDetailResponseSchema = TaskDetailSchema;
+export const TaskDetailResponseSchema = UserTaskDetailSchema;
 
 export const CompleteTaskRequestSchema = z.record(z.string(), z.any());
 
-export const CompleteTaskResponseSchema = z.object({
-  status: z.string(),
-  completedAt: optionalDateTransform,
-});
+export const CompleteTaskResponseSchema = UserTaskDetailSchema;
 
-export const RetryTaskResponseSchema = z.object({
-  instance: z.unknown(),
-}).passthrough();
+export const RetryTaskResponseSchema = TaskDetailSchema;
 
 export type TaskStatus = z.infer<typeof TaskStatusSchema>;
 export type UserTaskDisplayField = z.infer<typeof UserTaskDisplayFieldSchema>;
@@ -115,6 +118,7 @@ export type UserTaskResponseField = z.infer<typeof UserTaskResponseFieldSchema>;
 export type UserTaskNodeConfiguration = z.infer<typeof UserTaskNodeConfigurationSchema>;
 export type PendingUserTask = z.infer<typeof PendingUserTaskSchema>;
 export type TaskDetail = z.infer<typeof TaskDetailSchema>;
+export type UserTaskDetail = z.infer<typeof UserTaskDetailSchema>;
 export type PendingTasksResponse = z.infer<typeof PendingTasksResponseSchema>;
 export type PendingTasksQueryParams = z.infer<typeof PendingTasksQueryParamsSchema>;
 export type TaskDetailResponse = z.infer<typeof TaskDetailResponseSchema>;
