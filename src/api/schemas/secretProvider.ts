@@ -11,19 +11,12 @@ const SecretProviderTypeSchema = z
   .enum(["infisical", "aws-secrets-manager", "hashicorp-vault"])
   .or(z.string());
 
-const SecretProviderConfigurationSchema = z.union([
-  InfisicalConfigurationSchema,
-  z.record(z.string(), z.unknown()),
-]);
-
 export const SecretProviderSchema = z.object({
-  id: z.string().uuid().optional(),
+  id: z.string().optional(),
+  label: z.string(),
   type: SecretProviderTypeSchema,
-  label: z.string().nullable().optional(),
-  configuration: SecretProviderConfigurationSchema,
-  created_on: z.string().nullable().optional(),
-  updated_on: z.string().nullable().optional(),
-  organization_id: z.string().nullable().optional(),
+  configuration: InfisicalConfigurationSchema,
+  modifiedAt: z.union([z.string(), z.date()]).optional(),
 });
 
 export const SecretProvidersResponseSchema = z.object({

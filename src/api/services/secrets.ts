@@ -1,14 +1,11 @@
 import { apiClient } from "../client";
 import {
-  AvailableProviderSecretsResponseSchema,
   SecretCreateResponseSchema,
   SecretsResponseSchema,
-  type AvailableProviderSecretsResponse,
+  DeleteSecretResponseSchema,
   type Secret,
   type SecretItem,
   type SecretsResponse,
-  DeleteSecretResponseSchema,
-  type DeleteSecretResponse,
 } from "../schemas";
 
 export const secretService = {
@@ -16,26 +13,11 @@ export const secretService = {
     return apiClient.post("/secrets", data, SecretCreateResponseSchema);
   },
 
-  list: async (): Promise<SecretsResponse> => {
-    return apiClient.get("/secrets", SecretsResponseSchema);
+  list: async (params?: { providerId?: string; environment?: string }): Promise<SecretsResponse> => {
+    return apiClient.get("/secrets", SecretsResponseSchema, { params });
   },
 
-  listByProvider: async (providerId: string): Promise<SecretsResponse> => {
-    return apiClient.get(`/secrets/by-provider/${providerId}`, SecretsResponseSchema);
-  },
-
-  listAvailableByProvider: async (
-    providerId: string,
-    environment: string,
-  ): Promise<AvailableProviderSecretsResponse> => {
-    return apiClient.get(
-      `/secrets/${providerId}`,
-      AvailableProviderSecretsResponseSchema,
-      { params: { environment } },
-    );
-  },
-
-  delete: async (secretId: string): Promise<DeleteSecretResponse> => {
+  delete: async (secretId: string): Promise<void> => {
     return apiClient.delete(`/secrets/${secretId}`, DeleteSecretResponseSchema);
   },
 };
