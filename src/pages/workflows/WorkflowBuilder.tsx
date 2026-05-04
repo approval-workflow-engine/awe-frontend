@@ -246,7 +246,7 @@ export default function WorkflowBuilder() {
     if (!workflowId) return;
     setMarkDirtyEnabled(false);
     setCanvasLoading(true);
-    
+
     const wfRes = await call(() => workflowService.getWorkflow(workflowId), {
       showError: false,
     });
@@ -324,7 +324,7 @@ export default function WorkflowBuilder() {
             )
             .map((secret) => ({
               id: secret.id,
-              name: secret.label,
+              name: secret.key,
               type: "string",
               sourceNode: "Secret Management",
             }));
@@ -411,7 +411,7 @@ export default function WorkflowBuilder() {
     !(
       selectedItem.type === "node" &&
       nodes.find((n: { id: unknown }) => n.id === selectedItem.id)?.type ===
-        "start"
+      "start"
     );
 
   const canCloneVersion =
@@ -812,9 +812,9 @@ export default function WorkflowBuilder() {
                   {validationResult?.errors.map((err, i) => {
                     const nodeLabel = err.nodeId
                       ? (nodes.find(
-                          (n: { id: string | undefined }) =>
-                            n.id === err.nodeId,
-                        )?.label ?? err.nodeId)
+                        (n: { id: string | undefined }) =>
+                          n.id === err.nodeId,
+                      )?.label ?? err.nodeId)
                       : null;
                     return (
                       <ListItem key={i} sx={{ px: 0, py: 0.25 }}>
@@ -1158,8 +1158,8 @@ export default function WorkflowBuilder() {
                     nodeErrors={
                       selectedItem.type === "node"
                         ? (validationResult?.errors.filter(
-                            (e) => e.nodeId === selectedItem.id,
-                          ) ?? [])
+                          (e) => e.nodeId === selectedItem.id,
+                        ) ?? [])
                         : undefined
                     }
                     onClose={() => setSelectedItem(null)}
