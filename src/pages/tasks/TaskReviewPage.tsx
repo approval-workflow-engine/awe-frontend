@@ -66,7 +66,7 @@ export default function TaskReviewPage() {
     <Box>
       <PageHeader
         title={title}
-        subtitle={task?.workflow ? `Workflow: ${task.workflow.name || task.workflow}` : undefined}
+        subtitle={task?.instanceId ? `Instance ID: ${task.instanceId.slice(0, 8)}` : undefined}
         onBack={goBack}
         chip={task ? <StatusChip status={task.status} /> : undefined}
       />
