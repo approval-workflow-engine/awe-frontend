@@ -416,7 +416,7 @@ export default function WorkflowVersionsPage() {
               <TableRow>
                 <TableCell>Version</TableCell>
                 <TableCell>Status</TableCell>
-                <TableCell>Created</TableCell>
+                <TableCell>Modified</TableCell>
                 <TableCell>Published</TableCell>
                 <TableCell align="right" sx={{ width: 140 }}>
                   Actions

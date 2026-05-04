@@ -172,6 +172,16 @@ export interface ValidationResult {
   versionId?: string;
   version?: number | string;
   status?: string;
+  workflowVersion?: {
+    id: string;
+    version?: number | string | null;
+    status: string;
+    workflowId?: string;
+    description?: string | null;
+    modifiedAt?: string;
+    modifiedBy?: unknown;
+    publishedAt?: string | null;
+  };
 }
 
 export type InstanceStatus =

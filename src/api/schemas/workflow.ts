@@ -59,8 +59,8 @@ export const WorkflowVersionDetailResponseSchema = z.object({
   version: VersionValueSchema.optional(),
   status: WorkflowVersionStatusSchema,
   publishedAt: z.string().datetime().nullable().optional(),
-  createdAt: z.string().datetime(),
-  updatedAt: z.string().datetime(),
+  modifiedAt: z.string().datetime(),
+  modifiedBy: ActorTypeSchema,
   environment: EnvironmentTypeSchema.optional(),
   nodes: z.array(WorkflowVersionDetailNodeSchema),
   edges: z.array(WorkflowVersionDetailEdgeSchema),
@@ -83,31 +83,33 @@ export const ValidationErrorSchema = z.object({
   edgeId: z.string().optional(),
 });
 
-export const WorkflowVersionCreateResponseSchema = z.object({
+export const WorkflowVersionInnerSchema = z.object({
   id: z.string(),
+  workflow_id: z.string().optional(),
+  workflowId: z.string().optional(),
+  description: z.string().nullable().optional(),
   status: WorkflowVersionStatusSchema,
-  createdAt: z.string().datetime(),
+  version: VersionValueSchema.optional(),
+  modifiedAt: z.string().datetime(),
+  modifiedBy: ActorTypeSchema,
+  publishedAt: z.string().datetime().nullable().optional(),
+}).passthrough();
+
+export const WorkflowVersionCreateResponseSchema = z.object({
   valid: z.boolean(),
   errors: z.array(ValidationErrorSchema),
   warnings: z.array(ValidationErrorSchema).optional().default([]),
-  workflowId: z.string().optional(),
-  version: VersionValueSchema.optional(),
+  workflowVersion: WorkflowVersionInnerSchema,
 });
 
 export const WorkflowVersionUpdateResponseSchema = z.object({
   valid: z.boolean(),
   errors: z.array(ValidationErrorSchema),
   warnings: z.array(ValidationErrorSchema).optional().default([]),
-  status: WorkflowVersionStatusSchema,
+  workflowVersion: WorkflowVersionInnerSchema,
 });
 
-export const WorkflowVersionStatusResponseSchema = z.object({
-  id: z.string(),
-  workflowId: z.string(),
-  version: VersionValueSchema.optional(),
-  status: WorkflowVersionStatusSchema,
-  publishedAt: z.string().datetime().nullable().optional(),
-});
+export const WorkflowVersionStatusResponseSchema = WorkflowVersionInnerSchema;
 
 export const WorkflowVersionPromoteResponseSchema = z.object({
   workflowId: z.string(),
@@ -116,18 +118,11 @@ export const WorkflowVersionPromoteResponseSchema = z.object({
   targetEnvironment: z.enum(["staging", "production"]),
 });
 
-export const WorkflowVersionCloneResponseSchema = z
-  .object({
-    id: z.string().optional(),
-    versionId: z.string().optional(),
-    workflowVersion: z
-      .object({
-        id: z.string(),
-      })
-      .passthrough()
-      .optional(),
-  })
-  .passthrough();
+export const WorkflowVersionCloneResponseSchema = z.object({
+  valid: z.boolean().optional(),
+  errors: z.array(ValidationErrorSchema).optional(),
+  workflowVersion: WorkflowVersionInnerSchema.optional(),
+}).passthrough();
 
 // Shared single-workflow response shape (GET /workflows/:id, POST /workflows, PATCH /workflows/:id)
 export const WorkflowDetailLatestVersionSchema = z.object({
@@ -227,6 +222,7 @@ export const ValidationResultSchema = z.object({
   errors: z.array(ValidationErrorSchema),
   warnings: z.array(ValidationErrorSchema).optional().default([]),
   status: WorkflowVersionStatusSchema.optional(),
+  workflowVersion: WorkflowVersionInnerSchema.optional(),
 });
 
 export type WorkflowVersionStatus = z.infer<typeof WorkflowVersionStatusSchema>;

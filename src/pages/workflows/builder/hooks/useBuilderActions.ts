@@ -137,25 +137,25 @@ export function useBuilderActions({
       }
 
       operation = "created";
-      targetVersionId = createdVersion.id;
-      setSavedVersionId(createdVersion.id);
+      targetVersionId = createdVersion.workflowVersion.id;
+      setSavedVersionId(createdVersion.workflowVersion.id);
 
-      if (createdVersion.version !== undefined && createdVersion.version !== null) {
-        setSavedVersionNumber(createdVersion.version);
-        setLoadedVersionNumber(createdVersion.version);
+      if (createdVersion.workflowVersion.version !== undefined && createdVersion.workflowVersion.version !== null) {
+        setSavedVersionNumber(createdVersion.workflowVersion.version);
+        setLoadedVersionNumber(createdVersion.workflowVersion.version);
       }
 
-      setVersionStatus(createdVersion.status);
+      setVersionStatus(createdVersion.workflowVersion.status);
 
       result = {
         valid: createdVersion.valid,
         errors: createdVersion.errors,
         warnings: createdVersion.warnings ?? [],
-        versionId: createdVersion.id,
+        versionId: createdVersion.workflowVersion.id,
         version:
-          createdVersion.version ??
+          createdVersion.workflowVersion.version ??
           (savedVersionNumber === null ? undefined : savedVersionNumber),
-        status: createdVersion.status,
+        status: createdVersion.workflowVersion.status,
       };
     } else {
       const existingVersionId = targetVersionId;
@@ -181,9 +181,9 @@ export function useBuilderActions({
         versionId: existingVersionId,
         version:
           savedVersionNumber === null ? undefined : savedVersionNumber,
-        status: updatedVersion.status,
+        status: updatedVersion.workflowVersion.status,
       };
-      setVersionStatus(updatedVersion.status);
+      setVersionStatus(updatedVersion.workflowVersion.status);
     }
 
     if (!result || !targetVersionId) {
@@ -237,8 +237,8 @@ export function useBuilderActions({
       version: savedVersionNumber ?? undefined,
     };
 
-    if (response?.status) {
-      setVersionStatus(response.status);
+    if (response?.workflowVersion?.status) {
+      setVersionStatus(response.workflowVersion.status);
     }
 
     setValidationResult(result);

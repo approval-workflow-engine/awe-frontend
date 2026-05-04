@@ -44,7 +44,7 @@ export default function WorkflowsPage() {
   const [workflows, setWorkflows] = useState<Workflow[]>([]);
   const [listLoading, setListLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const [createdSort, setCreatedSort] = useState<"asc" | "desc">("desc");
+  const [modifiedSort, setModifiedSort] = useState<"asc" | "desc">("desc");
   const [page, setPage] = useState(0);
   const [limit, setLimit] = useState(20);
   const [pagination, setPagination] = useState<Pagination | null>(null);
@@ -90,7 +90,7 @@ export default function WorkflowsPage() {
           workflowService.getWorkflows({
             page: pageNum,
             limit: pageSize,
-            createdSort: sort,
+            modifiedSort: sort,
             ...(search.trim() ? { search: search.trim() } : {}),
           }),
         );
@@ -115,8 +115,8 @@ export default function WorkflowsPage() {
   );
 
   useEffect(() => {
-    fetchWorkflows(page + 1, limit, searchQuery, createdSort);
-  }, [fetchWorkflows, page, limit, searchQuery, createdSort]);
+    fetchWorkflows(page + 1, limit, searchQuery, modifiedSort);
+  }, [fetchWorkflows, page, limit, searchQuery, modifiedSort]);
 
   const handlePageChange = (_event: unknown, newPage: number) => {
     setPage(newPage);
@@ -152,7 +152,7 @@ export default function WorkflowsPage() {
     if (res) {
       setNewOpen(false);
       setNewForm({ name: "", description: "" });
-      fetchWorkflows(page + 1, limit, searchQuery, createdSort);
+      fetchWorkflows(page + 1, limit, searchQuery, modifiedSort);
     }
   };
 
@@ -183,7 +183,7 @@ export default function WorkflowsPage() {
     setEditLoading(false);
     if (res) {
       setEditOpen(false);
-      fetchWorkflows(page + 1, limit, searchQuery, createdSort);
+      fetchWorkflows(page + 1, limit, searchQuery, modifiedSort);
     }
   };
 
@@ -213,7 +213,7 @@ export default function WorkflowsPage() {
     if (succeeded) {
       setDeleteOpen(false);
       setDeleteConfirmText("");
-      fetchWorkflows(page + 1, limit, searchQuery, createdSort);
+      fetchWorkflows(page + 1, limit, searchQuery, modifiedSort);
     } else if (errMsg) {
       setDeleteError(errMsg);
     }
@@ -228,8 +228,8 @@ export default function WorkflowsPage() {
     });
   };
 
-  const toggleCreatedSort = () => {
-    setCreatedSort((current) => (current === "asc" ? "desc" : "asc"));
+  const toggleModifiedSort = () => {
+    setModifiedSort((current) => (current === "asc" ? "desc" : "asc"));
     setPage(0);
   };
 
@@ -250,7 +250,7 @@ export default function WorkflowsPage() {
               <IconButton
                 size="small"
                 onClick={() =>
-                  fetchWorkflows(page + 1, limit, searchQuery, createdSort)
+                  fetchWorkflows(page + 1, limit, searchQuery, modifiedSort)
                 }
                 disabled={listLoading}
                 sx={{ color: "text.secondary" }}
@@ -291,13 +291,13 @@ export default function WorkflowsPage() {
                   Description
                 </TableCell>
                 <TableCell
-                  sortDirection={createdSort}
+                  sortDirection={modifiedSort}
                   sx={{ fontWeight: 600, fontSize: 12 }}
                 >
                   <TableSortLabel
                     active
-                    direction={createdSort}
-                    onClick={toggleCreatedSort}
+                    direction={modifiedSort}
+                    onClick={toggleModifiedSort}
                     sx={{ "& .MuiTableSortLabel-icon": { opacity: 1 } }}
                   >
                     Modified At

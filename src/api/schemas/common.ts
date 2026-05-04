@@ -36,7 +36,7 @@ export const PaginationParamsSchema = z.object({
   limit: z.number().min(1).max(100).optional(),
   status: z.string().optional(),
   search: z.string().optional(),
-  createdSort: z.enum(["asc", "desc"]).optional(),
+  modifiedSort: z.enum(["asc", "desc"]).optional(),
   environment: z.array(EnvironmentTypeSchema).optional(),
 });
 
