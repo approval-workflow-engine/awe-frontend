@@ -51,7 +51,7 @@ export default function TaskReviewPage() {
   const responseFields = task?.responseData ?? [];
 
   if (forbidden) return <ForbiddenState message={error || "You do not have access to this task"} />;
-  
+
   // If not found and we exhausted retries, show NotFoundState
   if ((notFound || (!task && !loading && !error)) && retryCount >= MAX_RETRIES) {
     return <NotFoundState message={error || "Task not found. It may have been completed or archived."} />;
@@ -66,7 +66,7 @@ export default function TaskReviewPage() {
     <Box>
       <PageHeader
         title={title}
-        subtitle={task?.instanceId ? `Instance ID: ${task.instanceId.slice(0, 8)}` : undefined}
+        subtitle={task?.workflow ? `Workflow: ${task.workflow.name} v${task.workflow.version}` : undefined}
         onBack={goBack}
         chip={task ? <StatusChip status={task.status} /> : undefined}
       />

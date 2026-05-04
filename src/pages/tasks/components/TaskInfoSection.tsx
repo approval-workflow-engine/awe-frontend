@@ -80,8 +80,8 @@ export default function TaskInfoSection({ task }: Props) {
     <Paper variant="outlined" sx={{ p: 2.5 }}>
       <Box>
         <InfoRow
-          label="Instance ID"
-          value={<Typography fontSize={13} sx={{ fontFamily: MONO }}>{task.instanceId}</Typography>}
+          label={UI_TEXT.WORKFLOW}
+          value={<Typography fontSize={13}>{task.workflow?.name || UI_TEXT.UNKNOWN}</Typography>}
         />
         <InfoRow
           label={UI_TEXT.TASK_ID}

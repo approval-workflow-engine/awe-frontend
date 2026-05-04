@@ -90,8 +90,13 @@ export const UserTaskDetailSchema = z.object({
   responseData: z.array(UserTaskResponseFieldSchema).optional().default([]),
   instanceId: z.string(),
   taskId: z.string(),
-  workflowVersionId: z.string(),
   nodeId: z.string(),
+  workflow: z.object({
+    id: z.string(),
+    versionId: z.string(),
+    version: z.union([z.string(), z.number()]).nullable(),
+    name: z.string(),
+  }),
 });
 
 export const PendingTasksResponseSchema = z.object({

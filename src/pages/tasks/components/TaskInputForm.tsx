@@ -158,7 +158,7 @@ export default function TaskInputForm({ fields, loading, onSubmit }: Props) {
           startIcon={loading ? <CircularProgress size={13} /> : undefined}
           sx={{ borderRadius: '8px', fontWeight: 600, height: 32 }}
         >
-          Submit Response
+          Submit
         </Button>
       </Box>
     </Paper>
