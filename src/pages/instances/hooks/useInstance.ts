@@ -58,7 +58,7 @@ export function useInstance() {
     async (id: string) =>
       runAction(
         (targetId) => instanceService.pauseInstance(targetId),
-        "Instance paused successfully",
+        "Instance has been signalled to pause",
         id,
       ),
     [runAction],
@@ -68,7 +68,7 @@ export function useInstance() {
     async (id: string) =>
       runAction(
         (targetId) => instanceService.terminateInstance(targetId),
-        "Instance terminated successfully",
+        "Instance has been signalled to terminate",
         id,
       ),
     [runAction],

@@ -52,7 +52,7 @@ export default function InstanceHeaderActions({
           onClick={onPause}
           disabled={loading}
         >
-          Pause Instance
+          Pause
         </Button>
       )}
 
@@ -85,7 +85,7 @@ export default function InstanceHeaderActions({
           onClick={onTerminate}
           disabled={loading}
         >
-          Terminate Instance
+          Terminate
         </Button>
       )}
     </Box>

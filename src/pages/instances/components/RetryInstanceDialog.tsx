@@ -158,7 +158,7 @@ export default function RetryInstanceDialog({
           disabled={loading || !!jsonError}
           startIcon={loading ? <CircularProgress size={13} /> : undefined}
         >
-          Retry Task
+          Retry
         </Button>
 
       </DialogActions>

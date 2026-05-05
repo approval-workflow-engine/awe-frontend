@@ -64,11 +64,11 @@ export class InstanceService {
   async retryTask(
     taskId: string,
     data: Omit<RetryInstanceRequest, "taskId"> = { context: {} },
-  ): Promise<InstanceActionResponse> {
+  ): Promise<TaskExecutionDetailResponse> {
     return apiClient.post(
       `/tasks/${taskId}/retry`,
       { ...data, taskId },
-      InstanceActionResponseSchema,
+      TaskExecutionDetailResponseSchema,
       RetryInstanceRequestSchema,
     );
   }
