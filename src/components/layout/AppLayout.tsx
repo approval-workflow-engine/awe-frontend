@@ -1,18 +1,31 @@
-import { useState } from "react";
-import { Outlet, useNavigate, useLocation } from "react-router-dom";
+import React, { useEffect, useRef, useState } from "react";
+import { Outlet, useLocation, useNavigate } from "react-router-dom";
+
 import {
   Box,
-  IconButton,
   Button,
+  ClickAwayListener,
+  Grow,
+  IconButton,
+  MenuItem,
+  MenuList,
+  Paper,
+  Popper,
+  Stack,
   Tooltip,
 } from "@mui/material";
+import Link from '@mui/material/Link';
+import HelpIcon from "@mui/icons-material/Help";
 import LightModeIcon from "@mui/icons-material/LightMode";
 import DarkModeIcon from "@mui/icons-material/DarkMode";
 import LogoutIcon from "@mui/icons-material/Logout";
+
 import AppSidebar from "./AppSidebar";
 import LogoutConfirmDialog from "./LogoutConfirmDialog";
+
 import { useApp } from "../../context/useApp";
 import { useThemeMode } from "../../context/useThemeMode";
+
 import {
   ENVIRONMENT_OPTIONS,
   getActiveEnvironmentType,
@@ -23,28 +36,39 @@ import {
 const COLLAPSE_KEY = "awe_sidebar_collapsed";
 
 function isEnvironmentSwitchEnabled(pathname: string): boolean {
-  return (
-    pathname === "/workflows" ||
-    pathname === "/instances" ||
-    pathname === "/tasks" ||
-    pathname === "/audit" ||
-    pathname === "/dashboard"||
-    pathname === "/secrets"
-  );
+  return [
+    "/workflows",
+    "/instances",
+    "/tasks",
+    "/audit",
+    "/dashboard",
+    "/secrets",
+  ].includes(pathname);
 }
 
 export default function AppLayout() {
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  const { user, logout } = useApp();
+  const { mode, toggleTheme } = useThemeMode();
+
   const [collapsed, setCollapsed] = useState<boolean>(() => {
     return localStorage.getItem(COLLAPSE_KEY) === "true";
   });
+
   const [logoutConfirmOpen, setLogoutConfirmOpen] = useState(false);
+
   const [selectedEnvironmentType, setSelectedEnvironmentType] =
     useState<EnvironmentType>(() => getActiveEnvironmentType());
-  const navigate = useNavigate();
-  const location = useLocation();
-  const { user, logout } = useApp();
-  const { mode, toggleTheme } = useThemeMode();
+
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  const anchorRef = useRef<HTMLButtonElement | null>(null);
+  const prevOpen = useRef(menuOpen);
+
   const canSwitchEnvironment = isEnvironmentSwitchEnabled(location.pathname);
+
   const routeRenderKey = `${location.pathname}:${selectedEnvironmentType}`;
 
   const toggleCollapse = (value: boolean) => {
@@ -54,14 +78,53 @@ export default function AppLayout() {
 
   const handleEnvironmentChange = (environmentType: EnvironmentType) => {
     if (!canSwitchEnvironment) return;
+
     setActiveEnvironmentType(environmentType);
     setSelectedEnvironmentType(environmentType);
   };
 
+  const handleToggle = () => {
+    setMenuOpen((prev) => !prev);
+  };
+
+  const handleClose = (event?: Event | React.SyntheticEvent) => {
+    if (
+      event &&
+      anchorRef.current &&
+      anchorRef.current.contains(event.target as HTMLElement)
+    ) {
+      return;
+    }
+
+    setMenuOpen(false);
+  };
+
+  const handleListKeyDown = (event: React.KeyboardEvent<HTMLUListElement>) => {
+    if (event.key === "Tab") {
+      event.preventDefault();
+      setMenuOpen(false);
+    }
+
+    if (event.key === "Escape") {
+      setMenuOpen(false);
+    }
+  };
+
+  useEffect(() => {
+    if (prevOpen.current && !menuOpen) {
+      anchorRef.current?.focus();
+    }
+
+    prevOpen.current = menuOpen;
+  }, [menuOpen]);
+
   return (
     <Box
       display="flex"
-      sx={{ minHeight: "100vh", backgroundColor: "background.default" }}
+      sx={{
+        minHeight: "100vh",
+        backgroundColor: "background.default",
+      }}
     >
       <AppSidebar
         collapsed={collapsed}
@@ -93,7 +156,7 @@ export default function AppLayout() {
         <Box
           sx={{
             minHeight: 52,
-            border: "1px solid",
+            borderBottom: "1px solid",
             borderColor: "divider",
             px: { xs: 1, md: 1.5 },
             display: "flex",
@@ -103,6 +166,7 @@ export default function AppLayout() {
               "linear-gradient(90deg, rgba(79,110,247,0.08) 0%, rgba(79,110,247,0.03) 45%, transparent 100%)",
           }}
         >
+          {/* Environment Switcher */}
           <Box
             sx={{
               display: "flex",
@@ -117,6 +181,7 @@ export default function AppLayout() {
           >
             {ENVIRONMENT_OPTIONS.map((environmentType) => {
               const isActive = selectedEnvironmentType === environmentType;
+
               const dotColor =
                 environmentType === "production"
                   ? "#22c55e"
@@ -128,6 +193,7 @@ export default function AppLayout() {
                 <Box
                   key={environmentType}
                   component="button"
+                  type="button"
                   onClick={() => handleEnvironmentChange(environmentType)}
                   disabled={!canSwitchEnvironment}
                   sx={{
@@ -137,7 +203,7 @@ export default function AppLayout() {
                     px: 1.5,
                     py: "5px",
                     borderRadius: "9px",
-                    border: isActive ? "1px solid" : "1px solid transparent",
+                    border: "1px solid",
                     borderColor: isActive ? "divider" : "transparent",
                     backgroundColor: isActive
                       ? "background.paper"
@@ -147,8 +213,10 @@ export default function AppLayout() {
                     fontWeight: 500,
                     cursor: canSwitchEnvironment ? "pointer" : "not-allowed",
                     textTransform: "capitalize",
-                    transition: "all 0.15s",
+                    transition: "all 0.15s ease",
                     opacity: canSwitchEnvironment ? 1 : 0.45,
+                    outline: "none",
+
                     "&:hover": {
                       color: "text.primary",
                       backgroundColor: "background.paper",
@@ -164,6 +232,7 @@ export default function AppLayout() {
                       flexShrink: 0,
                     }}
                   />
+
                   {environmentType}
                 </Box>
               );
@@ -172,50 +241,127 @@ export default function AppLayout() {
 
           <Box sx={{ flex: 1 }} />
 
-          <Tooltip
-            title={
-              mode === "dark" ? "Switch to light mode" : "Switch to dark mode"
-            }
-          >
-            <IconButton
+          <Stack direction="row" spacing={1.5} alignItems="center">
+            <Box>
+              <Button
+                ref={anchorRef}
+                id="composition-button"
+                aria-controls={menuOpen ? "composition-menu" : undefined}
+                aria-expanded={menuOpen ? "true" : undefined}
+                aria-haspopup="menu"
+                onClick={handleToggle}
+                variant="outlined"
+                size="small"
+                sx={{
+                  minWidth: 36,
+                  width: 36,
+                  height: 36,
+                  p: 0,
+                  borderRadius: "10px",
+                  borderColor: "divider",
+                  color: "text.secondary",
+
+                  "&:hover": {
+                    borderColor: "text.disabled",
+                    backgroundColor: "action.hover",
+                    color: "text.primary",
+                  },
+                }}
+              >
+                <HelpIcon fontSize="small" />
+              </Button>
+
+              <Popper
+                open={menuOpen}
+                anchorEl={anchorRef.current}
+                role={undefined}
+                placement="bottom-start"
+                transition
+                disablePortal
+                sx={{ zIndex: 1300 }}
+              >
+                {({ TransitionProps, placement }) => (
+                  <Grow
+                    {...TransitionProps}
+                    style={{
+                      transformOrigin:
+                        placement === "bottom-start"
+                          ? "left top"
+                          : "left bottom",
+                    }}
+                  >
+                    <Paper elevation={6}>
+                      <ClickAwayListener onClickAway={handleClose}>
+                        <MenuList
+                          autoFocusItem={menuOpen}
+                          id="composition-menu"
+                          aria-labelledby="composition-button"
+                          onKeyDown={handleListKeyDown}
+                        >
+                          <MenuItem onClick={handleClose}>
+                          
+                          <Link href="https://awe-docs.docs.buildwithfern.com" target="_blank" rel="noopener noreferrer">
+                            API Reference
+                          </Link>
+                          
+                          </MenuItem>
+
+                        </MenuList>
+                      </ClickAwayListener>
+                    </Paper>
+                  </Grow>
+                )}
+              </Popper>
+            </Box>
+
+            {/* Theme Toggle */}
+            <Tooltip
+              title={
+                mode === "dark" ? "Switch to light mode" : "Switch to dark mode"
+              }
+            >
+              <IconButton
+                size="small"
+                onClick={toggleTheme}
+                sx={{
+                  border: "1px solid",
+                  borderColor: "divider",
+                  borderRadius: "10px",
+                }}
+              >
+                {mode === "dark" ? (
+                  <LightModeIcon fontSize="small" />
+                ) : (
+                  <DarkModeIcon fontSize="small" />
+                )}
+              </IconButton>
+            </Tooltip>
+
+            {/* Logout */}
+            <Button
               size="small"
-              onClick={toggleTheme}
+              startIcon={<LogoutIcon sx={{ fontSize: 16 }} />}
+              onClick={() => setLogoutConfirmOpen(true)}
               sx={{
+                height: 34,
+                px: 1.25,
+                borderRadius: "10px",
+                textTransform: "none",
+                fontWeight: 600,
                 border: "1px solid",
                 borderColor: "divider",
-                borderRadius: "10px",
+                color: "text.secondary",
+
+                "&:hover": {
+                  color: "text.primary",
+                  borderColor: "text.disabled",
+                  backgroundColor: "action.hover",
+                },
               }}
             >
-              {mode === "dark" ? (
-                <LightModeIcon fontSize="small" />
-              ) : (
-                <DarkModeIcon fontSize="small" />
-              )}
-            </IconButton>
-          </Tooltip>
-
-          <Button
-            size="small"
-            startIcon={<LogoutIcon sx={{ fontSize: 16 }} />}
-            onClick={() => setLogoutConfirmOpen(true)}
-            sx={{
-              height: 34,
-              px: 1.25,
-              borderRadius: "10px",
-              textTransform: "none",
-              fontWeight: 600,
-              border: "1px solid",
-              borderColor: "divider",
-              color: "text.secondary",
-              "&:hover": {
-                color: "text.primary",
-                borderColor: "text.disabled",
-                backgroundColor: "action.hover",
-              },
-            }}
-          >
-            Logout
-          </Button>
+              Logout
+            </Button>
+          </Stack>
         </Box>
 
         <Box sx={{ p: { xs: 1.5, md: 2.5 } }}>
