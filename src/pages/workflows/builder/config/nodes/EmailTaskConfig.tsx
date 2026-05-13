@@ -1,7 +1,13 @@
-import { Box, Typography, IconButton, Button, FormControl, MenuItem, Select } from "@mui/material";
+import {
+  Box,
+  Typography,
+  IconButton,
+  FormControl,
+  MenuItem,
+  Select,
+} from "@mui/material";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import ExpressionInput from "../shared/ExpressionInput";
-import NumberInput from "../shared/NumberInput";
 import AddRowButton from "../shared/AddRowButton";
 import { CollapsibleSection } from "../shared/CollapsibleSection";
 import ResponseMapSection, {
@@ -14,13 +20,6 @@ type RecipientRow = {
   valueExpression: string;
 };
 
-type Backoff = {
-  type: "fixed" | "exponential";
-  delay: number;
-  unit: "millisecond" | "second" | "minute";
-};
-
-
 type RecipientField = "to" | "cc" | "bcc";
 
 interface Props {
@@ -30,7 +29,10 @@ interface Props {
   onUpdateConfig: (c: Record<string, unknown>) => void;
 }
 
-function getRows(config: Record<string, unknown>, field: RecipientField): RecipientRow[] {
+function getRows(
+  config: Record<string, unknown>,
+  field: RecipientField,
+): RecipientRow[] {
   const rows = config[field] as RecipientRow[] | undefined;
   return Array.isArray(rows) ? rows : [];
 }
@@ -42,20 +44,12 @@ export default function EmailTaskConfig({
   onUpdateConfig,
 }: Props) {
   const c = node.config;
-  const set = (key: string, val: unknown) => onUpdateConfig({ ...c, [key]: val });
+  const set = (key: string, val: unknown) =>
+    onUpdateConfig({ ...c, [key]: val });
 
   const toRows = getRows(c, "to");
   const ccRows = getRows(c, "cc");
   const bccRows = getRows(c, "bcc");
-
-  const backoff = (c.backoff as Backoff) ?? {
-    type: "fixed",
-    delay: 1,
-    unit: "second",
-  };
-  const setBackoff = (patch: Partial<Backoff>) =>
-    set("backoff", { ...backoff, ...patch });
-
 
   const updateRecipient = (
     field: RecipientField,
@@ -153,7 +147,9 @@ export default function EmailTaskConfig({
               </MenuItem>
             </Select>
           </FormControl>
-          <Typography sx={{ fontSize: 9, color: "text.secondary", opacity: 0.8 }}>
+          <Typography
+            sx={{ fontSize: 9, color: "text.secondary", opacity: 0.8 }}
+          >
             Uses Gmail SMTP with app password credentials.
           </Typography>
         </Box>
@@ -228,113 +224,12 @@ export default function EmailTaskConfig({
             multiline
             value={(c.bodyExpression as string) ?? ""}
             onChange={(value) => set("bodyExpression", value)}
-            placeholder={'"Hello " + context.requesterName + ", your request is pending approval."'}
+            placeholder={
+              '"Hello " + context.requesterName + ", your request is pending approval."'
+            }
             availableContext={availableContext}
             availableSecrets={availableSecrets}
           />
-        </Box>
-      </CollapsibleSection>
-
-      <CollapsibleSection title="Retry & Failure Policy" defaultOpen>
-        <Box display="flex" flexDirection="column" gap={0.75}>
-          <Box display="flex" alignItems="center" justifyContent="space-between">
-            <Typography sx={{ fontSize: 11, color: "text.secondary" }}>
-              Max Attempts
-            </Typography>
-            <Box sx={{ width: 100 }}>
-              <NumberInput
-                value={(c.maxAttempts as number) ?? 1}
-                onChange={(value) => set("maxAttempts", value ?? 1)}
-                min={1}
-                allowEmpty={false}
-              />
-            </Box>
-          </Box>
-
-          <Box display="flex" alignItems="center" justifyContent="space-between">
-            <Typography sx={{ fontSize: 11, color: "text.secondary" }}>
-              Retry Delay
-            </Typography>
-            <Box display="flex" gap={0.5} sx={{ width: 140 }}>
-              <NumberInput
-                value={backoff.delay}
-                onChange={(value) => setBackoff({ delay: value ?? 1 })}
-                min={1}
-                allowEmpty={false}
-              />
-              <Box display="flex" gap={0.25}>
-                {(["millisecond", "second", "minute"] as const).map((unit) => (
-                  <Button
-                    key={unit}
-                    size="small"
-                    onClick={() => setBackoff({ unit })}
-                    title={unit}
-                    sx={{
-                      fontSize: 8,
-                      height: 22,
-                      borderRadius: "4px",
-                      minWidth: 30,
-                      px: 0.5,
-                      fontWeight: 600,
-                      textTransform: "none",
-                      backgroundColor:
-                        backoff.unit === unit ? "action.selected" : "transparent",
-                      color:
-                        backoff.unit === unit ? "text.primary" : "text.disabled",
-                      border: "1px solid",
-                      borderColor:
-                        backoff.unit === unit ? "action.focus" : "divider",
-                      "&:hover": {
-                        backgroundColor: "action.hover",
-                      },
-                    }}
-                  >
-                    {unit === "millisecond" ? "ms" : unit === "second" ? "s" : "m"}
-                  </Button>
-                ))}
-              </Box>
-            </Box>
-          </Box>
-
-          <Box display="flex" alignItems="center" justifyContent="space-between">
-            <Typography sx={{ fontSize: 11, color: "text.secondary" }}>
-              Backoff Type
-            </Typography>
-            <Box display="flex" gap={0.5}>
-              {(["fixed", "exponential"] as const).map((type) => (
-                <Button
-                  key={type}
-                  size="small"
-                  onClick={() => setBackoff({ type })}
-                  sx={{
-                    fontSize: 9,
-                    height: 22,
-                    borderRadius: "5px",
-                    minWidth: 0,
-                    px: 0.75,
-                    fontWeight: 700,
-                    textTransform: "none",
-                    backgroundColor:
-                      backoff.type === type ? "action.selected" : "transparent",
-                    color:
-                      backoff.type === type ? "text.primary" : "text.disabled",
-                    border: "1px solid",
-                    borderColor:
-                      backoff.type === type ? "action.focus" : "divider",
-                    "&:hover": {
-                      backgroundColor: "action.hover",
-                    },
-                  }}
-                >
-                  {type}
-                </Button>
-              ))}
-            </Box>
-          </Box>
-
-          
-            
-          
         </Box>
       </CollapsibleSection>
 
