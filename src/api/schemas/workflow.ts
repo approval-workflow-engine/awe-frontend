@@ -44,7 +44,17 @@ export const EdgeSchema = z.object({
 
 export const WorkflowInputSchema = z.object({
   name: z.string(),
-  type: z.enum(["string", "number", "boolean", "object", "array"]),
+  type: z.enum([
+    "string",
+    "number",
+    "boolean",
+    "object",
+    "list",
+    "date",
+    "time",
+    "date-time",
+    "null",
+  ]),
   required: z.boolean(),
 });
 
