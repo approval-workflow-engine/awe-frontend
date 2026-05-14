@@ -92,19 +92,6 @@ export default function DefaultValueInput({
     );
   }
 
-  if (dataType === DataType.NULL) {
-    return (
-      <TextField
-        size="small"
-        value="null"
-        disabled
-        fullWidth
-        sx={fieldSx}
-        inputProps={{ style: { padding: "4px 8px", fontSize: 11 } }}
-      />
-    );
-  }
-
   if (dataType === DataType.OBJECT || dataType === DataType.LIST) {
     return (
       <TextField

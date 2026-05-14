@@ -9,6 +9,7 @@ import PauseIcon from "@mui/icons-material/Pause";
 import PlayArrowIcon from "@mui/icons-material/PlayArrow";
 import StopCircleOutlinedIcon from "@mui/icons-material/StopCircleOutlined";
 import RefreshIcon from "@mui/icons-material/Refresh";
+import SecurityIcon from "@mui/icons-material/Security";
 
 interface InstanceHeaderActionsProps {
   loading: boolean;
@@ -19,6 +20,7 @@ interface InstanceHeaderActionsProps {
   onPause: () => Promise<void>;
   onResume: () => Promise<void>;
   onTerminate: () => Promise<void>;
+  onViewAudit?: () => void;
 }
 
 export default function InstanceHeaderActions({
@@ -30,6 +32,7 @@ export default function InstanceHeaderActions({
   onPause,
   onResume,
   onTerminate,
+  onViewAudit,
 }: InstanceHeaderActionsProps) {
   return (
     <Box display="flex" alignItems="center" gap={1}>
@@ -43,6 +46,18 @@ export default function InstanceHeaderActions({
           <RefreshIcon fontSize="small" />
         </IconButton>
       </Tooltip>
+
+      {onViewAudit && (
+        <Button
+          variant="outlined"
+          size="small"
+          startIcon={<SecurityIcon />}
+          onClick={onViewAudit}
+          disabled={loading}
+        >
+          View Audit
+        </Button>
+      )}
 
       {canPause && (
         <Button

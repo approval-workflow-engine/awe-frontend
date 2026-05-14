@@ -25,7 +25,6 @@ export const DataType = {
     DATETIME: "date-time",
     LIST: "list",
     OBJECT: "object",
-    NULL: "null",
 } as const;
 
 export type DataType = (typeof DataType)[keyof typeof DataType];

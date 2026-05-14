@@ -45,9 +45,7 @@ const buildDefaultContextValues = (
           ? {}
           : item.dataType === "list"
             ? []
-            : item.dataType === "null"
-              ? null
-              : "");
+            : "");
 
     return acc;
   }, {});

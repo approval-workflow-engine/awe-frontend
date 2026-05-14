@@ -157,6 +157,11 @@ export default function InstanceDetailPage() {
     setRetryDialogOpen(true);
   };
 
+  const handleViewAudit = () => {
+    if (!id) return;
+    navigate(`/audit/${id}`);
+  };
+
   if (notFound) return <NotFoundState message={error || "Instance not found"} />;
   if (forbidden) return <ForbiddenState message={error || "You do not have access to this instance"} />;
   if (error && !displayInstance) return <ErrorState message={error} onRetry={handleReload} />;
@@ -176,6 +181,7 @@ export default function InstanceDetailPage() {
             onPause={handlePause}
             onResume={handleResume}
             onTerminate={handleTerminate}
+            onViewAudit={handleViewAudit}
           />
         }
       />

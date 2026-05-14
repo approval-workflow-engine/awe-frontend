@@ -203,10 +203,6 @@ function normalizeDefaultValueForSerialization(
     return undefined;
   }
 
-  if (dataType === "null") {
-    return null;
-  }
-
   if (dataType === "number") {
     if (typeof value === "number") {
       return value;

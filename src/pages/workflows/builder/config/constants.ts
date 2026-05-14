@@ -25,7 +25,6 @@ export const DATA_TYPE_COLORS: Record<string, string> = {
   [DataType.DATE]: "#fda4af",
   [DataType.TIME]: "#fda4af",
   [DataType.DATETIME]: "#fda4af",
-  [DataType.NULL]: "#94a3b8",
 };
 
 export const UI_COLORS = {

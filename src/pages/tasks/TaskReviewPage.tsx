@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { Box, Typography, Paper, CircularProgress } from '@mui/material';
 import PageHeader from '../../components/common/PageHeader';
 import StatusChip from '../../components/common/StatusChip';
@@ -21,9 +21,13 @@ const MAX_RETRIES = 5;
 export default function TaskReviewPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const { task, loading, error, notFound, forbidden, fetch, complete } = useTask();
   const { goBack } = useBackNavigation('/tasks');
   const [retryCount, setRetryCount] = useState(0);
+
+  // Get the source instance ID from navigation state if this task was accessed from an instance
+  const fromInstanceId = (location.state as { fromInstance?: string } | null)?.fromInstance ?? null;
 
   useEffect(() => {
     if (id) fetch(id);
@@ -44,7 +48,14 @@ export default function TaskReviewPage() {
   const handleSubmit = async (values: Record<string, unknown>) => {
     if (!id) return;
     const result = await complete(id, values);
-    if (result !== null) navigate('/tasks');
+    if (result !== null) {
+      // If we came from an instance detail page, redirect back to it; otherwise go to tasks list
+      if (fromInstanceId) {
+        navigate(`/instances/${fromInstanceId}`);
+      } else {
+        navigate('/tasks');
+      }
+    }
   };
 
   const title = task?.title || UI_TEXT.TASK_REVIEW;

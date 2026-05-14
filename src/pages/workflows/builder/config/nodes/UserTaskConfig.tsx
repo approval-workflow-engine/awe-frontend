@@ -51,10 +51,6 @@ function getDefaultValueForType(dataType: string): unknown {
     return 0;
   }
 
-  if (dataType === DataType.NULL) {
-    return null;
-  }
-
   if (dataType === DataType.OBJECT) {
     return "{}";
   }
@@ -289,7 +285,7 @@ export default function UserTaskConfig({
                           : {}),
                       })
                     }
-                    exclude={[DataType.NULL]}
+
                   />
                   <IconButton
                     className="delete-btn"
