@@ -1,3 +1,4 @@
+import { useState } from "react";
 import {
   Box,
   Switch,
@@ -37,6 +38,50 @@ export default function WorkflowContextForm({
   onChange,
   setJsonError,
 }: Props) {
+  const [jsonDrafts, setJsonDrafts] = useState<Record<string, string>>({});
+
+  const formatLabel = (jsonPath: string) =>
+    jsonPath.replace(/^\$\.?/, "");
+
+  const getContextKey = (item: StartVariable) =>
+    formatLabel(item.jsonPath);
+
+  const getJsonValueText = (item: StartVariable, value: unknown) => {
+    const contextKey = getContextKey(item);
+
+    if (contextKey in jsonDrafts) {
+      return jsonDrafts[contextKey] ?? "";
+    }
+
+    return JSON.stringify(
+      value ?? (item.dataType === "list" ? [] : {}),
+      null,
+      2,
+    );
+  };
+
+  const handleJsonChange = (item: StartVariable, rawValue: string) => {
+    const contextKey = getContextKey(item);
+
+    setJsonDrafts((current) => ({
+      ...current,
+      [contextKey]: rawValue,
+    }));
+
+    try {
+      const parsed = JSON.parse(rawValue);
+      onChange(contextKey, parsed);
+      setJsonError("");
+      setJsonDrafts((current) => {
+        const next = { ...current };
+        delete next[contextKey];
+        return next;
+      });
+    } catch {
+      setJsonError(`Invalid JSON for ${formatLabel(item.jsonPath)}`);
+    }
+  };
+
   return (
     <Box
       display="flex"
@@ -44,16 +89,17 @@ export default function WorkflowContextForm({
       gap={2}
     >
       {schema.map((item) => {
-        const value = values[item.jsonPath];
+        const contextKey = getContextKey(item);
+        const value = values[contextKey];
 
         return (
-          <Box key={item.jsonPath}>
+          <Box key={contextKey}>
             <Typography
               fontSize={13}
               fontWeight={500}
               mb={0.5}
             >
-              {item.jsonPath}
+              {formatLabel(item.jsonPath)}
 
               {item.required && (
                 <Box
@@ -90,7 +136,7 @@ export default function WorkflowContextForm({
                 value={value ?? ""}
                 onChange={(e) =>
                   onChange(
-                    item.jsonPath,
+                    contextKey,
                     item.dataType === "number"
                       ? e.target.value === ""
                         ? ""
@@ -108,7 +154,7 @@ export default function WorkflowContextForm({
                 checked={Boolean(value)}
                 onChange={(e) =>
                   onChange(
-                    item.jsonPath,
+                    contextKey,
                     e.target.checked,
                   )
                 }
@@ -121,32 +167,11 @@ export default function WorkflowContextForm({
                 fullWidth
                 multiline
                 minRows={4}
-                value={JSON.stringify(
-                  value ??
-                    (item.dataType === "list"
-                      ? []
-                      : {}),
-                  null,
-                  2,
-                )}
-                onChange={(e) => {
-                  try {
-                    const parsed = JSON.parse(
-                      e.target.value,
-                    );
-
-                    onChange(
-                      item.jsonPath,
-                      parsed,
-                    );
-
-                    setJsonError("");
-                  } catch {
-                    setJsonError(
-                      `Invalid JSON for ${item.jsonPath}`,
-                    );
-                  }
-                }}
+                value={getJsonValueText(item, value)}
+                onChange={(e) =>
+                  handleJsonChange(item, e.target.value)
+                }
+                error={contextKey in jsonDrafts}
                 slotProps={{
                   htmlInput: {
                     style: {
@@ -158,14 +183,6 @@ export default function WorkflowContextForm({
                 }}
               />
             )}
-
-            <Typography
-              fontSize={11}
-              color="text.secondary"
-              mt={0.5}
-            >
-              Type: {item.dataType}
-            </Typography>
           </Box>
         );
       })}

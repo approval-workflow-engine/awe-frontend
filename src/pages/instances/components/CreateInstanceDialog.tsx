@@ -40,6 +40,9 @@ import WorkflowContextForm, {
   type StartVariable,
 } from "./WorkflowContextForm";
 
+const formatContextKey = (jsonPath: string) =>
+  jsonPath.replace(/^\$\.?/, "");
+
 interface Props {
   open: boolean;
   onClose: () => void;
@@ -179,7 +182,9 @@ export default function CreateInstanceDialog({
       return contextSchema.reduce<
         Record<string, unknown>
       >((acc, item) => {
-        acc[item.jsonPath] =
+        const contextKey = formatContextKey(item.jsonPath);
+
+        acc[contextKey] =
           item.defaultValue ??
           (item.dataType === "boolean"
             ? false
@@ -203,8 +208,8 @@ export default function CreateInstanceDialog({
 
   const validateForm = () => {
     for (const item of contextSchema) {
-      const value =
-        contextValues[item.jsonPath];
+      const contextKey = formatContextKey(item.jsonPath);
+      const value = contextValues[contextKey];
 
       if (
         item.required &&
@@ -213,7 +218,7 @@ export default function CreateInstanceDialog({
           value === "")
       ) {
         setSubmitError(
-          `${item.jsonPath} is required`,
+          `${formatContextKey(item.jsonPath)} is required`,
         );
 
         return false;
