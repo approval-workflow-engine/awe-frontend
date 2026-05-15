@@ -300,8 +300,8 @@ export default function AppLayout() {
                         >
                           <MenuItem onClick={handleClose}>
                           
-                          <Link href="https://awe-docs.docs.buildwithfern.com" target="_blank" rel="noopener noreferrer">
-                            API Reference
+                          <Link href="https://docs.awe-org.me" target="_blank" rel="noopener noreferrer">
+                            Documentation
                           </Link>
                           
                           </MenuItem>
