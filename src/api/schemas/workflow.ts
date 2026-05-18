@@ -135,28 +135,21 @@ export const WorkflowVersionCloneResponseSchema = z.object({
 }).passthrough();
 
 // Shared single-workflow response shape (GET /workflows/:id, POST /workflows, PATCH /workflows/:id)
-export const WorkflowDetailLatestVersionSchema = z.object({
-  id: z.string(),
-  version: VersionValueSchema.optional().nullable(),
-  status: WorkflowVersionStatusSchema,
-}).nullable();
-
 export const WorkflowSchema = z.object({
   id: z.string(),
   name: z.string(),
-  description: z.string().nullable(),
-  environment: EnvironmentTypeSchema,
+  description: z.string().nullable().optional(),
+  createdAt: z.string().datetime().optional(),
+  createdBy: ActorTypeSchema.optional(),
   modifiedAt: z.string().datetime({ message: "Invalid ISO datetime" }),
   modifiedBy: ActorTypeSchema,
-  latestVersion: WorkflowDetailLatestVersionSchema,
 });
 
 export const WorkflowVersionSchema = WorkflowVersionDetailResponseSchema;
 
 export const CreateWorkflowRequestSchema = z.object({
   name: z.string().max(255),
-  description: z.string().optional(),
-  environment: EnvironmentTypeSchema,
+  description: z.string().nullable().optional(),
 });
 
 export const UpdateWorkflowRequestSchema = z.object({
@@ -168,25 +161,27 @@ export const UpdateWorkflowRequestSchema = z.object({
 export const UpdateWorkflowResponseSchema = WorkflowSchema;
 export const WorkflowResponseSchema = WorkflowSchema;
 
-export const WorkflowListLatestVersionSchema = z.object({
-  id: z.string(),
-  version: VersionValueSchema.optional().nullable(),
-  status: WorkflowVersionStatusSchema,
-});
-
 export const WorkflowListItemSchema = z.object({
   id: z.string(),
   name: z.string(),
   description: z.string().nullable().optional(),
-  environment: EnvironmentTypeSchema,
+  activeVersionCount: z.number().optional(),
+  draftCount: z.number().optional(),
   modifiedAt: z.string().datetime({ message: "Invalid ISO datetime" }),
   modifiedBy: ActorTypeSchema,
-  latestVersion: WorkflowListLatestVersionSchema.nullable().optional(),
 });
 
 export const WorkflowsResponseSchema = z.object({
   workflows: z.array(WorkflowListItemSchema),
   pagination: PaginationSchema,
+});
+
+export const WorkflowPaginationParamsSchema = z.object({
+  page: z.number().min(1).optional(),
+  limit: z.number().min(1).max(100).optional(),
+  search: z.string().optional(),
+  createdSort: z.enum(["asc", "desc"]).optional(),
+  environment: EnvironmentTypeSchema.optional(),
 });
 
 export const WorkflowVersionListItemSchema = z.object({
@@ -247,6 +242,7 @@ export type UpdateWorkflowRequest = z.infer<typeof UpdateWorkflowRequestSchema>;
 export type WorkflowResponse = z.infer<typeof WorkflowResponseSchema>;
 export type WorkflowUpdateResponse = z.infer<typeof UpdateWorkflowResponseSchema>;
 export type WorkflowsResponse = z.infer<typeof WorkflowsResponseSchema>;
+export type WorkflowPaginationParams = z.infer<typeof WorkflowPaginationParamsSchema>;
 export type WorkflowListItem = z.infer<typeof WorkflowListItemSchema>;
 export type WorkflowVersionListItem = z.infer<
   typeof WorkflowVersionListItemSchema

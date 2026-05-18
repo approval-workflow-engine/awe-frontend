@@ -18,6 +18,7 @@ import {
   UpdateVersionRequestSchema,
   ValidationResultSchema,
   PaginationParamsSchema,
+  WorkflowPaginationParamsSchema,
   type WorkflowVersionsResponse,
   type WorkflowsResponse,
   type WorkflowResponse,
@@ -35,14 +36,15 @@ import {
   type CreateVersionRequest,
   type UpdateVersionRequest,
   type ValidationResult,
+  type WorkflowPaginationParams,
   type PaginationParams,
 } from "../schemas";
 import { z } from "zod";
 
 export class WorkflowService {
-  async getWorkflows(params?: PaginationParams): Promise<WorkflowsResponse> {
+  async getWorkflows(params?: WorkflowPaginationParams): Promise<WorkflowsResponse> {
     const validatedParams = params
-      ? PaginationParamsSchema.parse(params)
+      ? WorkflowPaginationParamsSchema.parse(params)
       : undefined;
     return apiClient.get("/workflows", WorkflowsResponseSchema, {
       params: validatedParams,

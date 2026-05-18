@@ -44,7 +44,7 @@ export default function WorkflowsPage() {
   const [workflows, setWorkflows] = useState<Workflow[]>([]);
   const [listLoading, setListLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const [modifiedSort, setModifiedSort] = useState<"asc" | "desc">("desc");
+  const [createdSort, setCreatedSort] = useState<"asc" | "desc">("desc");
   const [page, setPage] = useState(0);
   const [limit, setLimit] = useState(20);
   const [pagination, setPagination] = useState<Pagination | null>(null);
@@ -90,7 +90,8 @@ export default function WorkflowsPage() {
           workflowService.getWorkflows({
             page: pageNum,
             limit: pageSize,
-            modifiedSort: sort,
+            createdSort: sort,
+            environment: getActiveEnvironmentType(),
             ...(search.trim() ? { search: search.trim() } : {}),
           }),
         );
@@ -115,8 +116,8 @@ export default function WorkflowsPage() {
   );
 
   useEffect(() => {
-    fetchWorkflows(page + 1, limit, searchQuery, modifiedSort);
-  }, [fetchWorkflows, page, limit, searchQuery, modifiedSort]);
+    fetchWorkflows(page + 1, limit, searchQuery, createdSort);
+  }, [fetchWorkflows, page, limit, searchQuery, createdSort]);
 
   const handlePageChange = (_event: unknown, newPage: number) => {
     setPage(newPage);
@@ -139,7 +140,6 @@ export default function WorkflowsPage() {
         workflowService.createWorkflow({
           name: newForm.name.trim(),
           description: newForm.description.trim() || undefined,
-          environment: getActiveEnvironmentType(),
         }),
       {
         showError: false,
@@ -152,7 +152,7 @@ export default function WorkflowsPage() {
     if (res) {
       setNewOpen(false);
       setNewForm({ name: "", description: "" });
-      fetchWorkflows(page + 1, limit, searchQuery, modifiedSort);
+      fetchWorkflows(page + 1, limit, searchQuery, createdSort);
     }
   };
 
@@ -183,7 +183,7 @@ export default function WorkflowsPage() {
     setEditLoading(false);
     if (res) {
       setEditOpen(false);
-      fetchWorkflows(page + 1, limit, searchQuery, modifiedSort);
+      fetchWorkflows(page + 1, limit, searchQuery, createdSort);
     }
   };
 
@@ -213,7 +213,7 @@ export default function WorkflowsPage() {
     if (succeeded) {
       setDeleteOpen(false);
       setDeleteConfirmText("");
-      fetchWorkflows(page + 1, limit, searchQuery, modifiedSort);
+      fetchWorkflows(page + 1, limit, searchQuery, createdSort);
     } else if (errMsg) {
       setDeleteError(errMsg);
     }
@@ -228,8 +228,8 @@ export default function WorkflowsPage() {
     });
   };
 
-  const toggleModifiedSort = () => {
-    setModifiedSort((current) => (current === "asc" ? "desc" : "asc"));
+  const toggleCreatedSort = () => {
+    setCreatedSort((current) => (current === "asc" ? "desc" : "asc"));
     setPage(0);
   };
 
@@ -250,7 +250,7 @@ export default function WorkflowsPage() {
               <IconButton
                 size="small"
                 onClick={() =>
-                  fetchWorkflows(page + 1, limit, searchQuery, modifiedSort)
+                  fetchWorkflows(page + 1, limit, searchQuery, createdSort)
                 }
                 disabled={listLoading}
                 sx={{ color: "text.secondary" }}
@@ -291,13 +291,13 @@ export default function WorkflowsPage() {
                   Description
                 </TableCell>
                 <TableCell
-                  sortDirection={modifiedSort}
+                  sortDirection={createdSort}
                   sx={{ fontWeight: 600, fontSize: 12 }}
                 >
                   <TableSortLabel
                     active
-                    direction={modifiedSort}
-                    onClick={toggleModifiedSort}
+                    direction={createdSort}
+                    onClick={toggleCreatedSort}
                     sx={{ "& .MuiTableSortLabel-icon": { opacity: 1 } }}
                   >
                     Modified At
@@ -365,10 +365,6 @@ export default function WorkflowsPage() {
                 </TableRow>
               ) : (
                 filteredWorkflows.map((wf) => {
-                  const latestStatus = wf.latestVersion?.status ?? null;
-                  const latestVersionId =
-                    wf.latestVersion?.id ?? null;
-
                   return (
                     <TableRow
                       key={wf.id}
@@ -430,37 +426,13 @@ export default function WorkflowsPage() {
                                 e.stopPropagation();
                                 navigate(`/workflows/${wf.id}/builder`);
                               }}
-                              disabled={
-                                latestStatus === "valid" ||
-                                latestStatus === "draft"
-                              }
+                              disabled={wf.draftCount !== undefined && wf.draftCount > 0}
                               sx={{
                                 color: "text.disabled",
                                 "&:hover": { color: "primary.main" },
                               }}
                             >
                               <AddIcon fontSize="small" />
-                            </IconButton>
-                          </Tooltip>
-
-                          <Tooltip title="Open Latest Version">
-                            <IconButton
-                              size="small"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                if (latestVersionId) {
-                                  navigate(
-                                    `/workflows/${wf.id}/builder/${latestVersionId}`,
-                                  );
-                                }
-                              }}
-                              disabled={!latestVersionId}
-                              sx={{
-                                color: "text.disabled",
-                                "&:hover": { color: "primary.main" },
-                              }}
-                            >
-                              <AccountTreeIcon fontSize="small" />
                             </IconButton>
                           </Tooltip>
 
