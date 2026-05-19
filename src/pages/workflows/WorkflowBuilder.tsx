@@ -260,33 +260,41 @@ export default function WorkflowBuilder() {
     }
 
     if (versionId) {
-      const vRes = await call(() => workflowService.getVersion(versionId), {
+      let vRes: any = await call(() => workflowService.getDraft(versionId), {
         showError: false,
       });
+
+      if (!vRes) {
+        vRes = await call(() => workflowService.getVersion(versionId), {
+          showError: false,
+        });
+      }
+
       if (!vRes) {
         setCanvasLoading(false);
         return;
       }
+
       if (vRes) {
         const vRaw = vRes as Record<string, unknown>;
-        const vData: Record<string, unknown> =
-          vRaw.version && typeof vRaw.version === "object"
-            ? (vRaw.version as Record<string, unknown>)
-            : vRaw;
-        if (vData) {
-          const { nodes: n, edges: e, inputs: i } = definitionToCanvas(vData);
+        const definition = (vRaw.definition as Record<string, unknown>) ?? vRaw;
+        
+        if (definition) {
+          const { nodes: n, edges: e, inputs: i } = definitionToCanvas(definition);
           hydrateCanvas(n.length > 0 ? n : [buildStartNode()], e, i);
+          
           const vn =
-            (vData.versionNumber as number | string | null | undefined) ??
-            (vData.version as number | string | null | undefined) ??
+            (vRaw.versionNumber as number | string | null | undefined) ??
+            (vRaw.version as number | string | null | undefined) ??
             loadedVersionNumber;
+            
           if (typeof vn === "number" || typeof vn === "string") {
             setLoadedVersionNumber(vn);
             setSavedVersionNumber(vn);
           }
-          setSavedVersionId((vData.id as string) ?? versionId);
+          setSavedVersionId((vRaw.id as string) ?? versionId);
           setVersionStatus(
-            (vData.status as string)?.toLowerCase?.() || "draft",
+            (vRaw.status as string)?.toLowerCase?.() || "draft",
           );
         }
       }
@@ -437,7 +445,7 @@ export default function WorkflowBuilder() {
 
     setCloning(true);
     const cloned = await call(
-      () => workflowService.cloneWorkflowVersion(savedVersionId),
+      () => workflowService.cloneVersion(savedVersionId),
       {
         successMsg: `v${savedVersionNumber ?? "-"} cloned as a new draft.`,
       },

@@ -6,38 +6,43 @@ import {
   UpdateWorkflowResponseSchema,
   CreateWorkflowRequestSchema,
   UpdateWorkflowRequestSchema,
+  WorkflowDraftsResponseSchema,
+  WorkflowDraftDetailResponseSchema,
+  WorkflowDraftCreateResponseSchema,
+  WorkflowDraftUpdateResponseSchema,
+  WorkflowDraftCloneResponseSchema,
   WorkflowVersionsResponseSchema,
   WorkflowVersionDetailResponseSchema,
-  WorkflowVersionCreateResponseSchema,
-  WorkflowVersionUpdateResponseSchema,
-  WorkflowVersionStatusResponseSchema,
   WorkflowVersionPromoteResponseSchema,
-  WorkflowVersionCloneResponseSchema,
-  UpdateVersionStatusRequestSchema,
-  CreateVersionRequestSchema,
-  UpdateVersionRequestSchema,
+  CreateDraftRequestSchema,
+  UpdateDraftRequestSchema,
+  PublishDraftRequestSchema,
+  ActivateVersionRequestSchema,
+  DeactivateVersionRequestSchema,
   ValidationResultSchema,
-  PaginationParamsSchema,
   WorkflowPaginationParamsSchema,
+  WorkflowDraftPaginationParamsSchema,
+  WorkflowVersionPaginationParamsSchema,
+  type WorkflowDraftsResponse,
+  type WorkflowDraftDetailResponse,
+  type WorkflowDraftCreateResponse,
+  type WorkflowDraftUpdateResponse,
+  type WorkflowDraftCloneResponse,
   type WorkflowVersionsResponse,
+  type WorkflowVersionDetailResponse,
+  type WorkflowVersionPromoteResponse,
   type WorkflowsResponse,
   type WorkflowResponse,
   type Workflow,
   type CreateWorkflowRequest,
   type UpdateWorkflowRequest,
   type WorkflowUpdateResponse,
-  type WorkflowVersionDetailResponse,
-  type WorkflowVersionCreateResponse,
-  type WorkflowVersionUpdateResponse,
-  type WorkflowVersionStatusResponse,
-  type WorkflowVersionPromoteResponse,
-  type WorkflowVersionCloneResponse,
-  type VersionIncrementType,
-  type CreateVersionRequest,
-  type UpdateVersionRequest,
+  type CreateDraftRequest,
+  type UpdateDraftRequest,
   type ValidationResult,
   type WorkflowPaginationParams,
-  type PaginationParams,
+  type WorkflowDraftPaginationParams,
+  type WorkflowVersionPaginationParams,
 } from "../schemas";
 import { z } from "zod";
 
@@ -88,97 +93,145 @@ export class WorkflowService {
     );
   }
 
-  async createVersion(
-    workflowId: string,
-    data: CreateVersionRequest,
-  ): Promise<WorkflowVersionCreateResponse> {
+  // --- Drafts ---
+
+  async createDraft(
+    data: CreateDraftRequest,
+  ): Promise<WorkflowDraftCreateResponse> {
     return apiClient.post(
-      `/workflows/${workflowId}/versions`,
+      `/workflow-drafts`,
       data,
-      WorkflowVersionCreateResponseSchema,
-      CreateVersionRequestSchema,
+      WorkflowDraftCreateResponseSchema,
+      CreateDraftRequestSchema,
     );
   }
 
-  async getVersion(versionId: string): Promise<WorkflowVersionDetailResponse> {
+  async getDraft(id: string, includeDefinition = true): Promise<WorkflowDraftDetailResponse> {
+    const params = includeDefinition ? { include: "definition" } : undefined;
     return apiClient.get(
-      `/workflows/versions/${versionId}`,
-      WorkflowVersionDetailResponseSchema,
+      `/workflow-drafts/${id}`,
+      WorkflowDraftDetailResponseSchema,
+      { params },
     );
   }
 
-  async updateVersion(
-    versionId: string,
-    data: UpdateVersionRequest,
-  ): Promise<WorkflowVersionUpdateResponse> {
+  async getDrafts(
+    params?: WorkflowDraftPaginationParams,
+  ): Promise<WorkflowDraftsResponse> {
+    const validatedParams = params
+      ? WorkflowDraftPaginationParamsSchema.parse(params)
+      : undefined;
+    return apiClient.get(`/workflow-drafts`, WorkflowDraftsResponseSchema, {
+      params: validatedParams,
+    });
+  }
+
+  async updateDraft(
+    id: string,
+    data: UpdateDraftRequest,
+  ): Promise<WorkflowDraftUpdateResponse> {
     return apiClient.patch(
-      `/workflows/versions/${versionId}`,
+      `/workflow-drafts/${id}`,
       data,
-      WorkflowVersionUpdateResponseSchema,
-      UpdateVersionRequestSchema,
+      WorkflowDraftUpdateResponseSchema,
+      UpdateDraftRequestSchema,
     );
   }
 
- 
-
-  async cloneWorkflowVersion(versionId: string): Promise<WorkflowVersionCloneResponse> {
+  async validateDraft(id: string): Promise<ValidationResult> {
     return apiClient.post(
-      `/workflows/versions/${versionId}/clone`,
+      `/workflow-drafts/${id}/validate`,
       {},
-      WorkflowVersionCloneResponseSchema,
+      ValidationResultSchema,
     );
   }
 
-  async getWorkflowVersions(
-    workflowId: string,
-    params?: PaginationParams,
+  async publishDraft(
+    id: string,
+    incrementType: "major" | "minor" | "patch",
+  ): Promise<WorkflowVersionDetailResponse> {
+    return apiClient.post(
+      `/workflow-drafts/${id}/publish`,
+      { incrementType },
+      WorkflowVersionDetailResponseSchema,
+      PublishDraftRequestSchema,
+    );
+  }
+
+  async deleteDraft(id: string): Promise<Record<string, never>> {
+    return apiClient.delete(`/workflow-drafts/${id}`, z.object({}));
+  }
+
+  async cloneDraft(id: string): Promise<WorkflowDraftCloneResponse> {
+    return apiClient.post(
+      `/workflow-drafts/${id}/clone`,
+      {},
+      WorkflowDraftCloneResponseSchema,
+    );
+  }
+
+  // --- Versions ---
+
+  async getVersions(
+    params?: WorkflowVersionPaginationParams,
   ): Promise<WorkflowVersionsResponse> {
     const validatedParams = params
-      ? PaginationParamsSchema.parse(params)
+      ? WorkflowVersionPaginationParamsSchema.parse(params)
       : undefined;
+    return apiClient.get(`/workflow-versions`, WorkflowVersionsResponseSchema, {
+      params: validatedParams,
+    });
+  }
+
+  async getVersion(id: string, includeDefinition = true, environment?: string): Promise<WorkflowVersionDetailResponse> {
+    const params: Record<string, string> = {};
+    if (includeDefinition) params.include = "definition";
+    if (environment) params.environment = environment;
+
     return apiClient.get(
-      `/workflows/${workflowId}/versions`,
-      WorkflowVersionsResponseSchema,
-      {
-        params: validatedParams,
-      },
+      `/workflow-versions/${id}`,
+      WorkflowVersionDetailResponseSchema,
+      { params },
     );
   }
 
-  async updateVersionStatus(
-    versionId: string,
-    status: "published" | "active",
-    incrementType?: VersionIncrementType,
-  ): Promise<WorkflowVersionStatusResponse> {
-    const endpoint =
-      status === "active"
-        ? `/workflows/versions/${versionId}/activate`
-        : `/workflows/versions/${versionId}/publish`;
-
-    const payload = UpdateVersionStatusRequestSchema.parse({ incrementType });
-
+  async activateVersion(
+    id: string,
+    environment: "development" | "staging" | "production",
+  ): Promise<WorkflowVersionDetailResponse> {
     return apiClient.post(
-      endpoint,
-      payload,
-      WorkflowVersionStatusResponseSchema,
+      `/workflow-versions/${id}/activate`,
+      { environment },
+      WorkflowVersionDetailResponseSchema,
+      ActivateVersionRequestSchema,
     );
   }
 
-  async deactivateWorkflowVersion(
-    versionId: string,
-  ): Promise<WorkflowVersionStatusResponse> {
+  async deactivateVersion(
+    id: string,
+    environment: "development" | "staging" | "production",
+  ): Promise<WorkflowVersionDetailResponse> {
     return apiClient.post(
-      `/workflows/versions/${versionId}/deactivate`,
+      `/workflow-versions/${id}/deactivate`,
+      { environment },
+      WorkflowVersionDetailResponseSchema,
+      DeactivateVersionRequestSchema,
+    );
+  }
+
+  async cloneVersion(id: string): Promise<WorkflowDraftCloneResponse> {
+    return apiClient.post(
+      `/workflow-versions/${id}/clone`,
       {},
-      WorkflowVersionStatusResponseSchema,
+      WorkflowDraftCloneResponseSchema,
     );
   }
 
-  async promoteWorkflowVersion(
-    versionId: string,
+  async promoteVersion(
+    id: string,
   ): Promise<WorkflowVersionPromoteResponse> {
     return apiClient.post(
-      `/workflows/versions/${versionId}/promote`,
+      `/workflow-versions/${id}/promote`,
       {},
       WorkflowVersionPromoteResponseSchema,
       undefined,

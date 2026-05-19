@@ -32,14 +32,19 @@ import PowerSettingsNewIcon from "@mui/icons-material/PowerSettingsNew";
 import ControlPointDuplicateIcon from "@mui/icons-material/ControlPointDuplicate";
 import AddIcon from "@mui/icons-material/Add";
 import ArrowUpwardIcon from "@mui/icons-material/ArrowUpward";
+import DeleteIcon from "@mui/icons-material/Delete";
 import { workflowService } from "../../api/services/workflow";
 import { useApiCall } from "../../hooks/useApiCall";
 import PageHeader from "../../components/common/PageHeader";
 import AppPagination from "../../components/common/AppPagination";
 import { useBackNavigation } from "../../hooks/useBackNavigation";
-import type { Workflow, WorkflowVersionListItem } from "../../api/schemas/workflow";
+import type { Workflow, WorkflowDraftListItem, WorkflowVersionListItem } from "../../api/schemas/workflow";
 import type { Pagination } from "../../api/schemas/common";
 import type { VersionIncrementType } from "../../api/schemas";
+
+type UnifiedVersionItem = (WorkflowDraftListItem | WorkflowVersionListItem) & {
+  isDraft: boolean;
+};
 import {
   getActiveEnvironmentType,
   type EnvironmentType,
@@ -50,7 +55,7 @@ import {
   ErrorState,
 } from "../../components/common/states";
 
-type LifecycleAction = "commit" | "activate" | "deactivate" | "clone";
+type LifecycleAction = "commit" | "activate" | "deactivate" | "clone" | "delete";
 
 const STATUS_COLORS: Record<string, { bg: string; color: string }> = {
   draft: { bg: "rgba(59,130,246,0.12)", color: "#3b82f6" },
@@ -69,21 +74,21 @@ const STATUS_LABELS: Record<string, string> = {
 const ACTION_CONFIG: Record<
   LifecycleAction,
   {
-    title: (vn: number | string) => string;
+    title: (vn: number | string | null) => string;
     body: string;
     confirmLabel: string;
     confirmColor: string;
   }
 > = {
   commit: {
-    title: (vn) => `Commit v${vn}?`,
-    body: "Locking this version marks it as ready for activation. It can no longer be edited.",
+    title: (vn) => `Commit Draft?`,
+    body: "Locking this draft marks it as ready for activation. It can no longer be edited.",
     confirmLabel: "Commit",
     confirmColor: "#f59e0b",
   },
   activate: {
     title: (vn) => `Activate v${vn}?`,
-    body: "This will make the selected version the live version for this workflow. The currently active version (if any) will be archived.",
+    body: "This will make the selected version the live version for this workflow. The currently active version (if any) will be deactivated.",
     confirmLabel: "Activate",
     confirmColor: "#22c55e",
   },
@@ -94,10 +99,16 @@ const ACTION_CONFIG: Record<
     confirmColor: "#ef4444",
   },
   clone: {
-    title: (vn) => `Clone v${vn}?`,
-    body: "This will create a new draft copy of this version so you can edit it safely without changing the original.",
+    title: (vn) => vn ? `Clone v${vn}?` : `Clone Draft?`,
+    body: "This will create a new draft copy so you can edit it safely without changing the original.",
     confirmLabel: "Clone",
     confirmColor: "#3b82f6",
+  },
+  delete: {
+    title: () => `Delete Draft?`,
+    body: "This will permanently delete the selected draft. This action cannot be undone.",
+    confirmLabel: "Delete",
+    confirmColor: "#ef4444",
   },
 };
 
@@ -143,7 +154,7 @@ export default function WorkflowVersionsPage() {
   const { goBack } = useBackNavigation("/workflows");
 
   const [workflow, setWorkflow] = useState<Workflow | null>(null);
-  const [versions, setVersions] = useState<WorkflowVersionListItem[]>([]);
+  const [versions, setVersions] = useState<UnifiedVersionItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [page, setPage] = useState(0);
@@ -152,21 +163,20 @@ export default function WorkflowVersionsPage() {
   const [hasDraftInWorkflow, setHasDraftInWorkflow] = useState(false);
 
   const [actionTarget, setActionTarget] = useState<{
-    version: WorkflowVersionListItem;
+    version: UnifiedVersionItem;
     action: LifecycleAction;
   } | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
   const [publishIncrementType, setPublishIncrementType] =
     useState<VersionIncrementType>("major");
-  const [promoteTarget, setPromoteTarget] = useState<WorkflowVersionListItem | null>(
+  const [promoteTarget, setPromoteTarget] = useState<UnifiedVersionItem | null>(
     null,
   );
   const [promoteLoading, setPromoteLoading] = useState(false);
 
   const activeEnvironmentType = getActiveEnvironmentType();
 
-  // Versions don't carry an environment field; use the parent workflow's environment
-  const workflowEnvironment = (workflow?.environment ?? activeEnvironmentType) as EnvironmentType;
+  const workflowEnvironment = activeEnvironmentType;
   const promoteSourceEnvironment = workflowEnvironment;
   const promoteDestinationEnvironment = getNextPromotionTargetEnvironment(workflowEnvironment);
 
@@ -177,20 +187,37 @@ export default function WorkflowVersionsPage() {
       setLoading(true);
 
       try {
-        const [workflowRes, versionsRes] = await Promise.all([
-          call(() => workflowService.getWorkflow(workflowId), { showError: false }),
-          call(
-            () => workflowService.getWorkflowVersions(workflowId, { page: pageNum, limit: pageSize }),
-            { showError: false },
-          ),
-        ]);
-
-        if (workflowRes) {
-          setWorkflow(workflowRes as Workflow);
-        } else {
+        const wfRes = await call(() => workflowService.getWorkflow(workflowId), { showError: false });
+        if (!wfRes) {
           goBack();
           return;
         }
+        
+        setWorkflow(wfRes as Workflow);
+        
+        const promises = [];
+        promises.push(
+          call(
+            () => workflowService.getVersions({ workflowId, page: pageNum, limit: pageSize, environment: activeEnvironmentType }),
+            { showError: false },
+          )
+        );
+
+        if (activeEnvironmentType === "development") {
+          promises.push(
+            call(
+              () => workflowService.getDrafts({ workflowId, page: pageNum, limit: pageSize }),
+              { showError: false },
+            )
+          );
+        } else {
+          promises.push(Promise.resolve(null));
+        }
+
+        const [versionsRes, draftsRes] = await Promise.all(promises);
+
+        let unified: UnifiedVersionItem[] = [];
+        let versionsPagination = null;
 
         if (versionsRes) {
           const body = versionsRes as {
@@ -198,27 +225,41 @@ export default function WorkflowVersionsPage() {
             pagination?: Pagination;
           };
           const list = body.versions ?? [];
-          setVersions(list);
-          setPagination(body.pagination ?? null);
-          setHasDraftInWorkflow(
-            list.some((v) => {
-              const st = v.status?.toLowerCase?.() ?? "";
-              return st === "draft" || st === "valid";
-            }),
-          );
+          versionsPagination = body.pagination ?? null;
+          unified = unified.concat(list.map((v) => ({ ...v, isDraft: false } as UnifiedVersionItem)));
         }
+
+        if (draftsRes) {
+          const body = draftsRes as {
+            drafts?: WorkflowDraftListItem[];
+            pagination?: Pagination;
+          };
+          const list = body.drafts ?? [];
+          unified = unified.concat(list.map((d) => ({ ...d, isDraft: true } as UnifiedVersionItem)));
+        }
+
+        unified.sort((a, b) => new Date(b.modifiedAt).getTime() - new Date(a.modifiedAt).getTime());
+
+        setVersions(unified);
+        setPagination(versionsPagination);
+        setHasDraftInWorkflow(
+          unified.some((v) => {
+            const st = v.status?.toLowerCase?.() ?? "";
+            return st === "draft" || st === "valid";
+          }),
+        );
       } finally {
         setLoading(false);
       }
     },
-    [workflowId, call, goBack],
+    [workflowId, call, goBack, activeEnvironmentType],
   );
 
   useEffect(() => {
     fetchData(page + 1, limit);
   }, [fetchData, page, limit]);
 
-  const normalizeStatus = (v: WorkflowVersionListItem) =>
+  const normalizeStatus = (v: UnifiedVersionItem) =>
     v.status?.toLowerCase?.() || "draft";
 
   const hasDraft = hasDraftInWorkflow;
@@ -235,7 +276,7 @@ export default function WorkflowVersionsPage() {
     setPage(0);
   };
 
-  const openAction = (version: WorkflowVersionListItem, action: LifecycleAction) => {
+  const openAction = (version: UnifiedVersionItem, action: LifecycleAction) => {
     setActionTarget({ version, action });
   };
 
@@ -244,7 +285,7 @@ export default function WorkflowVersionsPage() {
 
     setPromoteLoading(true);
     const promoted = await call(
-      () => workflowService.promoteWorkflowVersion(promoteTarget.id),
+      () => workflowService.promoteVersion(promoteTarget.id),
       {
         successMsg: `v${promoteTarget.version ?? "-"} promoted from ${ENV_DISPLAY[promoteSourceEnvironment]} to ${ENV_DISPLAY[promoteDestinationEnvironment]}.`,
       },
@@ -268,27 +309,26 @@ export default function WorkflowVersionsPage() {
       if (action === "commit") {
         await call(
           () =>
-            workflowService.updateVersionStatus(
+            workflowService.publishDraft(
               version.id,
-              "published",
               publishIncrementType,
             ),
           {
-            successMsg: `v${version.version ?? "-"} committed (${publishIncrementType} release).`,
+            successMsg: `Draft committed (${publishIncrementType} release).`,
           },
         );
         setActionTarget(null);
         fetchData();
       } else if (action === "activate") {
         await call(
-          () => workflowService.updateVersionStatus(version.id, "active"),
+          () => workflowService.activateVersion(version.id, activeEnvironmentType),
           { successMsg: `v${version.version ?? "-"} is now active.` },
         );
         setActionTarget(null);
         fetchData();
       } else if (action === "deactivate") {
         await call(
-          () => workflowService.updateVersionStatus(version.id, "published"),
+          () => workflowService.deactivateVersion(version.id, activeEnvironmentType),
           {
             successMsg: `v${version.version ?? "-"} deactivated and moved back to Committed.`,
           },
@@ -297,22 +337,16 @@ export default function WorkflowVersionsPage() {
         fetchData();
       } else if (action === "clone") {
         const cloned = await call(
-          () => workflowService.cloneWorkflowVersion(version.id),
-          { successMsg: `v${version.version ?? "-"} cloned as a new draft.` },
+          () => version.isDraft 
+            ? workflowService.cloneDraft(version.id)
+            : workflowService.cloneVersion(version.id),
+          { successMsg: version.version ? `v${version.version} cloned as a new draft.` : `Draft cloned as a new draft.` },
         );
 
         const clonedBody = (cloned ?? {}) as {
           id?: string;
-          versionId?: string;
-          workflowVersion?: {
-            id?: string;
-          };
         };
-        const clonedVersionId =
-          clonedBody.id ??
-          clonedBody.versionId ??
-          clonedBody.workflowVersion?.id ??
-          null;
+        const clonedVersionId = clonedBody.id ?? null;
 
         setActionTarget(null);
 
@@ -321,6 +355,13 @@ export default function WorkflowVersionsPage() {
           return;
         }
 
+        fetchData();
+      } else if (action === "delete") {
+        await call(
+          () => workflowService.deleteDraft(version.id),
+          { successMsg: `Draft deleted.` },
+        );
+        setActionTarget(null);
         fetchData();
       }
     } finally {
@@ -417,7 +458,6 @@ export default function WorkflowVersionsPage() {
                 <TableCell>Version</TableCell>
                 <TableCell>Status</TableCell>
                 <TableCell>Modified</TableCell>
-                <TableCell>Published</TableCell>
                 <TableCell align="right" sx={{ width: 140 }}>
                   Actions
                 </TableCell>
@@ -490,7 +530,7 @@ export default function WorkflowVersionsPage() {
                   const isValid = st === "valid";
                   const isCommitted = st === "published";
                   const isActive = st === "active";
-                  const canClone = isCommitted || isActive;
+                  const canClone = true;
                   // All versions in a workflow share the same environment as the parent workflow
                   const versionEnvironment = workflowEnvironment;
                   const promotionSourceEnvironment =
@@ -562,20 +602,6 @@ export default function WorkflowVersionsPage() {
                           {formatDate(v.modifiedAt)}
                         </Typography>
                       </TableCell>
-                      
-                      <TableCell>
-                        <Typography
-                          sx={{
-                            fontFamily: "'JetBrains Mono', monospace",
-                            fontSize: 11,
-                            color: "text.disabled",
-                          }}
-                        >
-                          {formatDate(v.publishedAt)}
-                        </Typography>
-                      </TableCell>
-
-
                       <TableCell align="right">
                         <Box
                           display="flex"
@@ -666,6 +692,21 @@ export default function WorkflowVersionsPage() {
                                 }}
                               >
                                 <ControlPointDuplicateIcon fontSize="small" />
+                              </IconButton>
+                            </Tooltip>
+                          )}
+
+                          {v.isDraft && (
+                            <Tooltip title="Delete draft">
+                              <IconButton
+                                size="small"
+                                onClick={(e) => { e.stopPropagation(); openAction(v, "delete"); }}
+                                sx={{
+                                  color: "text.disabled",
+                                  "&:hover": { color: "#ef4444" },
+                                }}
+                              >
+                                <DeleteIcon fontSize="small" />
                               </IconButton>
                             </Tooltip>
                           )}

@@ -36,14 +36,21 @@ import {
 const COLLAPSE_KEY = "awe_sidebar_collapsed";
 
 function isEnvironmentSwitchEnabled(pathname: string): boolean {
-  return [
+  const exactMatches = [
     "/workflows",
     "/instances",
     "/tasks",
     "/audit",
     "/dashboard",
     "/secrets",
-  ].includes(pathname);
+  ];
+  
+  if (exactMatches.includes(pathname)) return true;
+  
+  // Enable for workflow versions page: /workflows/:id/versions
+  if (pathname.match(/^\/workflows\/[^/]+\/versions$/)) return true;
+
+  return false;
 }
 
 export default function AppLayout() {

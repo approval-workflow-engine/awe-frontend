@@ -121,69 +121,62 @@ export function useBuilderActions({
     let result: ValidationResult | null = null;
 
     if (!targetVersionId) {
-      const createdVersion = await call(
+      const createdDraft = await call(
         () =>
-          workflowService.createVersion(workflowId, {
+          workflowService.createDraft({
+            workflowId,
             description: payload.description || undefined,
-            nodes: payload.nodes,
-            edges: payload.edges,
-          } as never),
+            definition: {
+              nodes: payload.nodes as any,
+              edges: payload.edges as any,
+            }
+          }),
         { showError: true },
       );
 
-      if (!createdVersion) {
+      if (!createdDraft) {
         setSaving(false);
         return false;
       }
 
       operation = "created";
-      targetVersionId = createdVersion.workflowVersion.id;
-      setSavedVersionId(createdVersion.workflowVersion.id);
-
-      if (createdVersion.workflowVersion.version !== undefined && createdVersion.workflowVersion.version !== null) {
-        setSavedVersionNumber(createdVersion.workflowVersion.version);
-        setLoadedVersionNumber(createdVersion.workflowVersion.version);
-      }
-
-      setVersionStatus(createdVersion.workflowVersion.status);
+      targetVersionId = createdDraft.id;
+      setSavedVersionId(createdDraft.id);
+      
+      setVersionStatus(createdDraft.status);
 
       result = {
-        valid: createdVersion.valid,
-        errors: createdVersion.errors,
-        warnings: createdVersion.warnings ?? [],
-        versionId: createdVersion.workflowVersion.id,
-        version:
-          createdVersion.workflowVersion.version ??
-          (savedVersionNumber === null ? undefined : savedVersionNumber),
-        status: createdVersion.workflowVersion.status,
+        valid: createdDraft.valid ?? false,
+        errors: createdDraft.errors ?? [],
+        warnings: [],
+        versionId: createdDraft.id,
       };
     } else {
       const existingVersionId = targetVersionId;
-      const updatedVersion = await call(
+      const updatedDraft = await call(
         () =>
-          workflowService.updateVersion(existingVersionId, {
+          workflowService.updateDraft(existingVersionId, {
             description: payload.description ?? null,
-            nodes: payload.nodes,
-            edges: payload.edges,
-          } as never),
+            definition: {
+              nodes: payload.nodes as any,
+              edges: payload.edges as any,
+            }
+          }),
         { showError: true },
       );
 
-      if (!updatedVersion) {
+      if (!updatedDraft) {
         setSaving(false);
         return false;
       }
 
       result = {
-        valid: updatedVersion.valid,
-        errors: updatedVersion.errors,
-        warnings: updatedVersion.warnings ?? [],
+        valid: updatedDraft.valid ?? false,
+        errors: updatedDraft.errors ?? [],
+        warnings: [],
         versionId: existingVersionId,
-        version:
-          savedVersionNumber === null ? undefined : savedVersionNumber,
-        status: updatedVersion.workflowVersion.status,
       };
-      setVersionStatus(updatedVersion.workflowVersion.status);
+      setVersionStatus(updatedDraft.status);
     }
 
     if (!result || !targetVersionId) {
@@ -213,16 +206,27 @@ export function useBuilderActions({
   };
 
   const handleValidateDefinition = async () => {
-    setValidating(true);
+    let id = savedVersionId;
+    if (!id) {
+      const saved = await handleSaveDraft();
+      if (!saved || !savedVersionId) return;
+      // We need the new id (handleSaveDraft updates the ref in react asynchronously, 
+      // but it also sets it. To be safe, we might just rely on the side effects,
+      // but let's just show saving took place. Actually handleSaveDraft already validates!
+      return; 
+    }
 
-    const payload = canvasToVersionPayload(nodes, edges);
+    setValidating(true);
+    
+    // Auto-save first
+    const saved = await handleSaveDraft();
+    if (!saved) {
+      setValidating(false);
+      return;
+    }
+
     const response = await call<ValidationResult>(
-      () =>
-        workflowService.validateWorkflow({
-          description: payload.description ?? null,
-          nodes: payload.nodes,
-          edges: payload.edges,
-        }),
+      () => workflowService.validateDraft(id as string),
       { showError: true },
     );
 
@@ -233,13 +237,8 @@ export function useBuilderActions({
         warnings: [],
       }),
       warnings: response?.warnings ?? [],
-      versionId: savedVersionId ?? undefined,
-      version: savedVersionNumber ?? undefined,
+      versionId: id,
     };
-
-    if (response?.workflowVersion?.status) {
-      setVersionStatus(response.workflowVersion.status);
-    }
 
     setValidationResult(result);
     setErrorsPopoverOpen(!result.valid);
@@ -260,13 +259,12 @@ export function useBuilderActions({
     setCommitting(true);
     const res = await call(
       () =>
-        workflowService.updateVersionStatus(
+        workflowService.publishDraft(
           savedVersionId,
-          "published",
           incrementType,
         ),
       {
-        successMsg: `version${savedVersionNumber ?? ""} committed (${incrementType} release).`,
+        successMsg: `Draft committed (${incrementType} release).`,
         showError: true,
       },
     );
@@ -279,12 +277,16 @@ export function useBuilderActions({
 
   const handleActivate = async () => {
     if (!savedVersionId || !workflowId) return;
+    
+    // We need an environment for activate. For now we use active env, but typically you should know what env.
+    const { getActiveEnvironmentType } = await import("../../../../constants/environment");
+    const activeEnv = getActiveEnvironmentType();
 
     setActivating(true);
     const res = await call(
-      () => workflowService.updateVersionStatus(savedVersionId, "active"),
+      () => workflowService.activateVersion(savedVersionId, activeEnv),
       {
-        successMsg: `v${savedVersionNumber ?? "-"} is now active.`,
+        successMsg: `v${savedVersionNumber ?? "-"} is now active in ${activeEnv}.`,
         showError: true,
       },
     );
@@ -300,14 +302,16 @@ export function useBuilderActions({
     incrementType: VersionIncrementType,
   ) => {
     if (!savedVersionId || !workflowId) return;
+    
+    const { getActiveEnvironmentType } = await import("../../../../constants/environment");
+    const activeEnv = getActiveEnvironmentType();
 
     setReleasing(true);
 
     const committed = await call(
       () =>
-        workflowService.updateVersionStatus(
+        workflowService.publishDraft(
           savedVersionId,
-          "published",
           incrementType,
         ),
       {
@@ -323,9 +327,9 @@ export function useBuilderActions({
     applyStatusResponse(committed);
 
     const activated = await call(
-      () => workflowService.updateVersionStatus(savedVersionId, "active"),
+      () => workflowService.activateVersion(committed.id, activeEnv),
       {
-        successMsg: `v${savedVersionNumber ?? "-"} committed and activated.`,
+        successMsg: `v${committed.version ?? "-"} committed and activated.`,
         showError: true,
       },
     );
@@ -340,10 +344,13 @@ export function useBuilderActions({
 
   const handleDeactivate = async () => {
     if (!savedVersionId) return;
+    
+    const { getActiveEnvironmentType } = await import("../../../../constants/environment");
+    const activeEnv = getActiveEnvironmentType();
 
     setDeactivating(true);
     const res = await call(
-      () => workflowService.deactivateWorkflowVersion(savedVersionId),
+      () => workflowService.deactivateVersion(savedVersionId, activeEnv),
       {
         successMsg: `v${savedVersionNumber ?? "-"} deactivated.`,
         showError: true,
