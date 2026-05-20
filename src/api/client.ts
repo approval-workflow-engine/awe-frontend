@@ -6,7 +6,7 @@ import axios, {
 } from "axios";
 import { z } from "zod";
 import { TOKEN_KEYS } from "../constants/tokens";
-import { API_BASE_URL } from "./baseUrl";
+import { API_BASE_URL } from "../constants/baseUrl";
 import {
   DEFAULT_ENVIRONMENT,
   getActiveEnvironmentType,
@@ -297,12 +297,12 @@ class ApiClient {
       let message = "Request failed";
 
       if (data && typeof data === "object") {
-        if ("message" in data && typeof (data as any).message === "string" && (data as any).message.trim() !== "") {
-          message = (data as any).message;
-        } else if ("error" in data && typeof (data as any).error === "string" && (data as any).error.trim() !== "") {
-          message = (data as any).error;
-        } else if ("detail" in data && typeof (data as any).detail === "string" && (data as any).detail.trim() !== "") {
-          message = (data as any).detail;
+        if ("message" in data && typeof (data).message === "string" && (data).message.trim() !== "") {
+          message = (data).message;
+        } else if ("error" in data && typeof (data).error === "string" && (data).error.trim() !== "") {
+          message = (data).error;
+        } else if ("detail" in data && typeof (data).detail === "string" && (data).detail.trim() !== "") {
+          message = (data).detail;
         } else {
           try {
             message = JSON.stringify(data);
